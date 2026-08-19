@@ -68,9 +68,9 @@ An agent thinks and it acts. Thinking is text. Acting is a tool call. A static a
 
 ```mermaid
 flowchart TD
-    A([Agent tool call]) --> PEP[PEP · intercept the call]
-    PEP --> PDP{PDP · evaluate}
-    subgraph PDP evaluation
+    A([Proposed tool call]) --> PEP[PEP · intercept before the tool runs]
+    PEP --> PDP{PDP · evaluate · pre-tool}
+    subgraph PDP["PDP evaluation · pre-tool call"]
       ATOMS[Atoms<br/>polarity-free facts] --> EDGES[Edges<br/>polarity + strength]
       EDGES --> CTRL[Controls<br/>carry the effect]
       CTRL --> ROLL[Rollup<br/>deny-overrides · max support and contradiction]
@@ -83,6 +83,8 @@ flowchart TD
     JUDGE -->|low confidence / retry cap| HUMAN([Escalate to human])
     ENF --> OUT([allow · deny · escalate])
 ```
+
+PDP evaluate is a pre-tool call. The tool has not run yet. Pre-tool call goes to atoms. A contradiction the rollup cannot settle goes to the box.
 
 This ordering is design intent, not a forced path. Today a tool call meets the allowlist and runs. It does not have to enter the atom plane, does not have to enter the box, and does not pay a judge.
 
