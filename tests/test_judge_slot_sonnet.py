@@ -4,6 +4,7 @@ test_judge_slot_sonnet.py — J1 Sonnet cage wiring (mocked transport).
 Author:  Landen Stecker
 Date:    2026-07-13
 """
+
 from __future__ import annotations
 
 import json

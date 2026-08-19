@@ -21,8 +21,9 @@ DEST="$HERMES_HOME/plugins/aegis-atoms"
 # Prefer an explicit venv; fall back to live Hermes venv (not HERMES_HOME scratch).
 PY="${HERMES_VENV:-$HOME/.hermes/hermes-agent/venv}/bin/python"
 CONFIG="$HERMES_HOME/config.yaml"
-VAULT="${OBSIDIAN_VAULT_PATH:-/mnt/c/Users/lande/Documents/Obsidian Vault/The_Boswell_Archive}"
+VAULT="${OBSIDIAN_VAULT_PATH:-}"
 SKIP_SMOKE="${AEGIS_INSTALL_SKIP_SMOKE:-0}"
+# Catalog: vault when OBSIDIAN_VAULT_PATH is set; else the bundled copy in this tree.
 
 # Provenance is stamped from the source plugin tree's git, not a parent monorepo tip.
 GIT_ROOT="$SRC"
@@ -40,7 +41,14 @@ $(git -C "$GIT_ROOT" status --porcelain | head -40)"
 fi
 
 [[ -x "$PY" ]] || die "Hermes venv python not found: $PY"
-[[ -f "$VAULT/Agent/Policy/Aegis-Atoms-v0.yaml" ]] || die "Vault catalog missing: $VAULT/Agent/Policy/Aegis-Atoms-v0.yaml"
+CATALOG=""
+if [[ -n "$VAULT" && -f "$VAULT/Agent/Policy/Aegis-Atoms-v0.yaml" ]]; then
+  CATALOG="$VAULT/Agent/Policy/Aegis-Atoms-v0.yaml"
+elif [[ -f "$SRC/Aegis-Atoms-v0.bundle.yaml" ]]; then
+  CATALOG="$SRC/Aegis-Atoms-v0.bundle.yaml"
+else
+  die "No catalog: set OBSIDIAN_VAULT_PATH or ship Aegis-Atoms-v0.bundle.yaml in this tree"
+fi
 
 COMMIT="$(git -C "$GIT_ROOT" rev-parse HEAD)"
 BRANCH="$(git -C "$GIT_ROOT" rev-parse --abbrev-ref HEAD)"
@@ -67,7 +75,7 @@ for f in "$SRC"/*.py "$SRC"/*.yaml; do
 done
 shopt -u nullglob
 
-cp "$VAULT/Agent/Policy/Aegis-Atoms-v0.yaml" "$DEST/Aegis-Atoms-v0.bundle.yaml"
+cp "$CATALOG" "$DEST/Aegis-Atoms-v0.bundle.yaml"
 
 cat >"$DEST/PROVENANCE" <<EOF
 # aegis-atoms install provenance — do not edit by hand

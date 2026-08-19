@@ -4,6 +4,7 @@ Emit J3 property-fuzzer evidence: apply-path 10k + observe-path 10k.
 Author:  Landen Stecker
 Date:    2026-08-19
 """
+
 from __future__ import annotations
 
 import json

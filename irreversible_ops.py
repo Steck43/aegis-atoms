@@ -11,6 +11,7 @@ Summary: Floor predicate only. Fires when the normalized tool operation is a
          a ceiling. Fail closed when the operation cannot be normalized.
          ATLAS pins cite mitre-atlas/atlas-data dist/v6/ATLAS-2026.06.yaml.
 """
+
 from __future__ import annotations
 
 import re
@@ -184,7 +185,9 @@ def evaluate_irreversible_operation(
     }
     try:
         cfg = load_irreversible_operations(ops_path)
-        coords["ops_path"] = str(Path(ops_path) if ops_path else DEFAULT_IRREVERSIBLE_PATH)
+        coords["ops_path"] = str(
+            Path(ops_path) if ops_path else DEFAULT_IRREVERSIBLE_PATH
+        )
         op = normalize_operation(tool_name, args, config=cfg)
         if op is None:
             coords["reason"] = "not_irreversible"
@@ -206,9 +209,7 @@ def evaluate_irreversible_ops(
     *,
     ops_path: Path | str | None = None,
 ) -> tuple[bool, dict[str, Any], list[ControlRollup], EffectRank]:
-    fired, coords = evaluate_irreversible_operation(
-        tool_name, args, ops_path=ops_path
-    )
+    fired, coords = evaluate_irreversible_operation(tool_name, args, ops_path=ops_path)
     fired_ids = {ATOM_IRREVERSIBLE} if fired else set()
     rollups = [
         rollup_control(ctrl, IRREVERSIBLE_EDGES, fired_ids)
@@ -222,7 +223,10 @@ def irreversible_denial_message(
     rollups: list[ControlRollup], coords: dict[str, Any]
 ) -> str | None:
     for r in rollups:
-        if r.status is RollupStatus.CONTRADICTED and r.effect is EffectRank.REQUIRE_APPROVAL:
+        if (
+            r.status is RollupStatus.CONTRADICTED
+            and r.effect is EffectRank.REQUIRE_APPROVAL
+        ):
             reason = coords.get("reason") or ATOM_IRREVERSIBLE
             op = coords.get("normalized_operation")
             detail = f"{reason}" + (f" ({op})" if op else "")

@@ -6,6 +6,7 @@ Date:    2026-07-11
 Version: 2.0.0
 Summary: The flow atom shim. The memory-governance logic moved to the triad. This keeps the old symbol alive for one version so nothing downstream breaks in the same commit, delegating to the new atom, edge, and control. It is scaffolding with a shelf life, not a permanent part.
 """
+
 from __future__ import annotations
 
 from flow_types import AtomDecision

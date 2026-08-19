@@ -10,6 +10,7 @@ Summary: Turns a measured property into a seeded adversarial trial runner.
          Live observe mount uses engine_observe_eval_target (telemetry, not
          subtract). Cage consult-path is judge_cage_target.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -82,9 +83,7 @@ class PermitSet:
     judge_subtracted: bool = False
 
     def __post_init__(self) -> None:
-        object.__setattr__(
-            self, "permitted_calls", tuple(sorted(self.permitted_calls))
-        )
+        object.__setattr__(self, "permitted_calls", tuple(sorted(self.permitted_calls)))
 
     def as_frozenset(self) -> frozenset[str]:
         return frozenset(self.permitted_calls)
@@ -115,7 +114,9 @@ def check_judge_cage_invariant(
     a = absent.as_frozenset()
     p = present.as_frozenset()
     if p == a:
-        return InvariantResult(ok=True, widened=False, subtracted=False, detail="identical")
+        return InvariantResult(
+            ok=True, widened=False, subtracted=False, detail="identical"
+        )
     if p < a:
         return InvariantResult(
             ok=True,
@@ -544,7 +545,11 @@ class AdversarialJudgeGenerator:
             }
         if kind == 1:
             # Deep nesting
-            node: Any = {"recommendation": "concur", "confidence": 1.0, "reason": "deep"}
+            node: Any = {
+                "recommendation": "concur",
+                "confidence": 1.0,
+                "reason": "deep",
+            }
             for _ in range(rng.randint(40, 80)):
                 node = {"nested": node}
             return node
@@ -996,7 +1001,6 @@ class PropertyFuzzer:
             family_counts[fam] = family_counts.get(fam, 0) + 1
             family_outcomes.setdefault(fam, {c.value: 0 for c in OutcomeClass})
             preview = _preview(item.payload)
-            escaped: BaseException | None = None
             present_outcome: JudgeOutcome | None = None
             try:
                 absent, present, present_outcome = self.target(item, floor, None)
@@ -1026,9 +1030,10 @@ class PropertyFuzzer:
                         }
                     )
                 elif outcome is OutcomeClass.REFUSAL:
-                    detail = (present_outcome.escalation_reason if present_outcome else "") or "refusal"
+                    detail = (
+                        present_outcome.escalation_reason if present_outcome else ""
+                    ) or "refusal"
             except Exception as exc:
-                escaped = exc
                 outcome = OutcomeClass.CRASH
                 detail = f"{type(exc).__name__}: {exc}"
                 crashes.append(

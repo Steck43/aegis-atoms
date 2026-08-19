@@ -4,6 +4,7 @@ test_judge_adversarial.py — J2 containment suite.
 Author:  Landen Stecker
 Date:    2026-07-13
 """
+
 from __future__ import annotations
 
 from pathlib import Path

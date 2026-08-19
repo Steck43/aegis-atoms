@@ -8,6 +8,7 @@ Version: 1.0.0
 Summary: Reads config.yaml, plugin manifests, and agent.log. Does not infer
          tools from names alone. Emits a JSON report for A1 baseline seeding.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -42,9 +43,7 @@ _DEST_PATTERNS = [
     re.compile(r"\b([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b"),
 ]
 
-_LOG_TS = re.compile(
-    r"^(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2})"
-)
+_LOG_TS = re.compile(r"^(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2})")
 
 
 def _load_yaml(path: Path) -> Any:
@@ -82,10 +81,19 @@ def tools_from_config(config_path: Path) -> dict[str, Any]:
                     found[bucket].extend(f"{plat}:{x}" for x in val)
     agent = data.get("agent") or {}
     if isinstance(agent, dict):
-        for key in ("enabled_toolsets", "disabled_toolsets", "enabled_tools", "disabled_tools"):
+        for key in (
+            "enabled_toolsets",
+            "disabled_toolsets",
+            "enabled_tools",
+            "disabled_tools",
+        ):
             val = agent.get(key)
             if isinstance(val, list):
-                k = f"agent.{key}" if key.endswith("toolsets") or key.endswith("tools") else key
+                k = (
+                    f"agent.{key}"
+                    if key.endswith("toolsets") or key.endswith("tools")
+                    else key
+                )
                 if k not in found:
                     found[k] = []
                 found[k] = [str(x) for x in val]
@@ -96,7 +104,11 @@ def tools_from_config(config_path: Path) -> dict[str, Any]:
             found["plugins.list"] = [str(x) for x in enabled]
     elif isinstance(plugins, list):
         found["plugins.list"] = [str(x) for x in plugins]
-    return {"path": str(config_path), "raw_keys": sorted((data or {}).keys()), "entries": found}
+    return {
+        "path": str(config_path),
+        "raw_keys": sorted((data or {}).keys()),
+        "entries": found,
+    }
 
 
 def tools_from_plugin_manifests(plugins_root: Path) -> list[dict[str, Any]]:
@@ -260,7 +272,9 @@ def main() -> int:
 
     log = hh / "logs" / "agent.log"
     if log.is_file():
-        report["sources"]["agent_log"] = parse_log_window(log, days=args.days, as_of=as_of)
+        report["sources"]["agent_log"] = parse_log_window(
+            log, days=args.days, as_of=as_of
+        )
     else:
         report["sources"]["agent_log"] = {"error": f"missing {log}"}
 

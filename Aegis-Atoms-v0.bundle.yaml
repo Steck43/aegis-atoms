@@ -205,7 +205,7 @@ atoms:
         - "CONFIDENTIAL"
         - "NDA"
         - "Incom Corporation"
-      clean_path_markers: ["Job_Search", "LinkedIn", "cover", "resume", "website/"]
+      clean_path_markers: ["career-export", "LinkedIn", "cover", "resume", "website/"]
     relaxations:
         downgrade_effect: monitor
     control:

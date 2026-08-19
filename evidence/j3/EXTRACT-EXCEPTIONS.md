@@ -2,7 +2,11 @@
 
 Author: Landen Stecker. Date: 2026-08-19.
 
-Staging `rg` for client-name / host-home / LAN IP / paid-model env-var name is empty except the **environment variable name** (no values) in:
+Re-derived from `git ls-files` on the public extract (not the 2026-08-19 false-done receipt).
+
+`publish_gate` HOST_PATH worktree scan: **empty** on this tip after the 2026-08-19 scrub.
+
+Environment **variable names** (no values) remain in:
 
 - `__init__.py`
 - `judge_slot_sonnet.py`
@@ -10,4 +14,4 @@ Staging `rg` for client-name / host-home / LAN IP / paid-model env-var name is e
 - `scripts/j1_live_model_pin.py`
 - `scripts/j3_live_sample.py`
 
-Client catalog atoms and the ingest lane stay in the Hermes-fork tree. This copy uses `restricted-ingest`.
+Client catalog atoms and the ingest lane stay in the Hermes-fork tree. This copy uses `restricted-ingest`. CIE sibling tests are not in this extract (`tests/test_cie_observation_aggregate.py` dropped — `parents[2]/aegis-compounding` cannot collect here).

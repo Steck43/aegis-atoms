@@ -211,7 +211,11 @@ def test_c2_fail_closed_when_parser_raises(monkeypatch):
 
 
 def test_c1_c2_catalog_edges_and_controls_registered():
-    from action_gating import ACTION_GATING_ATOMS, ACTION_GATING_EDGES, ACTION_GATING_CONTROLS
+    from action_gating import (
+        ACTION_GATING_ATOMS,
+        ACTION_GATING_EDGES,
+        ACTION_GATING_CONTROLS,
+    )
     from triad_types import Polarity, Strength, EffectRank, EnforcementMode
 
     ids = {a.atom_id for a in ACTION_GATING_ATOMS}

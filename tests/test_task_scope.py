@@ -4,6 +4,7 @@ test_task_scope.py — Atom 2: destination scope vs declared task.
 Author:  Landen Stecker
 Date:    2026-07-13
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -78,7 +79,10 @@ def test_unclassifiable_destination_fail_closed():
         env={},
     )
     assert fired is True
-    assert coords.get("fail_closed") is True or coords.get("reason") == "destination_scope_unclassified"
+    assert (
+        coords.get("fail_closed") is True
+        or coords.get("reason") == "destination_scope_unclassified"
+    )
 
 
 def test_production_path_not_downgraded_by_staging_token_in_name():

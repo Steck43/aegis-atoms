@@ -17,7 +17,7 @@ tools:
     declared_destinations:
     - mcp.craft.do
     description_hash: 90e80dfe3defec23e562de634528e590cf033ba56a9b9ca04b96e92a91980f8d
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/browser_tool.py
+    description_source: tools/browser_tool.py
   browser_cdp:
     version: 1.0.0
     declared_destinations:
@@ -29,81 +29,81 @@ tools:
     declared_destinations:
     - mcp.craft.do
     description_hash: 773e3401f1c2e91c47e7971a1c5effa623f7cde02f0e92e40b70526c208b8cc6
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/browser_tool.py
+    description_source: tools/browser_tool.py
   browser_console:
     version: 1.0.0
     declared_destinations:
     - mcp.craft.do
     description_hash: 8266666b93fb3611dbf0060234c04ccb3e324cac53cd54369a1959fe31b17bf3
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/browser_tool.py
+    description_source: tools/browser_tool.py
   browser_dialog:
     version: 1.0.0
     declared_destinations:
     - mcp.craft.do
     description_hash: 981d485a392582e0c339c3bef5e14d6d3278e36f100f8bfe75bc03fdecdd7276
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/browser_dialog_tool.py
+    description_source: tools/browser_dialog_tool.py
   browser_get_images:
     version: 1.0.0
     declared_destinations:
     - mcp.craft.do
     description_hash: f21055172ba5f5890b8081e75f1fa0b69d2be7c18c0a8ebe08e35c44a2dee878
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/browser_tool.py
+    description_source: tools/browser_tool.py
   browser_navigate:
     version: 1.0.0
     declared_destinations:
     - mcp.craft.do
     description_hash: dcb5c63d410a283d341b4e740644cfba1fb955b790144c5227f10f104c626c6d
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/browser_tool.py
+    description_source: tools/browser_tool.py
   browser_press:
     version: 1.0.0
     declared_destinations:
     - mcp.craft.do
     description_hash: da7c35408f76219adf6769282caaaec704cd41f629d78a4f7277e8962601279c
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/browser_tool.py
+    description_source: tools/browser_tool.py
   browser_scroll:
     version: 1.0.0
     declared_destinations:
     - mcp.craft.do
     description_hash: 3e7615b74ef659e6910beae3818cc702e38d07a64381e84cb65b395b3a941f10
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/browser_tool.py
+    description_source: tools/browser_tool.py
   browser_snapshot:
     version: 1.0.0
     declared_destinations:
     - mcp.craft.do
     description_hash: 64b1c6e4a816faa06cd674ae9e5ebaf325f83f8bcdb162c40c255d0378d8b2df
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/browser_tool.py
+    description_source: tools/browser_tool.py
   browser_type:
     version: 1.0.0
     declared_destinations:
     - mcp.craft.do
     description_hash: a1a1bffc74fac4a7f8cb3f7433cae870011124cc460832652ce888ecd564bebd
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/browser_tool.py
+    description_source: tools/browser_tool.py
   browser_vision:
     version: 1.0.0
     declared_destinations:
     - mcp.craft.do
     description_hash: 5952a9c15d364fa8b7dace84a6731db210e30f0f223b8ceb42d860a9f39c7f08
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/browser_tool.py
+    description_source: tools/browser_tool.py
   clarify:
     version: 1.0.0
     declared_destinations: []
     description_hash: 101ec36c7807f39f4dc68b76610cdf7a88ac16259d48a95e317107b98d9d9877
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/clarify_tool.py
+    description_source: tools/clarify_tool.py
   computer_use:
     version: 1.0.0
     declared_destinations: []
     description_hash: 4f031e0d5daad536ccd56ef732d398189a8682de0a464670b0a8271a1720ee01
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/computer_use/schema.py
+    description_source: tools/computer_use/schema.py
   cronjob:
     version: 1.0.0
     declared_destinations: []
     description_hash: 2b69479dc41c9a67ac0962b26a5fe919aefca5b58595bba9a8947a2d20ee816f
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/cronjob_tools.py
+    description_source: tools/cronjob_tools.py
   delegate_task:
     version: 1.0.0
     declared_destinations: []
     description_hash: dc93918b0af366ad0cae81875f191cc8697d992a0a2a64e9c6dd4253e61609f8
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/delegate_tool.py
+    description_source: tools/delegate_tool.py
   execute_code:
     version: 1.0.0
     declared_destinations: []
@@ -113,133 +113,133 @@ tools:
     version: 1.0.0
     declared_destinations: []
     description_hash: d6851e787f52ae1bb182caa0983a75eeccb0ec0edcf2aa4218ee7b45d0e080e0
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/homeassistant_tool.py
+    description_source: tools/homeassistant_tool.py
   ha_get_state:
     version: 1.0.0
     declared_destinations: []
     description_hash: 1a9bb41f001d3bad0ccd120b82ac7364bd19a3b18d942e30516881f93767f1d0
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/homeassistant_tool.py
+    description_source: tools/homeassistant_tool.py
   ha_list_entities:
     version: 1.0.0
     declared_destinations: []
     description_hash: dfb19babb46f994a3e3f6728f2dcfafb14a2344922a0b28032fa351aeb4032bc
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/homeassistant_tool.py
+    description_source: tools/homeassistant_tool.py
   ha_list_services:
     version: 1.0.0
     declared_destinations: []
     description_hash: afc39277410ae62b6180a8c0272511d65af275afc429c82ca2f6dac59e945f9e
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/homeassistant_tool.py
+    description_source: tools/homeassistant_tool.py
   honcho_conclude:
     version: 1.0.0
     declared_destinations: []
     description_hash: 35998793b9d84d00961403415aeb9ff4ba5d0381f05159b9b969f8fe2a037315
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/plugins/memory/honcho/__init__.py
+    description_source: plugins/memory/honcho/__init__.py
   honcho_context:
     version: 1.0.0
     declared_destinations: []
     description_hash: 42fb5631e13bca84f089931124d1c6e6b79a0e6d1097b8f3c7b6aafaef52297a
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/plugins/memory/honcho/__init__.py
+    description_source: plugins/memory/honcho/__init__.py
   honcho_profile:
     version: 1.0.0
     declared_destinations: []
     description_hash: 0b61c72c6ac19d1a7f0a395be9e2d08f7f756582b415d5e0d1f1e500e7bb60e4
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/plugins/memory/honcho/__init__.py
+    description_source: plugins/memory/honcho/__init__.py
   honcho_reasoning:
     version: 1.0.0
     declared_destinations: []
     description_hash: 4caa25581ccbf3a2a8b9ab2132f67974a310bda28cca8c170714b174674a889e
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/plugins/memory/honcho/__init__.py
+    description_source: plugins/memory/honcho/__init__.py
   honcho_search:
     version: 1.0.0
     declared_destinations: []
     description_hash: 966b788fee253e4578aa5db66d374e28f6a9f4b43045e2ef9cef5c6d4f3f1e9a
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/plugins/memory/honcho/__init__.py
+    description_source: plugins/memory/honcho/__init__.py
   image_generate:
     version: 1.0.0
     declared_destinations: []
     description_hash: bae8edfe174c56b03617c8065ad3ac1700d55e2a111d0f76e2564ce3cff9c799
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/image_generation_tool.py
+    description_source: tools/image_generation_tool.py
   kanban_block:
     version: 1.0.0
     declared_destinations: []
     description_hash: a746de33ca8798118515ae40399fd68ed7d8f42bdf8d7af98fb3025ccafddd9d
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/kanban_tools.py
+    description_source: tools/kanban_tools.py
   kanban_comment:
     version: 1.0.0
     declared_destinations: []
     description_hash: 5970b709d75089778acef66b0f2e7223eb3efce29154a925fc80427aaa76647a
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/kanban_tools.py
+    description_source: tools/kanban_tools.py
   kanban_complete:
     version: 1.0.0
     declared_destinations: []
     description_hash: 01404cc98802c28bc022c9773c0fe923be649585bd11815772b74986d5e40b47
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/kanban_tools.py
+    description_source: tools/kanban_tools.py
   kanban_create:
     version: 1.0.0
     declared_destinations: []
     description_hash: a1fed48c37bca7aa1c530a5800ddbd71194817944d6817b3fd27eae465c61a3d
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/kanban_tools.py
+    description_source: tools/kanban_tools.py
   kanban_heartbeat:
     version: 1.0.0
     declared_destinations: []
     description_hash: d6dac42d1d865025cdc332117dcd63fb92cdb93563a69528bea65d850a259051
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/kanban_tools.py
+    description_source: tools/kanban_tools.py
   kanban_link:
     version: 1.0.0
     declared_destinations: []
     description_hash: 39be2cb19a5a751ab7bad809e7ee734599f315ff675534c43b621c33c1559d48
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/kanban_tools.py
+    description_source: tools/kanban_tools.py
   kanban_list:
     version: 1.0.0
     declared_destinations: []
     description_hash: 0989ca5134d7ad3b1808365b39159ed23bd73acebe37219956789f108ff91472
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/kanban_tools.py
+    description_source: tools/kanban_tools.py
   kanban_show:
     version: 1.0.0
     declared_destinations: []
     description_hash: 660308b23ab374d57c364de41763a39b983faaf2c59c92b5577f1a03e9d1fe9e
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/kanban_tools.py
+    description_source: tools/kanban_tools.py
   kanban_unblock:
     version: 1.0.0
     declared_destinations: []
     description_hash: 005aa041be88d074e009398e360f55069df54ca96d065aeb691df0aab9d62a91
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/kanban_tools.py
+    description_source: tools/kanban_tools.py
   memory:
     version: 1.0.0
     declared_destinations: []
     description_hash: 007e7f5286936a85e84c4e7e50bbdabdfee9f73a93083cb993392c0dce32c0f5
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/memory_tool.py
+    description_source: tools/memory_tool.py
   patch:
     version: 1.0.0
     declared_destinations: []
     description_hash: 74c70876ea754836143d3d74d5a43d07a6521a7f8566577ddd888c562fcd404d
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/file_tools.py
+    description_source: tools/file_tools.py
   process:
     version: 1.0.0
     declared_destinations: []
     description_hash: 6cc66d373d7fcf847daed655a1a876d2be51d35106809cea88c3541bfeffa7a7
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/process_registry.py
+    description_source: tools/process_registry.py
   read_file:
     version: 1.0.0
     declared_destinations: []
     description_hash: 44259ab16e0b7c740d620a1f853d46d17264749111b94b7efb572dd6e9dd4e70
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/file_tools.py
+    description_source: tools/file_tools.py
   search_files:
     version: 1.0.0
     declared_destinations: []
     description_hash: cc103111426d1eeaa85488b653769c56bb16b6afe4fe56a71434a7332ac7072b
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/file_tools.py
+    description_source: tools/file_tools.py
   send_message:
     version: 1.0.0
     declared_destinations:
     - mcp.craft.do
     description_hash: 8050a95d4b3afb4b096016c3f535eaacf534f420765800dbdcaf4f71ca1d2e04
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/send_message_tool.py
+    description_source: tools/send_message_tool.py
   session_search:
     version: 1.0.0
     declared_destinations: []
     description_hash: 5f9adfbba475094a4d2f407ba44074246ff1917acd94b75b3d67c0ea702ae959
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/session_search_tool.py
+    description_source: tools/session_search_tool.py
   skill_manage:
     version: 1.0.0
     declared_destinations: []
@@ -249,12 +249,12 @@ tools:
     version: 1.0.0
     declared_destinations: []
     description_hash: d1af9dcf75512032e2b493744bc7d6e8aa283a3c817fca3677c25cf9587f32d6
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/skills_tool.py
+    description_source: tools/skills_tool.py
   skills_list:
     version: 1.0.0
     declared_destinations: []
     description_hash: 8cec811139020378bf270ad2f4ef01ee019471009bb63897f7cc4f6cf96a4746
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/skills_tool.py
+    description_source: tools/skills_tool.py
   terminal:
     version: 1.0.0
     declared_destinations: []
@@ -264,31 +264,31 @@ tools:
     version: 1.0.0
     declared_destinations: []
     description_hash: 11f9b975086ec4a2f11a1092d7959ec7f032d03730ff92b8a489def2309e4f50
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/tts_tool.py
+    description_source: tools/tts_tool.py
   todo:
     version: 1.0.0
     declared_destinations: []
     description_hash: c784f08091eae99e5cbf6b22d1b8f7a502355b344f3fc1a5367bf3d7f57700cb
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/todo_tool.py
+    description_source: tools/todo_tool.py
   vision_analyze:
     version: 1.0.0
     declared_destinations: []
     description_hash: 2a4639eb2acab81d225fa497ef67414b556e207d4efba718bb6e2947fdc4fba2
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/vision_tools.py
+    description_source: tools/vision_tools.py
   web_extract:
     version: 1.0.0
     declared_destinations:
     - mcp.craft.do
     description_hash: a437986972237e11071185c425c6774e34f5fa33a8be70e1a16f34a2ab6c700a
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/web_tools.py
+    description_source: tools/web_tools.py
   web_search:
     version: 1.0.0
     declared_destinations:
     - mcp.craft.do
     description_hash: fe3148f5ce816694a3ed5fb3f74a6ecdfa02e64373ac3106a6cdfe6224d22bbc
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/web_tools.py
+    description_source: tools/web_tools.py
   write_file:
     version: 1.0.0
     declared_destinations: []
     description_hash: 54b75c0d90d292707b5fabb35755cb4a56053fe95952c2b8be2122f722371a5e
-    description_source: /mnt/c/Users/lande/Engineering_and_Development/hermes-agent/tools/file_tools.py
+    description_source: tools/file_tools.py

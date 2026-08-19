@@ -1,4 +1,5 @@
 """B1 — judge audit spine tests. No network."""
+
 from __future__ import annotations
 
 import json
@@ -10,7 +11,6 @@ from judge_audit import (
     SONNET5_PRICE_TABLE,
     AuditStore,
     ModelCallUsage,
-    CycleAuditRecord,
     main,
     sample_record,
 )
@@ -32,7 +32,10 @@ def test_model_call_requires_identity():
 def test_cost_recomputable_from_tokens():
     pt = SONNET5_PRICE_TABLE
     # 1M in + 1M out + 0 thinking = $2 + $10 = $12 intro
-    assert pt.cost_usd(tokens_in=1_000_000, tokens_out=1_000_000, thinking_tokens=0) == 12.0
+    assert (
+        pt.cost_usd(tokens_in=1_000_000, tokens_out=1_000_000, thinking_tokens=0)
+        == 12.0
+    )
     # thinking bills as output
     assert pt.cost_usd(tokens_in=0, tokens_out=0, thinking_tokens=1_000_000) == 10.0
 

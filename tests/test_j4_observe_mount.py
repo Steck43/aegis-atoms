@@ -4,6 +4,7 @@ test_j4_observe_mount.py — SETTLE3 j4live=A observe telemetry mount.
 Author:  Landen Stecker
 Date:    2026-07-18
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -78,10 +79,6 @@ def test_pre_tool_observe_mount_does_not_block(tmp_path, monkeypatch):
         sys.path.insert(0, str(root))
     init = importlib.import_module("__init__")
 
-    env = {
-        "HERMES_HOME": str(tmp_path),
-        "OBSIDIAN_VAULT_PATH": str(tmp_path / "vault"),
-    }
     (tmp_path / "vault" / "Agent").mkdir(parents=True, exist_ok=True)
     # Minimal vault marker so _resolve_vault can work if needed
     (tmp_path / "vault" / "Agent_Learning_Map.md").write_text("x\n", encoding="utf-8")

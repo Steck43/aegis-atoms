@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
 """Extract tool schema descriptions from hermes-agent tools/ via light parsing."""
+
 from __future__ import annotations
 
 import ast
 import hashlib
 import json
-import re
+import os
 from pathlib import Path
 
-REPO = Path("/mnt/c/Users/lande/Engineering_and_Development/hermes-agent")
-OUT = Path(
-    "/mnt/c/Users/lande/Engineering_and_Development/hermes-agent/"
-    "aegis-plugins/aegis-atoms/artifacts/a1-tool-descriptions.json"
-)
+REPO = Path(os.environ.get("HERMES_AGENT_ROOT", ".")).resolve()
+OUT = Path(os.environ.get("A1_DESCRIPTIONS_OUT", "artifacts/a1-tool-descriptions.json"))
 
 
 def sha(s: str) -> str:
@@ -55,11 +53,7 @@ def scan_file(path: Path) -> dict[str, str]:
             found.update(from_dict_assign(node))
         # registry.register( name="x", schema={...})
         if isinstance(node, ast.Call):
-            kwargs = {
-                k.arg: k.value
-                for k in node.keywords
-                if k.arg
-            }
+            kwargs = {k.arg: k.value for k in node.keywords if k.arg}
             name = None
             if "name" in kwargs and isinstance(kwargs["name"], ast.Constant):
                 name = kwargs["name"].value
@@ -69,7 +63,8 @@ def scan_file(path: Path) -> dict[str, str]:
                 if name in d:
                     found[name] = d[name]
                 elif "description" in {
-                    (k.value if isinstance(k, ast.Constant) else None) for k in schema.keys
+                    (k.value if isinstance(k, ast.Constant) else None)
+                    for k in schema.keys
                 }:
                     # description at schema level with separate name kw
                     for k, v in zip(schema.keys, schema.values):
@@ -98,7 +93,7 @@ def main() -> None:
                     "description_hash": sha(desc),
                     "source": str(py),
                 }
-    OUT.write_text(json.dumps(all_desc, indent=2) + "\n")
+    OUT.write_text(json.dumps(all_desc, indent=2) + "\n", encoding="utf-8")
     print(f"wrote {OUT} count={len(all_desc)}")
 
 

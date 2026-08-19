@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Seed approved_tools.yaml + floor_tool_baseline.yaml from A1 enumeration."""
+
 from __future__ import annotations
 
 import json
@@ -30,9 +31,7 @@ def main() -> None:
         entry: dict = {"version": "1.0.0", "declared_destinations": []}
         if name in descs:
             entry["description_hash"] = descs[name]["description_hash"]
-            entry["description_source"] = descs[name]["source"].replace(
-                "\\", "/"
-            )
+            entry["description_source"] = descs[name]["source"].replace("\\", "/")
         else:
             # Honest unpinned pin: hash of literal UNPINNED so integrity fails
             # closed until Landen pins a real description.
@@ -41,8 +40,10 @@ def main() -> None:
             unpinned.append(name)
         # Craft MCP host is a declared destination for any MCP-shaped tool;
         # attach only to tools that are network-facing by name class.
-        if name.startswith("web_") or name.startswith("browser_") or name.startswith(
-            "mcp_"
+        if (
+            name.startswith("web_")
+            or name.startswith("browser_")
+            or name.startswith("mcp_")
         ):
             entry["declared_destinations"] = list(destinations)
         if name == "send_message":

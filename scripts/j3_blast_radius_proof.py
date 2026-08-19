@@ -5,6 +5,7 @@ The one safety fact: auto-permits are derived only from floor EffectRank and
 cage escalate/flag/nuance — never from reason text or extra payload fields.
 If that fact fails, the fuzzer's green checks are worthless.
 """
+
 from __future__ import annotations
 
 import sys
@@ -17,10 +18,8 @@ from property_fuzzer import (
     CALL_ID,
     Family,
     GeneratedJudgeOutput,
-    OutcomeClass,
     check_judge_cage_invariant,
     judge_cage_target,
-    permit_from_outcome,
 )
 from triad_types import EffectRank
 

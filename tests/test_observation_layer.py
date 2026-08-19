@@ -11,10 +11,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 
 from engine import Firing, evaluate_tool_call, load_catalog
-from triad_types import TrustDomain
 
 
 def _firing(**overrides) -> Firing:
@@ -91,9 +89,7 @@ def test_structural_atom_logs_confidence_one(tmp_path: Path):
         allowed_roots=[str(tmp_path / "allowed")],
     )
     structural = [
-        f
-        for f in result.firings
-        if f.atom_id.startswith("atoms.tool_invocation.")
+        f for f in result.firings if f.atom_id.startswith("atoms.tool_invocation.")
     ]
     assert structural
     for f in structural:
@@ -129,9 +125,7 @@ def test_content_atom_logs_real_confidence_below_one(tmp_path: Path):
         content_trust_domain="retrieved_content",
     )
     content = [
-        f
-        for f in result.firings
-        if f.atom_id == "atoms.injection.indirect_marker"
+        f for f in result.firings if f.atom_id == "atoms.injection.indirect_marker"
     ]
     assert content
     assert content[0].confidence < 1.0
@@ -141,11 +135,16 @@ def test_content_atom_logs_real_confidence_below_one(tmp_path: Path):
     assert content[0].ambiguity == "contradicted"
 
 
-def test_evaluation_id_is_cycle_scoped_shared_across_firings_in_one_call(tmp_path: Path):
+def test_evaluation_id_is_cycle_scoped_shared_across_firings_in_one_call(
+    tmp_path: Path,
+):
     # One tool call is one decision cycle and all its firings share this id.
     catalog = load_catalog(
         Path(__file__).resolve().parents[1] / "catalog" / "Aegis-Atoms-v0.yaml",
-        {"HERMES_HOME": str(tmp_path / "hermes"), "OBSIDIAN_VAULT_PATH": str(tmp_path / "vault")},
+        {
+            "HERMES_HOME": str(tmp_path / "hermes"),
+            "OBSIDIAN_VAULT_PATH": str(tmp_path / "vault"),
+        },
     )
     hermes = tmp_path / "hermes"
     hermes.mkdir()

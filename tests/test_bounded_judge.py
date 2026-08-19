@@ -12,7 +12,6 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-import pytest
 
 from triad_types import EffectRank, RollupStatus
 
@@ -25,7 +24,6 @@ def test_judge_never_overrides_floor_allow_to_block():
         JudgeOpinion,
         JudgeRecommendation,
         apply_judge,
-        judge_slot_stub,
     )
 
     floor = EffectRank.ALLOW
@@ -45,9 +43,7 @@ def test_judge_never_overrides_floor_allow_to_block():
                     reason="stub exhaustive",
                 )
 
-            outcome = apply_judge(
-                floor, case, slot, threshold=0.0, cap=3
-            )
+            outcome = apply_judge(floor, case, slot, threshold=0.0, cap=3)
             assert outcome.floor_verdict is floor
             assert outcome.floor_verdict is not EffectRank.BLOCK
 
@@ -76,9 +72,7 @@ def test_judge_never_overrides_floor_block_to_allow():
                     reason="stub exhaustive",
                 )
 
-            outcome = apply_judge(
-                floor, case, slot, threshold=0.0, cap=3
-            )
+            outcome = apply_judge(floor, case, slot, threshold=0.0, cap=3)
             assert outcome.floor_verdict is floor
             assert outcome.floor_verdict is not EffectRank.ALLOW
 
@@ -169,7 +163,10 @@ def test_locked_atoms_not_reopened_by_judge():
             reason="nuance only",
         )
 
-    locked = ["atoms.memory.secret_origin_to_durable_sink", "atoms.supply_chain.tool_integrity_unverified"]
+    locked = [
+        "atoms.memory.secret_origin_to_durable_sink",
+        "atoms.supply_chain.tool_integrity_unverified",
+    ]
     case = {
         "ambiguous": True,
         "rollup_status": RollupStatus.CONFLICTING.value,
@@ -209,9 +206,7 @@ def test_retry_cap_escalates_after_three_low_confidence():
         "evaluation_id": "retry-cycle",
         "security_relevant": True,
     }
-    outcome = apply_judge(
-        EffectRank.ALLOW, case, low_conf_slot, threshold=0.9, cap=3
-    )
+    outcome = apply_judge(EffectRank.ALLOW, case, low_conf_slot, threshold=0.9, cap=3)
     assert calls["n"] == 3
     assert outcome.retries_used == 3
     assert outcome.escalated is True
@@ -236,9 +231,11 @@ def test_slot_raise_escalates_to_hitl_returns_floor_verdict():
     assert outcome.escalated is True
     assert outcome.floor_verdict is EffectRank.BLOCK
     assert outcome.opinion is None
-    assert "slot" in (outcome.escalation_reason or "").lower() or "raise" in (
-        outcome.escalation_reason or ""
-    ).lower() or "error" in (outcome.escalation_reason or "").lower()
+    assert (
+        "slot" in (outcome.escalation_reason or "").lower()
+        or "raise" in (outcome.escalation_reason or "").lower()
+        or "error" in (outcome.escalation_reason or "").lower()
+    )
 
 
 def test_malformed_opinion_escalates_not_acts():

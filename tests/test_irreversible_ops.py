@@ -4,11 +4,11 @@ test_irreversible_ops.py — Atom 1: declared irreversible operation membership.
 Author:  Landen Stecker
 Date:    2026-07-13
 """
+
 from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 
 from adversarial_suite import floor_coverage, run_suite, summarize
 from triad_types import EffectRank
@@ -32,7 +32,9 @@ def test_atom_carries_no_effect_or_framework():
     from irreversible_ops import IRREVERSIBLE_ATOMS
 
     atom = IRREVERSIBLE_ATOMS[0]
-    assert atom.atom_id == "atoms.tool_invocation.operation_in_declared_irreversible_set"
+    assert (
+        atom.atom_id == "atoms.tool_invocation.operation_in_declared_irreversible_set"
+    )
     assert "effect" not in atom.__dataclass_fields__
     assert "framework_mappings" not in atom.__dataclass_fields__
 
@@ -52,9 +54,7 @@ def test_control_is_require_approval_not_block():
 def test_delete_file_fires():
     from irreversible_ops import evaluate_irreversible_operation
 
-    fired, coords = evaluate_irreversible_operation(
-        "delete_file", {"path": "/tmp/x"}
-    )
+    fired, coords = evaluate_irreversible_operation("delete_file", {"path": "/tmp/x"})
     assert fired is True
     assert coords.get("normalized_operation") == "delete"
     assert coords.get("reason") == "operation_in_declared_irreversible_set"
@@ -63,9 +63,7 @@ def test_delete_file_fires():
 def test_read_file_does_not_fire():
     from irreversible_ops import evaluate_irreversible_operation
 
-    fired, coords = evaluate_irreversible_operation(
-        "read_file", {"path": "/tmp/x"}
-    )
+    fired, coords = evaluate_irreversible_operation("read_file", {"path": "/tmp/x"})
     assert fired is False
     assert coords.get("reason") == "not_irreversible"
 

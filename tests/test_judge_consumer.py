@@ -4,6 +4,7 @@ test_judge_consumer.py — J4 subtract-only consumer (SETTLE2 A / AEG-16).
 Author:  Landen Stecker
 Date:    2026-07-18
 """
+
 from __future__ import annotations
 
 from bounded_judge import JudgeOpinion, JudgeOutcome, JudgeRecommendation

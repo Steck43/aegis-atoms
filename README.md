@@ -13,7 +13,7 @@ Summary: Public README for aegis-atoms — atom plane plus bounded judge (observ
 
 The floor decides. The judge doubts. The box contains. The audit attests.
 
-![floor coverage](https://img.shields.io/badge/floor%20coverage-7%2F16%20hard--deny-1f6feb)
+![Atoms harness](https://img.shields.io/badge/Atoms%20harness-7%2F16%20hard--deny-1f6feb)
 ![mode](https://img.shields.io/badge/mode-observe-informational)
 ![python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![status](https://img.shields.io/badge/status-observe%20research%20build-blueviolet)
@@ -22,9 +22,9 @@ The floor decides. The judge doubts. The box contains. The audit attests.
 
 ---
 
-CLAIM: this tree is the **atom plane** and a **bounded judge mounted observe**. The live allowlist on `profiles/aegis` is **capability-gate**, a separate roof. BREAK: do not read this README as “the judge is live” or “atoms enforce tool calls.” Live `__init__.py` passes `judge_apply_verdict=False`. The triad plugin is **not mounted**. Most catalog atoms are **dormant**. `irreversible_ops_enabled` is not passed (engine default False).
+CLAIM: this tree is the **atom plane** plus a **bounded judge, source-present**. The live allowlist on `profiles/aegis` is **capability-gate**, a separate roof. BREAK: do not read this README as “the judge is live,” “the triad plugin is mounted,” or “atoms enforce tool calls.” Callers in this extract pass `judge_apply_verdict=False`. The triad plugin is **not mounted**. Most catalog atoms are **dormant**. `irreversible_ops_enabled` is not passed (engine default False). Live observe mount, if any, is the Hermes profile plugin — not this GitHub roof.
 
-Inventory: **28** root Python modules, **30** evidence directories, two receipted 10k runs (apply subtract + observe telemetry). No line-count in this file.
+Inventory: **28** root Python modules, **2** evidence directories (`evidence`, `evidence/j3`), two receipted 10k runs (apply subtract + observe telemetry). No line-count in this file.
 
 ## Four-plane authority
 
@@ -35,7 +35,7 @@ That sentence is from the containment topic, quoted verbatim. This repository is
 | Plane | Where it lives | Grade here |
 |---|---|---|
 | Floor (allowlist) | `Steck43/capability-gate` on `profiles/aegis` | live enforce — **not this repo** |
-| Floor (atom plane) | this tree | source-present; plugin loaded **observe** |
+| Floor (atom plane) | this tree | source-present; not mounted on this roof |
 | Judge | this tree (`bounded_judge.py`, J3) | consumer exists; **apply_verdict=False** |
 | Box | separate Rust tree | not consumed by this plugin |
 | Audit | vault ledger | not shipped in git |
@@ -65,7 +65,7 @@ flowchart TD
     ENF --> OUT([allow · deny · escalate])
 ```
 
-Observe means consult + telemetry. The engine can compute a subtract and then discard it when `judge_apply_verdict` is False. That is the live mount. Apply-path proofs use a separate fuzzer receipt with `plugin_mode=enforce`.
+Observe means consult + telemetry. The engine can compute a subtract and then discard it when `judge_apply_verdict` is False. That is how the **Hermes profile plugin** is wired; this public extract is source-present, not a live mount. Apply-path proofs use a separate fuzzer receipt with `plugin_mode=enforce`.
 
 ## The three-object model
 
@@ -88,7 +88,7 @@ Observe means consult + telemetry. The engine can compute a subtract and then di
 
 Two harnesses. Do not collapse the numbers.
 
-**Adversarial suite (atoms KPI):** **7/16** hard-deny. H1 is `HALTED` via `require_approval` and is not in the numerator. Total suite cases: 18 (16 attack + benign). Fixture-era 8/16 is not the live KPI.
+**Adversarial suite (atoms KPI):** **7/16** hard-deny from `adversarial_suite.ALL_CASES` (**18** callables). Breakdown pinned in `tests/test_adversarial_suite.py`: 16 attack (`CAUGHT-NAIVE=7`, `FALSE-ALLOW=8`, `HALTED=1` for H1 — H1 is in the 16, not in the hard-deny numerator) + 2 benign (`CORRECT-ALLOW=1`, `FALSE-DENY=1`). Fixture-era 8/16 is not the live KPI.
 
 **CG Stage-1 lab** is a different harness on the capability-gate roof. Name which suite when you cite a tally.
 
@@ -96,7 +96,7 @@ Framework mappings reference OWASP (LLM & Agentic Top 10), MITRE ATLAS `v2026.06
 
 ## The bounded judge
 
-The judge can concur, flag, or add nuance. It cannot issue a floor verdict and cannot override the deterministic floor. Live mount: `judge_apply_verdict=False`. Receipts: `evidence/j3/j3-property-10k.json` (apply) and `evidence/j3/j3-observe-telemetry-10k.json` (observe).
+The judge can concur, flag, or add nuance. It cannot issue a floor verdict and cannot override the deterministic floor. Source-present wiring: `judge_apply_verdict=False`. Receipts: `evidence/j3/j3-property-10k.json` (apply) and `evidence/j3/j3-observe-telemetry-10k.json` (observe).
 
 Engine default if a caller omits `judge_apply_verdict` is `True`. That is a footgun. This plugin does not omit it. Do not flip the default without a Landen GO.
 

@@ -210,9 +210,7 @@ def test_coverage_excludes_false_deny_attack_from_numerator():
     assert report.attack_total == 3
     assert report.covered == 1
     attack_ids = {
-        r.case_id
-        for r in results
-        if r.ground_truth.strip().lower().startswith("deny")
+        r.case_id for r in results if r.ground_truth.strip().lower().startswith("deny")
     }
     covered_ids = {
         r.case_id
@@ -223,7 +221,6 @@ def test_coverage_excludes_false_deny_attack_from_numerator():
     assert "X2" in attack_ids
     assert "X2" not in covered_ids
     assert report.covered == len(covered_ids)
-
 
 
 def test_coverage_and_false_positive_are_separate_numbers(results):

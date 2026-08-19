@@ -5,6 +5,7 @@ Safety fact: with judge_enabled True and a hostile slot that emits allow/block
 smuggling, evaluate_tool_call's winning_effect and block_message stay identical
 to judge_enabled False. If that fails, the cage wire widened the floor.
 """
+
 from __future__ import annotations
 
 import json

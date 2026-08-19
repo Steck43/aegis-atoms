@@ -4,6 +4,7 @@ test_judge_budget.py — J1a budget guard.
 Author:  Landen Stecker
 Date:    2026-07-13
 """
+
 from __future__ import annotations
 
 import pytest

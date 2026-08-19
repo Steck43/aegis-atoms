@@ -5,6 +5,7 @@ Author:  Landen Stecker
 Date:    2026-07-12
 Version: 1.0.0
 """
+
 from __future__ import annotations
 
 from pathlib import Path

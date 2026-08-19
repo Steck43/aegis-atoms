@@ -1,0 +1,4 @@
+# Floor CI runs `ruff check .` then `ruff format --check .`.
+# Scripts insert this tree on sys.path before importing local modules.
+[lint.per-file-ignores]
+"scripts/*.py" = ["E402"]

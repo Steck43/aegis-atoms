@@ -4,11 +4,11 @@ Emit J2 adversarial + DoW + dry-run cost evidence.
 Author:  Landen Stecker
 Date:    2026-07-13
 """
+
 from __future__ import annotations
 
 import json
 import sys
-from dataclasses import asdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -53,7 +53,11 @@ def dry_run_cost_report(n: int = 20) -> dict:
     # Reconstruct would-be cost from authorize estimates stored as drifts? dry_run
     # does not record_issue — compute from status calls_authorized * mean est via
     # re-estimate.
-    from judge_slot_sonnet import SYSTEM_POLICY, estimate_input_tokens, MAX_OUTPUT_TOKENS
+    from judge_slot_sonnet import (
+        SYSTEM_POLICY,
+        estimate_input_tokens,
+        MAX_OUTPUT_TOKENS,
+    )
 
     sample_in = estimate_input_tokens(SYSTEM_POLICY + "sizing")
     est = budget.estimate(

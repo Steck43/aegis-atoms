@@ -9,7 +9,7 @@ TDD: FlowAtom refactored to memory-governance triad (Surface 3).
 
 from __future__ import annotations
 
-from flow_types import OriginClass, SinkClass
+from flow_types import OriginClass
 from session_context import SessionContext, ToolCallView, sink_class_for_tool
 from triad_types import EffectRank, Polarity, Strength, AtomType, EnforcementMode
 
@@ -76,9 +76,7 @@ def test_memory_rollup_contradicted_is_block():
     from triad_types import RollupStatus
 
     ctx = _ctx_with(OriginClass.SECRET)
-    fired, _coords, rollups, combined = evaluate_memory_flow(
-        _sink("write_file"), ctx
-    )
+    fired, _coords, rollups, combined = evaluate_memory_flow(_sink("write_file"), ctx)
     assert fired is True
     assert combined is EffectRank.BLOCK
     assert any(r.status is RollupStatus.CONTRADICTED for r in rollups)

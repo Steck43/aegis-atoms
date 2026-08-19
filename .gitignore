@@ -75,9 +75,6 @@ Thumbs.db
 
 
 # Point-in-time backups of live config — never track.
-# Untracked 2026-08-17: both carried a live 43-char webhook secret (line 679)
-# for the local listener on 127.0.0.1:8644. Secret is committed in history.
-# HARD GATE: purge history before this repo is ever made public.
 live-config.yaml.*
 profile-aegis-config.yaml.*
 *-config.yaml.2[0-9][0-9][0-9]*

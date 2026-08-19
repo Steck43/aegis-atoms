@@ -6,6 +6,7 @@ Date:    2026-07-11
 Version: 1.0.0
 Summary: The three-object model. An atom is a fact with no opinion. An edge maps that fact to a control and carries the polarity and the strength. A control carries the effect. Keeping them separate is the whole point, because the moment an atom carries its own effect it stops being reusable and becomes a decision. The rollup combines them deny-overrides, any contradiction wins, and the effect lattice makes an allow that outranks a block impossible to express.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

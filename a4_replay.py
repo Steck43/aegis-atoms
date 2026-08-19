@@ -9,6 +9,7 @@ Summary: Machine-readable replays. Each fixture cites a primary source, lists
          must still fire. Fail-closed: a step that cannot map to an observable
          fact is reported partial, never stubbed to pass.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -361,7 +362,9 @@ def fixture_gemini_cli(tmp: Path) -> FixtureReport:
     ]
     # Reword: different destructive path still outside + delete_file tool
     f3, c3 = evaluate_path_outside_root("/root/.ssh/id_rsa", allowed_roots=allowed)
-    f4, c4 = evaluate_irreversible_operation("delete_file", {"path": "/root/.ssh/id_rsa"})
+    f4, c4 = evaluate_irreversible_operation(
+        "delete_file", {"path": "/root/.ssh/id_rsa"}
+    )
     reword_ok = f3 is True and f4 is True
     return FixtureReport(
         fixture_id="A4-Gemini-1178",
