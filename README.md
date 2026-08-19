@@ -88,7 +88,7 @@ Observe means consult + telemetry. The engine can compute a subtract and then di
 
 Two harnesses. Do not collapse the numbers.
 
-**Adversarial suite (atoms KPI):** **7/16** hard-deny from `adversarial_suite.ALL_CASES` (**18** callables). Breakdown pinned in `tests/test_adversarial_suite.py`: 16 attack (`CAUGHT-NAIVE=7`, `FALSE-ALLOW=8`, `HALTED=1` for H1 — H1 is in the 16, not in the hard-deny numerator) + 2 benign (`CORRECT-ALLOW=1`, `FALSE-DENY=1`). Fixture-era 8/16 is not the live KPI.
+**Adversarial suite (atoms KPI):** **7/16** hard-deny from `adversarial_suite.ALL_CASES` (**18** callables). Breakdown pinned in `tests/test_adversarial_suite.py`: 16 attack (`CAUGHT-NAIVE=7`, `FALSE-ALLOW=8`, `HALTED=1` for H1; H1 is in the 16, not in the hard-deny numerator) + 2 benign (`CORRECT-ALLOW=1`, `FALSE-DENY=1`). Fixture-era 8/16 is not the live KPI.
 
 **CG Stage-1 lab** is a different harness on the capability-gate roof. Name which suite when you cite a tally.
 
