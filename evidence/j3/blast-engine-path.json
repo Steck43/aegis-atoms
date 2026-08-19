@@ -1,0 +1,25 @@
+{
+  "safety_fact": "evaluate_tool_call winning_effect and block_message are identical with hostile judge vs no judge (engine discards JudgeOutcome)",
+  "engine_comment_line": "engine.py:815",
+  "proof_level": 4,
+  "ok": true,
+  "failures": [],
+  "rows": [
+    {
+      "case": "deny_identity_write",
+      "absent_effect": "block",
+      "present_effect": "block",
+      "absent_block": "[aegis-atoms] Blocked by atom.resource.write_hermes_identity_hot: Hot identity is human-owned \u2014 use seed scripts or explicit Tier C approval. (default deny on risky effect.)",
+      "present_block": "[aegis-atoms] Blocked by atom.resource.write_hermes_identity_hot: Hot identity is human-owned \u2014 use seed scripts or explicit Tier C approval. (default deny on risky effect.)",
+      "identical": true
+    },
+    {
+      "case": "allow_vault_read",
+      "absent_effect": null,
+      "present_effect": null,
+      "absent_block": null,
+      "present_block": null,
+      "identical": true
+    }
+  ]
+}

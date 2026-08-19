@@ -1,0 +1,56 @@
+# Declared task scopes for
+# atoms.tool_invocation.destination_scope_exceeds_task_declaration.
+#
+# Author:  Landen Stecker
+# Date:    2026-07-13
+# Version: 1.0.0
+# Summary: Explicit scope classification and per-task allowlists. Never inferred.
+#          Motivating incident: AIID 1469 staging task + production volume delete.
+
+version: "1.0.0"
+
+scopes:
+  local:
+    incident_source: "baseline local/dev workspace"
+    path_prefixes:
+      - "${HERMES_HOME}"
+      - "${TERMINAL_CWD}"
+    host_suffixes: []
+    resource_classes: []
+  staging:
+    incident_source: "AIID 1469 Cursor/PocketOS — staging task scope"
+    path_prefixes:
+      - "/staging"
+      - "/var/staging"
+      - "${STAGING_ROOT}"
+    host_suffixes:
+      - ".staging.internal"
+      - ".stg.example.com"
+    resource_classes:
+      - staging_volume
+      - staging_db
+  production:
+    incident_source: "AIID 1469 production volume deleted from staging task"
+    path_prefixes:
+      - "/production"
+      - "/prod"
+      - "/var/lib/production"
+      - "${PRODUCTION_ROOT}"
+    host_suffixes:
+      - ".prod.internal"
+      - ".production.example.com"
+    resource_classes:
+      - production_volume
+      - production_db
+      - production_backup
+
+tasks:
+  default_local:
+    allowed_scopes: [local]
+    incident_source: "default when no task id supplied in tests"
+  staging_cleanup:
+    allowed_scopes: [staging, local]
+    incident_source: "AIID 1469 — staging task must not authorize production"
+  production_ops:
+    allowed_scopes: [production, staging, local]
+    incident_source: "explicit production-authorized task"

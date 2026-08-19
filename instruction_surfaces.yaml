@@ -1,0 +1,78 @@
+# Declared instruction-reachable surfaces for Aegis memory atom
+# atoms.memory.write_target_is_instruction_surface.
+#
+# Author:  Landen Stecker
+# Date:    2026-07-12
+# Version: 1.0.0
+# Summary: Explicit enumeration only. Never inferred. Each entry cites the
+#          Hermes loader that reads the path into model instruction context.
+#          Authority: agent/system_prompt.py + agent/prompt_builder.py +
+#          tools/memory_tool.py + cron/scheduler.py (explore 2026-07-12).
+
+# Paths under HERMES_HOME (absolute once hermes_home is bound).
+hermes_home_files:
+  - path: SOUL.md
+    source: agent/prompt_builder.py::load_soul_md
+    role: identity
+  - path: memories/MEMORY.md
+    source: tools/memory_tool.py::MemoryStore.load_from_disk
+    role: frozen_memory
+  - path: memories/USER.md
+    source: tools/memory_tool.py::MemoryStore.load_from_disk
+    role: frozen_user_profile
+  - path: config.yaml
+    source: gateway/run.py::_load_ephemeral_system_prompt; cli.py (agent.system_prompt)
+    role: ephemeral_system_prompt_and_skill_dirs
+  - path: .skills_prompt_snapshot.json
+    source: agent/prompt_builder.py::_load_skills_snapshot
+    role: skills_index_cache
+
+# Glob patterns under HERMES_HOME (POSIX, relative).
+hermes_home_globs:
+  - pattern: skills/**/SKILL.md
+    source: agent/prompt_builder.py::build_skills_system_prompt
+    role: skills_index_or_full_body
+  - pattern: skills/**/DESCRIPTION.md
+    source: agent/prompt_builder.py::build_skills_system_prompt
+    role: skills_category_index
+
+# Project context under agent CWD / TERMINAL_CWD (first-wins chain in Hermes).
+cwd_files:
+  - path: .hermes.md
+    source: agent/prompt_builder.py::_load_hermes_md
+  - path: HERMES.md
+    source: agent/prompt_builder.py::_load_hermes_md
+  - path: AGENTS.md
+    source: agent/prompt_builder.py::_load_agents_md
+  - path: agents.md
+    source: agent/prompt_builder.py::_load_agents_md
+  - path: CLAUDE.md
+    source: agent/prompt_builder.py::_load_claude_md
+  - path: claude.md
+    source: agent/prompt_builder.py::_load_claude_md
+  - path: .cursorrules
+    source: agent/prompt_builder.py::_load_cursorrules
+
+cwd_globs:
+  - pattern: .cursor/rules/*.mdc
+    source: agent/prompt_builder.py::_load_cursorrules
+
+# Cron instruction surfaces (cron sessions only; still instruction-reachable).
+cron_files:
+  - path: cron/jobs.json
+    source: cron/scheduler.py::_build_job_prompt
+    role: cron_job_prompt_skills_script
+
+cron_globs:
+  - pattern: cron/output/**/*.md
+    source: cron/scheduler.py::_build_job_prompt
+    role: context_from_prior_job
+
+# Explicitly NOT in the instruction-reachable set for this atom (orphans / non-loaders).
+retired_or_not_loaded:
+  - path: USER.md
+    note: Root orphan; MemoryStore reads memories/USER.md only
+  - path: MEMORY.md
+    note: Root orphan; MemoryStore reads memories/MEMORY.md only
+  - path: HEARTBEAT.md
+    note: No Hermes loader found 2026-07-12

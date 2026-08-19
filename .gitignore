@@ -1,0 +1,83 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+.venv/
+venv/
+env/
+
+# Secrets and credentials — never stage
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+credentials/
+**/secrets/**
+**/credentials/**
+
+# Identity / hot-tier memory (if ever copied here)
+SOUL.md
+USER.md
+MEMORY.md
+memories/
+
+# Local config and runtime
+config.yaml
+config.yaml.*
+*.local.yaml
+*.local.json
+
+# Real vault / host data
+vault/
+Obsidian*/
+**/The_Boswell_Archive/**
+
+# Run artifacts and harness outputs with possible secret values
+artifacts/
+proof-runs/
+*.log
+*.jsonl
+!fixtures/**/*.jsonl
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
+
+# Caches and temp
+*.tmp
+*.bak
+*.orig
+.cache/
+.worktrees/
+
+# Cursor local IDE state
+.cursor/
+
+
+# Point-in-time backups of live config — never track.
+# Untracked 2026-08-17: both carried a live 43-char webhook secret (line 679)
+# for the local listener on 127.0.0.1:8644. Secret is committed in history.
+# HARD GATE: purge history before this repo is ever made public.
+live-config.yaml.*
+profile-aegis-config.yaml.*
+*-config.yaml.2[0-9][0-9][0-9]*

@@ -1,0 +1,86 @@
+# Declared irreversible operations for
+# atoms.tool_invocation.operation_in_declared_irreversible_set.
+#
+# Author:  Landen Stecker
+# Date:    2026-07-13
+# Version: 1.0.0
+# Summary: Explicit enumeration only. Never inferred. Each entry cites the
+#          corpus incident that motivated membership. Novel destructive
+#          commands not listed pass — residual is the containment box.
+
+version: "1.0.0"
+
+# Match kinds:
+#   tool_names — tool_name lowercased equals one of values
+#   tool_name_suffixes — tool_name ends with suffix (e.g. _delete)
+#   command_substrings — terminal/shell command contains substring (casefold)
+#   command_patterns — regex against command (casefold)
+
+operations:
+  - id: delete
+    match:
+      kind: tool_names
+      values:
+        - delete_file
+        - delete
+        - unlink
+        - remove_file
+        - files_delete
+    incident_source: "AIID 1152 Replit prod-DB wipe; AIID 1469 Cursor/PocketOS delete; AIID 1542 OpenClaw email mass-delete"
+  - id: drop
+    match:
+      kind: tool_names
+      values:
+        - drop_table
+        - drop_database
+        - drop_schema
+    incident_source: "AIID 1152 Replit prod-DB wipe (drop/truncate class)"
+  - id: truncate
+    match:
+      kind: tool_names
+      values:
+        - truncate
+        - truncate_table
+    incident_source: "AIID 1152 Replit prod-DB wipe (truncate class)"
+  - id: destroy
+    match:
+      kind: tool_names
+      values:
+        - destroy
+        - destroy_resource
+        - volume_delete
+        - delete_volume
+        - backup_delete
+        - delete_backup
+    incident_source: "AIID 1469 Cursor/PocketOS volume delete; AIID 1424 Claude Code terraform destroy class"
+  - id: terraform_destroy
+    match:
+      kind: command_substrings
+      values:
+        - "terraform destroy"
+        - "tofu destroy"
+    incident_source: "AIID 1424 Claude Code terraform destroy"
+  - id: rm_recursive_force
+    match:
+      kind: command_patterns
+      values:
+        - "\\brm\\b[^\\n]*(-[a-zA-Z]*r[a-zA-Z]*f|-rf|-fr)\\b"
+        - "\\brm\\b[^\\n]*(-[a-zA-Z]*f[a-zA-Z]*r)\\b"
+    incident_source: "AIID 1178 Gemini CLI destructive; AIID 1469 recursive delete class"
+  - id: mass_delete_by_query
+    match:
+      kind: tool_names
+      values:
+        - mass_delete
+        - bulk_delete
+        - delete_by_query
+        - email_mass_delete
+    incident_source: "AIID 1542 OpenClaw email mass-delete"
+  - id: drop_sql_command
+    match:
+      kind: command_substrings
+      values:
+        - "drop table"
+        - "drop database"
+        - "truncate table"
+    incident_source: "AIID 1152 Replit prod-DB wipe (SQL form)"

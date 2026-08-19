@@ -1,0 +1,63 @@
+# Floor tool baseline from A1. Author: Landen Stecker. 2026-07-12.
+meta:
+  author: Landen Stecker
+  date: '2026-07-12'
+  version: 1.0.0
+  summary: Static floor allowed_tools seeded from A1 declared set.
+allowed_tools:
+- browser_back
+- browser_cdp
+- browser_click
+- browser_console
+- browser_dialog
+- browser_get_images
+- browser_navigate
+- browser_press
+- browser_scroll
+- browser_snapshot
+- browser_type
+- browser_vision
+- clarify
+- computer_use
+- cronjob
+- delegate_task
+- execute_code
+- ha_call_service
+- ha_get_state
+- ha_list_entities
+- ha_list_services
+- honcho_conclude
+- honcho_context
+- honcho_profile
+- honcho_reasoning
+- honcho_search
+- image_generate
+- kanban_block
+- kanban_comment
+- kanban_complete
+- kanban_create
+- kanban_heartbeat
+- kanban_link
+- kanban_list
+- kanban_show
+- kanban_unblock
+- memory
+- patch
+- process
+- read_file
+- search_files
+- send_message
+- session_search
+- skill_manage
+- skill_view
+- skills_list
+- terminal
+- text_to_speech
+- todo
+- vision_analyze
+- web_extract
+- web_search
+- write_file
+denied_tools: []
+declared_destinations:
+- mcp.craft.do

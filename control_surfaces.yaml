@@ -1,0 +1,57 @@
+# Declared control-plane surfaces for
+# atoms.memory.write_target_is_control_surface.
+#
+# Author:  Landen Stecker
+# Date:    2026-07-13
+# Version: 1.0.0
+# Summary: Files that govern confirmation gates, sandbox flags, tool permissions,
+#          plugin enabled lists, and hook registration. Sibling of
+#          instruction_surfaces.yaml. Sources: Craft ASI05 config-overwrite→RCE
+#          examples; CVE-2026-25253 OpenClaw control-plane (Craft 9577aa29…).
+#          Note: Craft search found no AML.CS0050 case-study id; CVE + ASI05 pinned.
+
+version: "1.0.0"
+
+hermes_home_files:
+  - path: config.yaml
+    source: "hermes_cli/config.py; gateway/run.py"
+    role: primary_runtime_config
+    incident_source: "Craft ASI05 Cursor config overwrite → RCE; P1c gate-self-rewrite"
+  - path: auth.json
+    source: "credential store under HERMES_HOME"
+    role: credentials
+    incident_source: "CVE-2026-25253 OpenClaw auth-token theft → RCE (Craft SonicWall)"
+  - path: plugins/enabled.json
+    source: "plugin enablement list"
+    role: plugin_enabled_list
+    incident_source: "P1c — gate cannot guard its own rewrite"
+
+hermes_home_globs:
+  - pattern: "plugins/*/plugin.yaml"
+    source: "plugin manifests (hooks, tools)"
+    role: plugin_manifest
+    incident_source: "CVE-2026-25253 control-plane / gateway class"
+  - pattern: "hooks/**/*.yaml"
+    source: "hook registration"
+    role: hooks
+    incident_source: "control-plane hijack class"
+  - pattern: "hooks/**/*.yml"
+    source: "hook registration"
+    role: hooks
+    incident_source: "control-plane hijack class"
+
+cwd_files:
+  - path: .hermes/config.yaml
+    source: "project-local hermes config"
+    role: project_config
+    incident_source: "Craft ASI05 workspace config injection"
+  - path: .cursor/mcp.json
+    source: "MCP server registration"
+    role: mcp_control
+    incident_source: "Craft ASI05 MCP/config overwrite"
+
+cwd_globs:
+  - pattern: ".cursor/**/*.json"
+    source: "Cursor IDE control / MCP permissions"
+    role: ide_control
+    incident_source: "Craft ASI05 Cursor config overwrite → RCE"

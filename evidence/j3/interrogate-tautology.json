@@ -1,0 +1,35 @@
+{
+  "title": "J3 interrogate — tautological _auto_permit property",
+  "date": "2026-07-13",
+  "pass": "round-1 after first J3 green",
+  "intent_under_review": "Property-fuzz the judge cage so 10k adversarial trials prove permit sets never widen.",
+  "consensus_verdict": "critical",
+  "finding": {
+    "summary": "Default target used a stub _auto_permit oracle whose permit math was near-tautological. Ten thousand greens measured monotone stub arithmetic, not engine or cage containment of adversarial judge output.",
+    "root_cause": "_auto_permit compared synthetic permit sets that did not flow through evaluate_tool_call EvaluationResult.",
+    "act_on": "Replace the measured target with a real path (engine_eval_target) or stop claiming containment. Later honesty pass further named engine discard as a separate invariant from cage consult."
+  },
+  "reviewers": [
+    {
+      "family": "claude",
+      "model": "claude-opus-4-8-thinking-xhigh",
+      "agent_id": "84a3465e-3ef2-4be3-a4d4-1b6010852ab9",
+      "headline": "critical — tautological property"
+    },
+    {
+      "family": "gpt",
+      "model": "gpt-5.5-high-fast",
+      "agent_id": "1b6f6f5d-daa8-40da-b3f5-ec8872dd746f",
+      "headline": "critical — bypasses real permit path"
+    },
+    {
+      "family": "grok",
+      "model": "grok-4.5-fast-xhigh",
+      "agent_id": "0f9187e6-528f-4e73-a5ec-d3ac529ab005",
+      "headline": "critical — monotone stub oracle"
+    }
+  ],
+  "agreement": "All three models independently called the stub-oracle property critical for the same reason.",
+  "transcript_anchor": "agent-transcripts/fa39ec96-d057-45fc-acff-faf0ab247dd0 (assistant summary citing the three agent IDs)",
+  "follow_on": "Commit 845e499 moved the default target to engine_eval_target. J3b honesty pass split ENGINE_DISCARD_INVARIANT from JUDGE_CAGE_INVARIANT so discard-identity is not sold as containment."
+}

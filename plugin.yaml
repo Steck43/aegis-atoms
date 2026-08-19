@@ -1,0 +1,7 @@
+name: aegis-atoms
+version: "0.1.0"
+description: "Aegis v0 atomic constraints — polarity-free predicates on pre_tool_call."
+author: Landen Stecker
+hooks:
+  - pre_llm_call
+  - pre_tool_call

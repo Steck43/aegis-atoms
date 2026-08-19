@@ -1,0 +1,306 @@
+# Aegis Atoms v0 — Definition + Decision catalog (canonical)
+# Schema: polarity-free predicates (atoms) → layered controls (effects).
+# Evidence: ~/.hermes/logs/aegis-atoms.jsonl (firings, append-only)
+# Do not edit live without Atom Change Proposal (ACP) per Aegis-Change-and-Source-Validation.md §4
+
+schema_version: "0.1.0"
+catalog_id: aegis-atoms-v0
+catalog_version: "1.1.0"
+updated: "2026-07-07"
+owner: Landen Stecker
+
+posture: default_allow
+# Cedar-aligned: no atom fires → tool proceeds (capability-gate + other hooks still apply).
+# When multiple atoms fire: block > human_review > monitor.
+
+meta:
+  pdf_foundation: "Unified Policy-Engine Schema (June 2026) — Definition/Evidence/Decision/Identity layers; DSARCP atom types; Cedar deny-overrides at control combine."
+  trust_tier_default: client-attested
+  asserter: aegis-atoms-plugin
+  tuning_review: "Agent/Policy/Aegis-Atoms-v0-Tuning-Review-2026-07-07.md"
+
+logging:
+  firings_path: "${HERMES_HOME}/logs/aegis-atoms.jsonl"
+  log_monitor_firings: true
+
+# --- Atoms (Definition layer: polarity-free predicates) ---
+
+atoms:
+  - atom_id: atom.resource.write_hermes_plugins_tree
+    version: "1.0.0"
+    status: active
+    atom_type: resource
+    claim: "Write targets the Hermes plugins install tree (gate self-modification)."
+    detector:
+      kind: path_write_under
+      roots: ["${HERMES_HOME}/plugins"]
+    control:
+      effect: block
+      enforcement_mode: enforce
+      reason_public: "Plugins tree is out of scope for gated skills — gate cannot guard its own rewrite."
+
+  - atom_id: atom.resource.write_hermes_identity_hot
+    version: "1.0.0"
+    status: active
+    atom_type: resource
+    claim: "Write targets hot-tier identity files (SOUL, USER, MEMORY at tier root)."
+    detector:
+      kind: path_write_exact
+      paths:
+        - "${HERMES_HOME}/SOUL.md"
+        - "${HERMES_HOME}/USER.md"
+        - "${HERMES_HOME}/MEMORY.md"
+        - "${HERMES_HOME}/memories/USER.md"
+        - "${HERMES_HOME}/memories/MEMORY.md"
+    control:
+      effect: block
+      enforcement_mode: enforce
+      reason_public: "Hot identity is human-owned — use seed scripts or explicit Tier C approval."
+
+  - atom_id: atom.resource.write_hermes_secrets
+    version: "1.0.0"
+    status: active
+    atom_type: resource
+    claim: "Write targets secret-bearing env or credential stores under HERMES_HOME."
+    detector:
+      kind: path_write_glob
+      globs:
+        - "${HERMES_HOME}/.env"
+        - "${HERMES_HOME}/.env.*"
+        - "${HERMES_HOME}/**/secrets/**"
+    control:
+      effect: block
+      enforcement_mode: enforce
+      reason_public: "Secret stores are not writable by agent tools."
+
+  - atom_id: atom.resource.write_hermes_cron_store
+    version: "1.0.0"
+    status: active
+    atom_type: resource
+    claim: "Write targets live cron job store (jobs.json)."
+    detector:
+      kind: path_write_glob
+      globs:
+        - "${HERMES_HOME}/cron/jobs.json"
+        - "${HERMES_HOME}/cron/jobs.json.*"
+    control:
+      effect: human_review
+      enforcement_mode: enforce
+      reason_public: "Cron changes require approved Cron Change Proposal — use hermes cron edit after Landen approves."
+
+  - atom_id: atom.resource.write_hermes_config
+    version: "1.0.0"
+    status: active
+    atom_type: resource
+    claim: "Write targets Hermes config.yaml (Tier B)."
+    detector:
+      kind: path_write_glob
+      globs:
+        - "${HERMES_HOME}/config.yaml"
+        - "${HERMES_HOME}/config.yaml.*"
+    control:
+      effect: human_review
+      enforcement_mode: enforce
+      reason_public: "Config changes require CEP + backup — propose via aegis-config-evolution."
+
+  - atom_id: atom.action.terminal_mutate_hermes_runtime
+    version: "1.0.0"
+    status: active
+    atom_type: action
+    claim: "Terminal command attempts direct mutation of Hermes runtime (plugins, config, cron, .env)."
+    detector:
+      kind: terminal_command
+      patterns:
+        - '(?i)(~/.hermes|/home/[^/\s]+/.hermes).*(plugins/|config\.yaml|cron/jobs\.json|/\.env)'
+        - '(?i)(tee|sed\s+-i|mv|cp|rm|chmod).*(config\.yaml|jobs\.json|/plugins/)'
+        - '(?i)hermes\s+cron\s+(edit|add|remove)'
+        - '(?i)systemctl\s+.*hermes-gateway'
+    control:
+      effect: human_review
+      enforcement_mode: enforce
+      reason_public: "Runtime mutation via shell requires explicit Landen approval for this turn."
+
+  - atom_id: atom.action.git_push_shared_remote
+    version: "1.0.0"
+    status: active
+    atom_type: action
+    claim: "Terminal command pushes to a remote (shared-state outbound)."
+    detector:
+      kind: terminal_command
+      patterns:
+        - '(?i)\bgit\s+push\b'
+        - '(?i)\bgh\s+pr\s+create\b'
+    control:
+      effect: human_review
+      enforcement_mode: enforce
+      reason_public: "Push/PR is ship-gate — Landen approves outbound git actions."
+
+  - atom_id: atom.resource.write_public_surface
+    version: "1.1.0"
+    status: active
+    atom_type: resource
+    claim: "Write targets a public-ish artifact surface (README, website, .github)."
+    detector:
+      kind: path_write_public_markers
+      markers: ["README", "website/", "public/", ".github/"]
+    control:
+      effect: monitor
+      enforcement_mode: enforce
+      reason_public: "Public-surface write — logged for audit; pair with SVB before ship."
+
+  - atom_id: atom.resource.write_vault_canon_protocol
+    version: "1.0.0"
+    status: active
+    atom_type: resource
+    claim: "Write targets Agent/Protocols or Agent/Policy canon without session approval marker."
+    detector:
+      kind: path_write_vault_canon
+      prefixes:
+        - "/vault/Agent/Protocols/"
+        - "/vault/Agent/Policy/"
+      require_session_marker: '(?i)(approve|cep approved|acp approved|tier [abc] apply)'
+    control:
+      effect: human_review
+      enforcement_mode: observe
+      reason_public: "Vault protocol edits should follow CEP/ACP — currently observe-only logging."
+
+  - atom_id: atom.resource.write_atom_catalog
+    version: "1.0.0"
+    status: active
+    atom_type: resource
+    claim: "Write targets the Aegis atom catalog YAML (Tier B, ACP-gated)."
+    detector:
+      kind: path_write_glob
+      globs:
+        - "**/Agent/Policy/Aegis-Atoms-v0.yaml"
+        - "**/Aegis-Atoms-v0.bundle.yaml"
+    control:
+      effect: human_review
+      enforcement_mode: observe
+      reason_public: "Atom catalog edits require ACP — observe until one approved cycle completes."
+
+  - atom_id: atom.resource.read_hermes_secrets
+    version: "1.0.0"
+    status: active
+    atom_type: resource
+    claim: "Read targets .env or secrets paths (credential exposure risk)."
+    detector:
+      kind: path_read_glob
+      globs:
+        - "${HERMES_HOME}/.env"
+        - "${HERMES_HOME}/.env.*"
+    control:
+      effect: human_review
+      enforcement_mode: observe
+      reason_public: "Reading secret stores requires justification — observe until tuned."
+
+  - atom_id: atom.condition.confidential_tag_in_clean_export
+    version: "1.1.0"
+    status: active
+    atom_type: condition
+    claim: "Write to CLEAN-eligible path carries CONFIDENTIAL/NDA body markers."
+    detector:
+      kind: write_content_to_clean_path
+      confidentiality_markers:
+        - "CONFIDENTIAL"
+        - "NDA"
+        - "Incom Corporation"
+      clean_path_markers: ["Job_Search", "LinkedIn", "cover", "resume", "website/"]
+    relaxations:
+        downgrade_effect: monitor
+    control:
+      effect: block
+      enforcement_mode: enforce
+      reason_public: "CONFIDENTIAL detail cannot land on CLEAN/public career surfaces."
+
+  - atom_id: atom.action.memory_identity_write
+    version: "1.1.0"
+    status: active
+    atom_type: action
+    claim: "Memory tool write targets user profile store (USER tier via target=user)."
+    detector:
+      kind: memory_target
+      targets: ["user"]
+    control:
+      effect: block
+      enforcement_mode: enforce
+      reason_public: "Memory tool cannot rewrite user profile — use approved seed scripts."
+
+  - atom_id: atom.resource.write_hermes_aegis_skills
+    version: "1.0.0"
+    status: active
+    atom_type: resource
+    claim: "Write targets aegis-* skill tree under Hermes skills install."
+    detector:
+      kind: path_write_glob
+      globs:
+        - "${HERMES_HOME}/skills/aegis-*/**"
+    control:
+      effect: human_review
+      enforcement_mode: enforce
+      reason_public: "Aegis skill edits require approved CP before apply."
+
+  # Triad Surface 4 — evaluated in supply_chain.py (not the YAML detector path).
+  - atom_id: atoms.supply_chain.tool_integrity_unverified
+    version: "1.0.0"
+    status: documented
+    atom_type: subject
+    claim: "An invoked tool's identity, version, or declared metadata does not match its approved baseline."
+    detector:
+      kind: supply_chain_baseline
+      baseline: approved_tools.yaml
+    control:
+      effect: block
+      enforcement_mode: monitor
+      severity: critical
+      reason_public: "Tool provenance unverified against approved baseline."
+      framework_mappings:
+        - "OWASP ASI04 Agentic Supply Chain Vulnerabilities"
+        - "ATLAS AML.T0010.005"
+        - "ATLAS AML.T0011.002"
+        - "NIST AI RMF GOVERN-6.1"
+        - "NIST AI RMF MANAGE-3.1"
+
+  - atom_id: atoms.supply_chain.unexpected_egress_check
+    version: "1.0.0"
+    status: documented
+    atom_type: resource
+    claim: "An outbound network destination in a tool call is not in that tool's declared allowed destinations."
+    detector:
+      kind: supply_chain_egress
+      baseline: approved_tools.yaml
+    control:
+      effect: block
+      enforcement_mode: monitor
+      severity: high
+      reason_public: "Tool called an undeclared network destination."
+      framework_mappings:
+        - "OWASP ASI04 Agentic Supply Chain Vulnerabilities"
+        - "AML.CS0053 (Postmark MCP, case study)"
+        - "NIST AI RMF MANAGE-2.2"
+
+  - atom_id: atoms.injection.output_replicates_injection_pattern
+    version: "1.0.0"
+    status: documented
+    atom_type: condition
+    claim: "The agent's output mirrors an injection-bearing untrusted input above a similarity threshold."
+    detector:
+      kind: output_similarity
+      ref: output_similarity_detector@1.0.0
+    control:
+      effect: human_review
+      enforcement_mode: monitor
+      severity: high
+      reason_public: "Output mirrors untrusted injection — halt pending approval (Virtual Donkey)."
+      framework_mappings:
+        - "OWASP LLM01:2025 (Prompt Injection)"
+        - "ATLAS AML.T0061 (LLM output)"
+        - "AML.CS0024 (Morris II, case study)"
+        - "NIST AI RMF MEASURE-2.7"
+
+# --- Delegation map (existing hooks, not duplicated) ---
+delegates:
+  - hook: constitution-guard
+    covers: "Retired persona quarantine on write tools (clause 17)."
+  - hook: capability-gate
+    covers: "Path allowlist deny-by-default for path-mediatable tools (Stage 1)."

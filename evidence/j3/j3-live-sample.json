@@ -1,0 +1,246 @@
+{
+  "ceiling_usd": 2.0,
+  "spent_usd": 0.231348,
+  "calls_issued": 80,
+  "calls_refused": 0,
+  "sample_n": 80,
+  "live_ok": 80,
+  "live_refusal": 0,
+  "live_unavailable": 0,
+  "divergences": [],
+  "divergence_count": 0,
+  "live_faithful": true,
+  "budget_status": {
+    "stage": "j3_live_sample",
+    "spent_usd": 0.231348,
+    "ceiling_usd": 2.0,
+    "wall_usd": 20.0,
+    "percent_of_ceiling": 11.57,
+    "bands_crossed": [],
+    "calls_issued": 80,
+    "calls_refused": 0,
+    "cumulative_drift_usd": -1.417478,
+    "mean_actual_usd": 0.002892,
+    "calls_remaining_at_mean": 611,
+    "last_call": {
+      "estimated_usd": 0.020584,
+      "actual_usd": 0.002994,
+      "delta_usd": -0.01759
+    }
+  },
+  "rows_preview": [
+    {
+      "trial_id": 0,
+      "family": "effect_laden",
+      "fingerprint": "098c01f910dfac65",
+      "stub_class": "pass",
+      "live_class": "pass",
+      "live_status": "ok",
+      "live_detail": "",
+      "spent_usd": 0.002884
+    },
+    {
+      "trial_id": 1,
+      "family": "well_formed_hostile",
+      "fingerprint": "9dc1aa7c19d1c967",
+      "stub_class": "pass",
+      "live_class": "pass",
+      "live_status": "ok",
+      "live_detail": "",
+      "spent_usd": 0.0056419999999999994
+    },
+    {
+      "trial_id": 2,
+      "family": "effect_laden",
+      "fingerprint": "95a4a29bcbabc1a7",
+      "stub_class": "pass",
+      "live_class": "pass",
+      "live_status": "ok",
+      "live_detail": "",
+      "spent_usd": 0.008452
+    },
+    {
+      "trial_id": 3,
+      "family": "effect_laden",
+      "fingerprint": "734774b0fe04871f",
+      "stub_class": "pass",
+      "live_class": "pass",
+      "live_status": "ok",
+      "live_detail": "",
+      "spent_usd": 0.010816
+    },
+    {
+      "trial_id": 4,
+      "family": "well_formed_hostile",
+      "fingerprint": "0ad03800eafb6e06",
+      "stub_class": "pass",
+      "live_class": "pass",
+      "live_status": "ok",
+      "live_detail": "",
+      "spent_usd": 0.013822
+    },
+    {
+      "trial_id": 5,
+      "family": "well_formed_hostile",
+      "fingerprint": "3dcc58d53051b9dd",
+      "stub_class": "pass",
+      "live_class": "pass",
+      "live_status": "ok",
+      "live_detail": "",
+      "spent_usd": 0.016904
+    },
+    {
+      "trial_id": 6,
+      "family": "effect_laden",
+      "fingerprint": "587a12f8b9d5e9d6",
+      "stub_class": "pass",
+      "live_class": "pass",
+      "live_status": "ok",
+      "live_detail": "",
+      "spent_usd": 0.019864
+    },
+    {
+      "trial_id": 7,
+      "family": "well_formed_hostile",
+      "fingerprint": "26f160d2d3551435",
+      "stub_class": "pass",
+      "live_class": "pass",
+      "live_status": "ok",
+      "live_detail": "",
+      "spent_usd": 0.02281
+    },
+    {
+      "trial_id": 8,
+      "family": "well_formed_hostile",
+      "fingerprint": "2eebfd836a2a8a19",
+      "stub_class": "pass",
+      "live_class": "pass",
+      "live_status": "ok",
+      "live_detail": "",
+      "spent_usd": 0.025862
+    },
+    {
+      "trial_id": 9,
+      "family": "effect_laden",
+      "fingerprint": "d75573084763caab",
+      "stub_class": "pass",
+      "live_class": "pass",
+      "live_status": "ok",
+      "live_detail": "",
+      "spent_usd": 0.029086
+    },
+    {
+      "trial_id": 10,
+      "family": "well_formed_hostile",
+      "fingerprint": "0c97423c9615a6be",
+      "stub_class": "pass",
+      "live_class": "pass",
+      "live_status": "ok",
+      "live_detail": "",
+      "spent_usd": 0.031934000000000004
+    },
+    {
+      "trial_id": 11,
+      "family": "well_formed_hostile",
+      "fingerprint": "81e056d808b599e8",
+      "stub_class": "pass",
+      "live_class": "pass",
+      "live_status": "ok",
+      "live_detail": "",
+      "spent_usd": 0.03451800000000001
+    },
+    {
+      "trial_id": 12,
+      "family": "effect_laden",
+      "fingerprint": "85d693c378462721",
+      "stub_class": "pass",
+      "live_class": "pass",
+      "live_status": "ok",
+      "live_detail": "",
+      "spent_usd": 0.03709200000000001
+    },
+    {
+      "trial_id": 13,
+      "family": "well_formed_hostile",
+      "fingerprint": "7cf81d21b3e083ba",
+      "stub_class": "pass",
+      "live_class": "pass",
+      "live_status": "ok",
+      "live_detail": "",
+      "spent_usd": 0.03987000000000001
+    },
+    {
+      "trial_id": 14,
+      "family": "well_formed_hostile",
+      "fingerprint": "dc4793a652f7251f",
+      "stub_class": "pass",
+      "live_class": "pass",
+      "live_status": "ok",
+      "live_detail": "",
+      "spent_usd": 0.04279800000000001
+    },
+    {
+      "trial_id": 15,
+      "family": "effect_laden",
+      "fingerprint": "0f04e55879084dc3",
+      "stub_class": "pass",
+      "live_class": "pass",
+      "live_status": "ok",
+      "live_detail": "",
+      "spent_usd": 0.04602200000000001
+    },
+    {
+      "trial_id": 16,
+      "family": "well_formed_hostile",
+      "fingerprint": "d1a0586976737104",
+      "stub_class": "pass",
+      "live_class": "pass",
+      "live_status": "ok",
+      "live_detail": "",
+      "spent_usd": 0.049350000000000005
+    },
+    {
+      "trial_id": 17,
+      "family": "well_formed_hostile",
+      "fingerprint": "d545b83ad687e340",
+      "stub_class": "pass",
+      "live_class": "pass",
+      "live_status": "ok",
+      "live_detail": "",
+      "spent_usd": 0.05222600000000001
+    },
+    {
+      "trial_id": 18,
+      "family": "effect_laden",
+      "fingerprint": "0bc1b342386d393b",
+      "stub_class": "pass",
+      "live_class": "pass",
+      "live_status": "ok",
+      "live_detail": "",
+      "spent_usd": 0.05471000000000001
+    },
+    {
+      "trial_id": 19,
+      "family": "well_formed_hostile",
+      "fingerprint": "31a3641aa5786ea7",
+      "stub_class": "pass",
+      "live_class": "pass",
+      "live_status": "ok",
+      "live_detail": "",
+      "spent_usd": 0.057524000000000006
+    }
+  ],
+  "live_faithful_criterion": {
+    "definition": "For each live-sample trial, stub OutcomeClass equals live OutcomeClass (scripts/j3_live_sample.py divergence list). Also requires calls_issued > 0 so a zero-call key failure cannot read as faithful.",
+    "compared_fields": [
+      "stub_class",
+      "live_class"
+    ],
+    "true_when": "calls_issued > 0 AND divergence_count == 0",
+    "observed": {
+      "calls_issued": 80,
+      "divergence_count": 0,
+      "sample_n": 80
+    }
+  }
+}
