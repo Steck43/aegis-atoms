@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- 
+- README leads with the three-object invention and states runtime grade as fact. BREAK is the J3 negative-control file, not a misread warning. The apply-path fuzzer caller with `judge_apply_verdict=True` is named. `evaluate_tool_call` defaults that flag to True. PDP evaluate is labeled a pre-tool call. 
 
 ### Fixed
 
