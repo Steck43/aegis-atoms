@@ -7,6 +7,7 @@ Version: 1.0.0
 Summary: Pre-call cost authorization. The judge cannot read or modify this
          state. Crossing a ceiling refuses the call before it is issued.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

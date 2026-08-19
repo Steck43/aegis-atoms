@@ -11,6 +11,7 @@ Summary: Detects when an agent's output mirrors an injection-bearing untrusted
          the paper's BLEU/ROUGE-L/METEOR TPR/FPR are the validation target, not
          a claim about this approximation.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -110,7 +111,11 @@ OUTPUT_REPLICATION_EDGES: list[Edge] = [
 
 
 def _tokenize(text: str) -> list[str]:
-    return [t for t in "".join(ch.lower() if ch.isalnum() else " " for ch in text).split() if t]
+    return [
+        t
+        for t in "".join(ch.lower() if ch.isalnum() else " " for ch in text).split()
+        if t
+    ]
 
 
 def _bigram_jaccard(a: str, b: str) -> float:
@@ -156,8 +161,8 @@ def similarity_score(output_text: str, input_text: str) -> float:
     # validation target, not a claim about this approximation. Record what this does;
     # name the paper's numbers as the goal.
     j = _bigram_jaccard(output_text, input_text)
-    l = _lcs_ratio(output_text, input_text)
-    return max(j, l)
+    lcs = _lcs_ratio(output_text, input_text)
+    return max(j, lcs)
 
 
 def output_similarity_detector(
@@ -278,10 +283,7 @@ def denial_line(
     framework_ids: list[str],
 ) -> str:
     fw = ", ".join(framework_ids)
-    return (
-        f"[aegis-atoms] Halted by {atom_id} via {control_id} "
-        f"(frameworks: {fw})"
-    )
+    return f"[aegis-atoms] Halted by {atom_id} via {control_id} (frameworks: {fw})"
 
 
 def rollup_halt_message(rollups: list[ControlRollup]) -> str | None:

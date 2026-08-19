@@ -6,6 +6,7 @@ Date:    2026-07-11
 Version: 0.1.0
 Summary: The decision point. A tool call is evaluated against the catalog, the atoms fire, their edges roll up per control, and the controls combine deny-overrides into one effect. This is the PDP in the access-control sense. It decides. The hook that intercepts the call and enforces the decision is the PEP, and it lives in the runtime adapter, not here, on purpose.
 """
+
 from __future__ import annotations
 
 import json
@@ -13,7 +14,7 @@ import re
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Any
 
 import yaml
@@ -276,7 +277,10 @@ def _evaluate_detector(
     if kind == "path_write_exact":
         if tool_name not in WRITE_TOOLS:
             return False
-        exact = {_normalize_path(x, env) for x in _expand_list(list(det.get("paths") or []), env)}
+        exact = {
+            _normalize_path(x, env)
+            for x in _expand_list(list(det.get("paths") or []), env)
+        }
         return any(_normalize_path(p, env) in exact for p in paths)
 
     if kind == "path_write_glob":
@@ -314,7 +318,8 @@ def _evaluate_detector(
             return False
         prefixes = list(det.get("prefixes") or [])
         matched = any(
-            any(p.replace("\\", "/").startswith(pref) for pref in prefixes) for p in paths
+            any(p.replace("\\", "/").startswith(pref) for pref in prefixes)
+            for p in paths
         )
         if not matched:
             return False
@@ -434,7 +439,10 @@ def evaluate_tool_call(
         session_ctx.record_read(tool_name, paths, env)
         sink = sink_class_for_tool(tool_name)
         action = ToolCallView(
-            tool_name=tool_name, args=args if isinstance(args, dict) else {}, paths=paths, sink=sink
+            tool_name=tool_name,
+            args=args if isinstance(args, dict) else {},
+            paths=paths,
+            sink=sink,
         )
         fired, coords, rollups, combined = evaluate_memory_flow(action, session_ctx)
         if fired and combined is MemEffect.BLOCK:
@@ -468,7 +476,9 @@ def evaluate_tool_call(
                     # atom). Logging 1.0 here keeps the distribution honest: certainty and heuristic
                     # guess are not the same signal and must be distinguishable downstream.
                     confidence=1.0,
-                    ambiguity=_ambiguity_from_rollups(rollups, ATOM_SECRET_TO_DURABLE, "block"),
+                    ambiguity=_ambiguity_from_rollups(
+                        rollups, ATOM_SECRET_TO_DURABLE, "block"
+                    ),
                     trust_domain="tool_output",
                     severity="high",
                 )
@@ -496,13 +506,17 @@ def evaluate_tool_call(
             if isinstance(p, str):
                 write_paths = [_normalize_path(p, env)]
         for wpath in write_paths:
-            fired_i, coords_i, rollups_i, combined_i = evaluate_instruction_surface_write(
-                wpath,
-                hermes_home=hermes or ".",
-                cwd=cwd or None,
+            fired_i, coords_i, rollups_i, combined_i = (
+                evaluate_instruction_surface_write(
+                    wpath,
+                    hermes_home=hermes or ".",
+                    cwd=cwd or None,
+                )
             )
             if fired_i and combined_i is InstrEffect.BLOCK:
-                reason_i = coords_i.get("reason") or "write_target_is_instruction_surface"
+                reason_i = (
+                    coords_i.get("reason") or "write_target_is_instruction_surface"
+                )
                 denial_i = instr_denial_message(rollups_i, coords_i) or reason_i
                 enforced_i = plugin_mode == "enforce"
                 firings.append(
@@ -534,9 +548,7 @@ def evaluate_tool_call(
                 if enforced_i:
                     best_effect = "block"
                     best_reason = (
-                        denial_i
-                        if denial_i.startswith("[aegis-atoms]")
-                        else reason_i
+                        denial_i if denial_i.startswith("[aegis-atoms]") else reason_i
                     )
                     best_atom_id = ATOM_WRITE_INSTRUCTION
                 break
@@ -556,7 +568,9 @@ def evaluate_tool_call(
             ops_path=irreversible_ops_path,
         )
         if fired_r and combined_r is IrrEffect.REQUIRE_APPROVAL:
-            reason_r = coords_r.get("reason") or "operation_in_declared_irreversible_set"
+            reason_r = (
+                coords_r.get("reason") or "operation_in_declared_irreversible_set"
+            )
             denial_r = irreversible_denial_message(rollups_r, coords_r) or reason_r
             enforced_r = plugin_mode == "enforce"
             firings.append(
@@ -609,7 +623,9 @@ def evaluate_tool_call(
             env=env,
         )
         if fired_s and combined_s is ScopeEffect.BLOCK:
-            reason_s = coords_s.get("reason") or "destination_scope_exceeds_task_declaration"
+            reason_s = (
+                coords_s.get("reason") or "destination_scope_exceeds_task_declaration"
+            )
             denial_s = task_scope_denial_message(rollups_s, coords_s) or reason_s
             enforced_s = plugin_mode == "enforce"
             firings.append(
@@ -670,7 +686,9 @@ def evaluate_tool_call(
             )
             if fired_c and combined_c is CtrlEffect.BLOCK:
                 reason_c = coords_c.get("reason") or "write_target_is_control_surface"
-                denial_c = control_surface_denial_message(rollups_c, coords_c) or reason_c
+                denial_c = (
+                    control_surface_denial_message(rollups_c, coords_c) or reason_c
+                )
                 enforced_c = plugin_mode == "enforce"
                 firings.append(
                     Firing(
@@ -797,7 +815,7 @@ def evaluate_tool_call(
             content_denial_message,
             ATOM_INDIRECT_MARKER,
         )
-        from triad_types import EffectRank as ER, TrustDomain, RollupStatus as RS
+        from triad_types import EffectRank as ER, TrustDomain
         import uuid as _uuid
 
         blobs: list[str] = []
@@ -846,7 +864,9 @@ def evaluate_tool_call(
                     trust_tier=trust,
                     asserter=asserter,
                     confidence=float(confidence),
-                    ambiguity=_ambiguity_from_rollups(rollups, ATOM_INDIRECT_MARKER, effect),
+                    ambiguity=_ambiguity_from_rollups(
+                        rollups, ATOM_INDIRECT_MARKER, effect
+                    ),
                     trust_domain=coords.get("trust_domain", td.value),
                     severity="high",
                 )
@@ -1018,9 +1038,9 @@ def evaluate_tool_call(
             ambiguous = False
         case = {
             "ambiguous": ambiguous,
-            "rollup_status": "conflicting" if ambiguous else (
-                "contradicted" if best_effect == "block" else "supported"
-            ),
+            "rollup_status": "conflicting"
+            if ambiguous
+            else ("contradicted" if best_effect == "block" else "supported"),
             "locked_atoms": locked,
             "candidate_atoms": list(locked),
             "evaluation_id": evaluation_id,
@@ -1063,7 +1083,9 @@ def evaluate_tool_call(
             judge_subtracted=bool(subtracted),
         )
 
-    return EvaluationResult(block_message=block_message, firings=firings, winning_effect=best_effect)
+    return EvaluationResult(
+        block_message=block_message, firings=firings, winning_effect=best_effect
+    )
 
 
 def append_firings(log_path: Path, firings: list[Firing], catalog: Catalog) -> None:

@@ -6,6 +6,7 @@ Date:    2026-07-11
 Version: 1.0.0
 Summary: The bounded judge, the cage. This is where a model is allowed into the architecture, and the whole file is the box around it. The judge can concur, flag, or add nuance. It cannot issue a verdict and it cannot override the floor, and both are enforced in the type and in the boundary function, not trusted to the model. The model is untrusted no matter which model it is. Every failure escalates to a human. The model slot is a stub here. The real call drops in later, and the cage does not change when it does.
 """
+
 from __future__ import annotations
 
 import json
@@ -208,7 +209,6 @@ def apply_judge(
 
     retries_used = 0
     last_opinion: JudgeOpinion | None = None
-    escalated = False
     escalation_reason: str | None = None
 
     try:
@@ -220,9 +220,7 @@ def apply_judge(
             except Exception as inner:
                 # Loud fail-closed classes: do not retry.
                 tag = _classify_slot_failure(inner)
-                if tag.startswith(
-                    ("budget_exhausted", "judge_unavailable", "refusal")
-                ):
+                if tag.startswith(("budget_exhausted", "judge_unavailable", "refusal")):
                     raise
                 # Malformed / type errors consume a retry (DoW meter) then HITL.
                 if retries_used >= cap:
@@ -252,7 +250,6 @@ def apply_judge(
         # raised, opinion malformed, retry cap hit. Uncertainty routes to Landen, never
         # to a guess. This is the opposite of fail-open — a judge that cannot decide
         # cleanly does not decide at all.
-        escalated = True
         escalation_reason = (
             f"retry_cap_exhausted after {retries_used} low-confidence opinions "
             f"(threshold={threshold})"
@@ -278,7 +275,6 @@ def apply_judge(
     except Exception as exc:
         # Loud failures: budget / unavailability / refusal / malformed → HITL.
         # Floor stands. A dark judge must not silently concur.
-        escalated = True
         escalation_reason = _classify_slot_failure(exc)
         outcome = JudgeOutcome(
             floor_verdict=floor_verdict,

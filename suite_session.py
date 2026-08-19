@@ -6,6 +6,7 @@ Date:    2026-07-11
 Version: 1.0.0
 Summary: The multi-call session model for the adversarial suite. It scripts an ordered sequence of tool calls and records what the floor decided at each step, so temporal and composition cases run deterministically with no live agent in the loop.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

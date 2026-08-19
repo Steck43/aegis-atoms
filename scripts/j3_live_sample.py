@@ -4,6 +4,7 @@ J3 live confirmation sample — only after stubbed property holds.
 Replays ~50 hostile generated payloads through Sonnet 5 under the $2
 stage-two ceiling. Compares cage classification stub-vs-live.
 """
+
 from __future__ import annotations
 
 import json
@@ -41,12 +42,16 @@ def main() -> int:
         return 2
     stub = json.loads(stub_path.read_text(encoding="utf-8"))
     if stub.get("counts", {}).get("widening", 1) != 0:
-        print(json.dumps({"ok": False, "error": "stub property has widening — no live"}))
+        print(
+            json.dumps({"ok": False, "error": "stub property has widening — no live"})
+        )
         return 2
 
     key = _load_key()
     if not key:
-        print(json.dumps({"ok": False, "error": "ANTHROPIC_API_KEY missing — skip live"}))
+        print(
+            json.dumps({"ok": False, "error": "ANTHROPIC_API_KEY missing — skip live"})
+        )
         return 0
 
     from property_fuzzer import (
@@ -61,7 +66,6 @@ def main() -> int:
     from judge_slot_sonnet import (
         SonnetJudgeConfig,
         make_sonnet_judge_slot,
-        JudgeRefusal,
     )
     from triad_types import EffectRank, RollupStatus
     from bounded_judge import apply_judge
@@ -93,7 +97,7 @@ def main() -> int:
             stub_cls = classify_trial_outcome(
                 invariant=inv_s, outcome=out_s, escaped=None
             )
-        except Exception as exc:
+        except Exception:
             stub_cls = OutcomeClass.CRASH
             inv_s = None
             out_s = None
@@ -180,10 +184,22 @@ def main() -> int:
     }
     dest = ROOT / "evidence" / "j3" / "j3-live-sample.json"
     dest.write_text(json.dumps(out, indent=2), encoding="utf-8")
-    print(json.dumps({k: out[k] for k in (
-        "ceiling_usd", "spent_usd", "calls_issued", "sample_n",
-        "divergence_count", "calls_refused",
-    )}, indent=2))
+    print(
+        json.dumps(
+            {
+                k: out[k]
+                for k in (
+                    "ceiling_usd",
+                    "spent_usd",
+                    "calls_issued",
+                    "sample_n",
+                    "divergence_count",
+                    "calls_refused",
+                )
+            },
+            indent=2,
+        )
+    )
     return 0
 
 

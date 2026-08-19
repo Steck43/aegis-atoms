@@ -8,6 +8,7 @@ Summary: Consumes a caged JudgeOutcome to tighten floor effect / block_message.
          Never widens. Never clears a block. Empty injection is an engine concern
          (case dict omits content_for_judge). HITL on cage escalation is subtract.
 """
+
 from __future__ import annotations
 
 from bounded_judge import JudgeOutcome, JudgeRecommendation

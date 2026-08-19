@@ -6,9 +6,9 @@ Date:    2026-07-11
 Version: 1.0.0
 Summary: Coarse origin classification at the tool boundary. Tags read tools and paths as public, internal, or secret so memory governance can compare origin to sink clearance. This is read-time path tagging — not the framework Provenance dataclass on triad types (that lives in triad_types.Provenance).
 """
+
 from __future__ import annotations
 
-from typing import Any
 
 from flow_types import OriginClass
 
@@ -67,7 +67,9 @@ def classify_origin(
         if hermes and (p == hermes or p.startswith(hermes + "/")):
             # Hermes home reads default to SECRET (runtime/config surface).
             return OriginClass.SECRET
-        if vault and (p == vault or p.startswith(vault + "/") or p.startswith("/vault/")):
+        if vault and (
+            p == vault or p.startswith(vault + "/") or p.startswith("/vault/")
+        ):
             return OriginClass.INTERNAL
         if p.startswith("/vault/"):
             return OriginClass.INTERNAL

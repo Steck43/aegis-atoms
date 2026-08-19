@@ -4,6 +4,7 @@ Stage-one $0.25 burn test (J1a) — drive DoW into the ceiling on purpose.
 Author:  Landen Stecker
 Date:    2026-07-13
 """
+
 from __future__ import annotations
 
 import json
@@ -85,9 +86,7 @@ def main() -> int:
             "evaluation_id": f"stage1-{i:03d}",
             "security_relevant": True,
         }
-        outcomes.append(
-            apply_judge(EffectRank.BLOCK, case, slot, threshold=0.0, cap=1)
-        )
+        outcomes.append(apply_judge(EffectRank.BLOCK, case, slot, threshold=0.0, cap=1))
 
     exhausted = [
         o

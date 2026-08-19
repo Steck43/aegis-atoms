@@ -18,7 +18,9 @@ from session_context import SessionContext
 def test_engine_flow_denies_secret_read_then_durable_write(tmp_path: Path):
     hermes = tmp_path / "hermes"
     hermes.mkdir()
-    (hermes / "config.yaml").write_text("api_key: REDACTED_SECRET_VALUE_001\n", encoding="utf-8")
+    (hermes / "config.yaml").write_text(
+        "api_key: REDACTED_SECRET_VALUE_001\n", encoding="utf-8"
+    )
     vault = tmp_path / "vault"
     vault.mkdir()
     note = vault / "exfil.md"

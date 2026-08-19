@@ -6,6 +6,7 @@ Date:    2026-07-11
 Version: 1.0.0
 Summary: Surface two, action gating. Two atoms at the tool-call boundary. C1 fires when a file path resolves outside its allowed root, the bubblewrap escape, the /proc/self/root synonym that beats a denylist by spelling. C2 fires when a command carries executable structure the schema does not permit, the Snowflake Cortex bypass, the process substitution that rode in behind an allowlisted cat. Both are structural. They fire at certainty, not confidence, and when they cannot tell, they deny.
 """
+
 from __future__ import annotations
 
 import re
@@ -183,7 +184,10 @@ def evaluate_path_outside_root(
     allowed_roots: list[str],
 ) -> tuple[bool, dict[str, Any]]:
     """C1 predicate. True = fires (outside root or fail-closed)."""
-    coords: dict[str, Any] = {"raw_path": raw_path, "allowed_roots": list(allowed_roots)}
+    coords: dict[str, Any] = {
+        "raw_path": raw_path,
+        "allowed_roots": list(allowed_roots),
+    }
     try:
         if not allowed_roots:
             raise ValueError("no allowed roots declared")
@@ -318,9 +322,7 @@ def evaluate_action_gating(
             )
             if fires:
                 fired_ids.add(ATOM_PATH_OUTSIDE)
-                firings.append(
-                    _make_firing(ATOM_PATH_OUTSIDE, evaluation_id, coords)
-                )
+                firings.append(_make_firing(ATOM_PATH_OUTSIDE, evaluation_id, coords))
 
     if tool_name in SHELL_TOOLS:
         if "argv" in args and isinstance(args["argv"], list):
@@ -330,9 +332,7 @@ def evaluate_action_gating(
         fires, coords = evaluate_shell_unsanitized(call)
         if fires:
             fired_ids.add(ATOM_SHELL_UNSANITIZED)
-            firings.append(
-                _make_firing(ATOM_SHELL_UNSANITIZED, evaluation_id, coords)
-            )
+            firings.append(_make_firing(ATOM_SHELL_UNSANITIZED, evaluation_id, coords))
 
     rollups = [
         rollup_control(ctrl, ACTION_GATING_EDGES, fired_ids)
@@ -349,10 +349,7 @@ def denial_line(
 ) -> str:
     """Pinned denial line naming atom, control, and framework ids."""
     fw = ", ".join(framework_ids)
-    return (
-        f"[aegis-atoms] Blocked by {atom_id} via {control_id} "
-        f"(frameworks: {fw})"
-    )
+    return f"[aegis-atoms] Blocked by {atom_id} via {control_id} (frameworks: {fw})"
 
 
 def rollup_denial_message(rollups: list[ControlRollup]) -> str | None:

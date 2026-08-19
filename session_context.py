@@ -6,6 +6,7 @@ Date:    2026-07-11
 Version: 1.0.0
 Summary: The per-cycle state the multi-call cases need. It carries the ordered decisions of one evaluation so composition attacks, the ones that are benign per call and hostile in sequence, have somewhere to be seen. One decision cycle, one context.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

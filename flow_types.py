@@ -9,6 +9,7 @@ Summary: The lattices behind memory governance. Origin ranked public, internal, 
 Atoms may only subtract authority. AtomDecision has no ALLOW variant;
 the floor holds the yes. This is enforced by the type, not by convention.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

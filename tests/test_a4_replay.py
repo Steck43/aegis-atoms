@@ -4,6 +4,7 @@ test_a4_replay.py — five corpus fixtures + suite invariance.
 Author:  Landen Stecker
 Date:    2026-07-13
 """
+
 from __future__ import annotations
 
 import json

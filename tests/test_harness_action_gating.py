@@ -43,7 +43,10 @@ def test_floor_plus_atoms_blocks_traversal_secret_absent(workspace: Path):
     assert result["decision"] == "deny"
     assert result["read_back"] == "secret_absent"
     assert SECRET_VALUE not in result["secret_text"]
-    assert "atoms.tool_invocation.path_resolves_outside_allowed_root" in result["deny_reason"]
+    assert (
+        "atoms.tool_invocation.path_resolves_outside_allowed_root"
+        in result["deny_reason"]
+    )
     assert "control.no_file_access_outside_allowed_roots" in result["deny_reason"]
     assert "AML.T0105" in result["deny_reason"] or "ASI05" in result["deny_reason"]
 
@@ -69,7 +72,11 @@ def test_floor_plus_atoms_blocks_shell_no_execution(workspace: Path):
 
 
 def test_action_gating_proof_log_format(workspace: Path):
-    from harness_action_gating import run_c1_traversal, run_c2_shell, format_action_gating_proof
+    from harness_action_gating import (
+        run_c1_traversal,
+        run_c2_shell,
+        format_action_gating_proof,
+    )
 
     c1_before = run_c1_traversal(workspace, atoms_enabled=False)
     c1_after = run_c1_traversal(workspace, atoms_enabled=True)

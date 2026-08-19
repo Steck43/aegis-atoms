@@ -6,6 +6,7 @@ Date:    2026-07-11
 Version: 1.0.0
 Summary: Surface one, content detection. The first heuristic atom, and it is honest about it. OWASP says there is no fool-proof prevention for prompt injection, so this never claims to catch it. It flags known markers in content entering the agent, hidden unicode, invisible instructions, override phrasing, and weights the signal by where the content came from, because a user talking to their own agent is not the threat. It fires below one and routes to review, not a hard block. The deterministic floor is the backstop when it misses.
 """
+
 from __future__ import annotations
 
 import re

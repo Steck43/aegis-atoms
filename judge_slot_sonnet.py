@@ -9,6 +9,7 @@ Summary: Real Anthropic Messages API call returning JudgeOpinion via structured
          pin). max_tokens=2000. Budget guard authorizes before issue. Prefill
          is never used (400 on Sonnet 5).
 """
+
 from __future__ import annotations
 
 import json
@@ -26,7 +27,7 @@ from judge_audit import (
     new_cycle_id,
     utc_now_iso,
 )
-from judge_budget import BudgetExhausted, BudgetGuard, CallEstimate
+from judge_budget import BudgetGuard
 from triad_types import EffectRank
 
 MODEL_ID = "claude-sonnet-5"
@@ -135,7 +136,11 @@ def make_sonnet_judge_slot(
 ) -> Callable[[dict[str, Any], EffectRank], JudgeOpinion]:
     """Return a JudgeSlot. Cage types unchanged."""
     cfg = config or SonnetJudgeConfig()
-    key = cfg.api_key or os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_API_KEY".lower())
+    key = (
+        cfg.api_key
+        or os.environ.get("ANTHROPIC_API_KEY")
+        or os.environ.get("ANTHROPIC_API_KEY".lower())
+    )
 
     def slot(case: dict[str, Any], floor_verdict: EffectRank) -> JudgeOpinion:
         user_blob = json.dumps(
@@ -174,7 +179,15 @@ def make_sonnet_judge_slot(
                 dry_run=True,
             )
             # Dry-run does not spend, but records the would-be cost on the audit.
-            _maybe_audit(cfg, case, floor_verdict, usage, "skipped", "none", "skipped_not_ambiguous")
+            _maybe_audit(
+                cfg,
+                case,
+                floor_verdict,
+                usage,
+                "skipped",
+                "none",
+                "skipped_not_ambiguous",
+            )
             return JudgeOpinion(
                 recommendation=JudgeRecommendation.CONCUR,
                 confidence=1.0,
@@ -339,9 +352,11 @@ def _call_anthropic(
 
 
 def _usage_from_response(resp: Any) -> dict[str, int]:
-    usage = getattr(resp, "usage", None) or (
-        resp.get("usage") if isinstance(resp, dict) else {}
-    ) or {}
+    usage = (
+        getattr(resp, "usage", None)
+        or (resp.get("usage") if isinstance(resp, dict) else {})
+        or {}
+    )
     if not isinstance(usage, dict):
         # SDK object
         tokens_in = int(getattr(usage, "input_tokens", 0) or 0)

@@ -9,6 +9,7 @@ Summary: Fires when a call destination resolves to a declared scope outside the
          per tool; this checks environment/project/resource-class scope vs task
          declaration. Fail closed when a destination cannot be classified.
 """
+
 from __future__ import annotations
 
 import os
@@ -193,7 +194,9 @@ def resolve_destination_scope(
     for scope_id, spec in scopes.items():
         for rc in spec.get("resource_classes") or []:
             token = str(rc).casefold()
-            if re.search(rf"(^|[^a-z0-9]){re.escape(token)}([^a-z0-9]|$)", text.casefold()):
+            if re.search(
+                rf"(^|[^a-z0-9]){re.escape(token)}([^a-z0-9]|$)", text.casefold()
+            ):
                 return str(scope_id)
     return None
 
@@ -269,7 +272,8 @@ def evaluate_task_scope(
     )
     fired_ids = {ATOM_TASK_SCOPE} if fired else set()
     rollups = [
-        rollup_control(ctrl, TASK_SCOPE_EDGES, fired_ids) for ctrl in TASK_SCOPE_CONTROLS
+        rollup_control(ctrl, TASK_SCOPE_EDGES, fired_ids)
+        for ctrl in TASK_SCOPE_CONTROLS
     ]
     combined = combine_control_rollups(rollups)
     return fired, coords, rollups, combined

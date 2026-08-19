@@ -47,7 +47,10 @@ def test_action_gating_blocks_traversal_outside_allowed_root(tmp_path: Path):
         allowed_roots=[str(allowed)],
     )
     assert result.block_message is not None
-    assert "atoms.tool_invocation.path_resolves_outside_allowed_root" in result.block_message
+    assert (
+        "atoms.tool_invocation.path_resolves_outside_allowed_root"
+        in result.block_message
+    )
     assert "control.no_file_access_outside_allowed_roots" in result.block_message
     assert any(
         f.atom_id == "atoms.tool_invocation.path_resolves_outside_allowed_root"

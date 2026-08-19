@@ -3,8 +3,10 @@ One live Messages call to pin Sonnet 5 model identity from the API response.
 
 Spend is authorized under stage-two ceiling. Prints only non-secret fields.
 """
+
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import sys
@@ -51,13 +53,15 @@ def main() -> int:
         print(json.dumps({"ok": False, "error": "ANTHROPIC_API_KEY missing"}))
         return 2
 
-    try:
-        import anthropic
-    except ImportError:
+    if importlib.util.find_spec("anthropic") is None:
         print(json.dumps({"ok": False, "error": "anthropic package not installed"}))
         return 2
 
-    from judge_audit import SONNET5_PRICE_TABLE, AuditStore, CycleAuditRecord, ModelCallUsage, new_cycle_id, utc_now_iso
+    from judge_audit import (
+        SONNET5_PRICE_TABLE,
+        AuditStore,
+        new_cycle_id,
+    )
     from judge_budget import BudgetGuard
     from judge_slot_sonnet import (
         EFFORT_FLOOR,
@@ -130,7 +134,9 @@ def main() -> int:
         },
         "pinned_on_date": "2026-07-13",
     }
-    (out / "live-model-pin.json").write_text(json.dumps(pin, indent=2), encoding="utf-8")
+    (out / "live-model-pin.json").write_text(
+        json.dumps(pin, indent=2), encoding="utf-8"
+    )
     print(json.dumps(pin, indent=2))
     return 0
 

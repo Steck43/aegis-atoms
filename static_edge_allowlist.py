@@ -10,6 +10,7 @@ No path canonicalization. No context. No multi-call memory.
 This is the real-world baseline shape, not an artificially weakened list
 and not a contextual plane. Named as simulation — not the production gate.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -54,17 +55,19 @@ class StaticEdgeAllowlist:
     ) -> None:
         seeded_allowed, seeded_denied = _load_floor_tool_baseline()
         # Fixture fallback kept only if the A1 baseline file is absent.
-        self.allowed_tools = allowed_tools or seeded_allowed or {
-            "read_file",
-            "write_file",
-            "web_search",
-            "search_files",
-            "send_message",
-            "terminal",
-        }
-        self.denied_tools = (
-            denied_tools if denied_tools is not None else seeded_denied
+        self.allowed_tools = (
+            allowed_tools
+            or seeded_allowed
+            or {
+                "read_file",
+                "write_file",
+                "web_search",
+                "search_files",
+                "send_message",
+                "terminal",
+            }
         )
+        self.denied_tools = denied_tools if denied_tools is not None else seeded_denied
         if self.denied_tools is None:
             self.denied_tools = {
                 "skill_manage",

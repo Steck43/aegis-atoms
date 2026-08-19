@@ -4,11 +4,11 @@ test_judge_property_fuzzer.py — J3: cage containment as a measured property.
 Author:  Landen Stecker
 Date:    2026-07-13
 """
+
 from __future__ import annotations
 
-import pytest
 
-from triad_types import EffectRank, RollupStatus
+from triad_types import EffectRank
 
 
 def test_invariant_quoted_never_widen_permit_set():
@@ -20,8 +20,14 @@ def test_invariant_quoted_never_widen_permit_set():
         check_judge_cage_invariant,
     )
 
-    assert "byte-identical" in JUDGE_CAGE_INVARIANT or "strict subset" in JUDGE_CAGE_INVARIANT
-    assert "never" in JUDGE_CAGE_INVARIANT.lower() or "widen" in JUDGE_CAGE_INVARIANT.lower()
+    assert (
+        "byte-identical" in JUDGE_CAGE_INVARIANT
+        or "strict subset" in JUDGE_CAGE_INVARIANT
+    )
+    assert (
+        "never" in JUDGE_CAGE_INVARIANT.lower()
+        or "widen" in JUDGE_CAGE_INVARIANT.lower()
+    )
     assert "subtract" in ENGINE_CONSUMER_SUBTRACT_INVARIANT.lower()
     assert "never widen" in ENGINE_CONSUMER_SUBTRACT_INVARIANT.lower()
     assert "discard" in ENGINE_DISCARD_INVARIANT.lower()
@@ -51,7 +57,9 @@ def test_invariant_allows_strict_subset_subtract():
     from property_fuzzer import PermitSet, check_judge_cage_invariant
 
     absent = PermitSet(permitted_calls=("tool:a",), floor_verdict="ALLOW")
-    present = PermitSet(permitted_calls=(), floor_verdict="ALLOW")  # HITL / flag subtract
+    present = PermitSet(
+        permitted_calls=(), floor_verdict="ALLOW"
+    )  # HITL / flag subtract
     result = check_judge_cage_invariant(absent=absent, present=present)
     assert result.ok is True
     assert result.subtracted is True
@@ -105,7 +113,6 @@ def test_refusal_classified_from_cage_escalation_reason():
         classify_trial_outcome,
         check_judge_cage_invariant,
     )
-    from triad_types import EffectRank
 
     item = GeneratedJudgeOutput(
         trial_id=0,
@@ -174,8 +181,7 @@ def test_property_holds_across_ten_thousand_stubbed_trials():
     assert report.counts[OutcomeClass.CRASH] == 0
     # Refusal is its own class — not required zero, but not folded into pass incorrectly.
     assert (
-        report.counts[OutcomeClass.PASS]
-        + report.counts[OutcomeClass.REFUSAL]
+        report.counts[OutcomeClass.PASS] + report.counts[OutcomeClass.REFUSAL]
         == report.n_trials
     )
     f1 = report.family_counts.get("well_formed_hostile", 0)
@@ -191,7 +197,6 @@ def test_engine_path_judge_cannot_widen_evaluation_result(tmp_path):
         check_engine_consumer_invariant,
         engine_eval_target,
     )
-    from triad_types import EffectRank
 
     item = GeneratedJudgeOutput(
         trial_id=0,
@@ -213,7 +218,9 @@ def test_engine_path_judge_cannot_widen_evaluation_result(tmp_path):
     assert inv.widened is False
 
 
-def test_engine_eval_target_fails_when_wire_mutates_winning_effect(tmp_path, monkeypatch):
+def test_engine_eval_target_fails_when_wire_mutates_winning_effect(
+    tmp_path, monkeypatch
+):
     """BREAK: invariant returns ok=False. Pytest itself must exit 0."""
     import engine as eng
     from engine import EvaluationResult
@@ -223,7 +230,6 @@ def test_engine_eval_target_fails_when_wire_mutates_winning_effect(tmp_path, mon
         check_engine_consumer_invariant,
         engine_eval_target,
     )
-    from triad_types import EffectRank
 
     real = eng.evaluate_tool_call
 

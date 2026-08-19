@@ -9,6 +9,7 @@ Summary: Surface four, supply chain. Two halves. Integrity catches a tampered
          declared — the Postmark BCC pattern. Together they govern the surface
          the other three miss by construction.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -500,10 +501,7 @@ def denial_line(
     framework_ids: list[str],
 ) -> str:
     fw = ", ".join(framework_ids)
-    return (
-        f"[aegis-atoms] Blocked by {atom_id} via {control_id} "
-        f"(frameworks: {fw})"
-    )
+    return f"[aegis-atoms] Blocked by {atom_id} via {control_id} (frameworks: {fw})"
 
 
 def rollup_denial_message(rollups: list[ControlRollup]) -> str | None:

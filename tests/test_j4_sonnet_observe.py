@@ -4,6 +4,7 @@ test_j4_sonnet_observe.py — SETTLE4 j4slot=A paid Sonnet under observe.
 Author:  Landen Stecker
 Date:    2026-07-18
 """
+
 from __future__ import annotations
 
 import importlib

@@ -4,6 +4,7 @@ test_control_surface.py — Atom 3: write to declared control plane.
 Author:  Landen Stecker
 Date:    2026-07-13
 """
+
 from __future__ import annotations
 
 from pathlib import Path

@@ -9,6 +9,7 @@ Summary: Typed audit spine for the bounded judge. Every evaluation cycle
          cannot be constructed. Dollars are recomputable from raw tokens
          and the pinned price table (source + 2026-08-31 expiry recorded).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -18,7 +19,7 @@ import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any, Literal, Mapping
+from typing import Any, Literal
 
 AUDIT_RECORD_TYPE = "judge_cycle_audit"
 DEFAULT_AUDIT_REL = Path("logs") / "judge-audit.jsonl"
@@ -228,7 +229,9 @@ class AuditStore:
             spend += float(actual)
         promptish = tokens_in + cache_creates
         hit_rate = (
-            (cache_reads / (cache_reads + promptish)) if (cache_reads + promptish) else None
+            (cache_reads / (cache_reads + promptish))
+            if (cache_reads + promptish)
+            else None
         )
         return {
             "records": len(rows),
@@ -259,7 +262,9 @@ def sample_record(*, dry_run: bool = True) -> CycleAuditRecord:
         estimated_cost_usd=SONNET5_PRICE_TABLE.cost_usd(
             tokens_in=1200, tokens_out=180, thinking_tokens=90
         ),
-        actual_cost_usd=None if dry_run else SONNET5_PRICE_TABLE.cost_usd(
+        actual_cost_usd=None
+        if dry_run
+        else SONNET5_PRICE_TABLE.cost_usd(
             tokens_in=1200, tokens_out=180, thinking_tokens=90
         ),
         stop_reason="end_turn",
@@ -310,12 +315,16 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="cmd", required=True)
 
     s = sub.add_parser("summary", help="Summarize spend and token totals")
-    s.add_argument("--dry-run", action="store_true", help="No side effects (default for summary)")
+    s.add_argument(
+        "--dry-run", action="store_true", help="No side effects (default for summary)"
+    )
 
     s = sub.add_parser("tail", help="Show last N records")
     s.add_argument("-n", type=int, default=5)
 
-    s = sub.add_parser("sample", help="Write the B1 sample record (or print with --dry-run)")
+    s = sub.add_parser(
+        "sample", help="Write the B1 sample record (or print with --dry-run)"
+    )
     s.add_argument(
         "--dry-run",
         action="store_true",
@@ -367,12 +376,18 @@ def main(argv: list[str] | None = None) -> int:
             "source": pt.source,
             "pinned_on": pt.pinned_on.isoformat(),
         }
-        print(json.dumps(payload, indent=2) if args.json else json.dumps(payload, indent=2))
+        print(
+            json.dumps(payload, indent=2)
+            if args.json
+            else json.dumps(payload, indent=2)
+        )
         return 0
 
     if args.cmd == "summary":
         if not path.is_file():
-            _die(f"audit file not found: {path} (run sample --dry-run first, or set --path)")
+            _die(
+                f"audit file not found: {path} (run sample --dry-run first, or set --path)"
+            )
         summary = store.summarize()
         summary["path"] = str(path)
         if args.json:
@@ -405,7 +420,11 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         store.append(rec)
         if args.json:
-            print(json.dumps({"appended": True, "path": str(path), "cycle_id": rec.cycle_id}))
+            print(
+                json.dumps(
+                    {"appended": True, "path": str(path), "cycle_id": rec.cycle_id}
+                )
+            )
         else:
             print(f"appended {rec.cycle_id} -> {path}")
         return 0

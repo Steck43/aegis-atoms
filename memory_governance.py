@@ -10,6 +10,7 @@ Summary: Surface three, memory governance. Flow atom tracks secret-origin data
          origin writes that land on files read back into model instruction
          context — the origin lattice is blind to that by construction.
 """
+
 from __future__ import annotations
 
 import fnmatch
@@ -227,9 +228,7 @@ def _match_glob(resolved: Path, base: Path, pattern: str) -> bool:
         )
     except ValueError:
         return False
-    return fnmatch.fnmatch(
-        str(rel_path).replace("\\", "/"), pattern.replace("\\", "/")
-    )
+    return fnmatch.fnmatch(str(rel_path).replace("\\", "/"), pattern.replace("\\", "/"))
 
 
 def write_target_is_instruction_surface(

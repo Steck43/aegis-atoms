@@ -10,6 +10,7 @@ Loads Agent/Policy/Aegis-Atoms-v0.yaml from the vault.
 Evaluates polarity-free predicates on pre_tool_call; logs firings to jsonl.
 Composes with capability-gate (path allowlist) and constitution-guard (persona).
 """
+
 from __future__ import annotations
 
 import logging
@@ -66,9 +67,6 @@ def _resolve_vault() -> Path | None:
                 val = line.split("=", 1)[1].strip().strip('"').strip("'")
                 if val:
                     candidates.append(val)
-    candidates.append(
-        "/mnt/c/Users/lande/Documents/Obsidian Vault/The_Boswell_Archive"
-    )
     seen: set[str] = set()
     for raw in candidates:
         if raw in seen:
@@ -111,7 +109,7 @@ def _load_catalog_cached() -> eng.Catalog | None:
             logger.warning("aegis-atoms: catalog not found")
             return None
     try:
-        mtime = path.stat().st_mtime
+        path.stat()
     except OSError:
         return None
     now = time.monotonic()
@@ -132,7 +130,9 @@ def _read_plugin_mode(default: str = "enforce") -> str:
         from hermes_cli.config import cfg_get, load_config
 
         cfg = load_config()
-        mode = cfg_get(cfg, "plugins", "entries", "aegis-atoms", "mode", default=default)
+        mode = cfg_get(
+            cfg, "plugins", "entries", "aegis-atoms", "mode", default=default
+        )
         if mode in ("observe", "enforce"):
             return str(mode)
     except Exception:
@@ -314,7 +314,9 @@ def pre_tool_call(
         args = {}
 
     env = _build_env()
-    log_raw = catalog.logging.get("firings_path", "${HERMES_HOME}/logs/aegis-atoms.jsonl")
+    log_raw = catalog.logging.get(
+        "firings_path", "${HERMES_HOME}/logs/aegis-atoms.jsonl"
+    )
     log_path = Path(eng._expand(str(log_raw), env))
 
     mode = _read_plugin_mode()
@@ -346,7 +348,9 @@ def pre_tool_call(
             session_ctx=flow_ctx,
             flow_atom_enabled=True,
             action_gating_enabled=True,
-            allowed_roots=[p for p in (env.get("HERMES_HOME"), env.get("OBSIDIAN_VAULT_PATH")) if p],
+            allowed_roots=[
+                p for p in (env.get("HERMES_HOME"), env.get("OBSIDIAN_VAULT_PATH")) if p
+            ],
             content_detection_enabled=False,
             judge_enabled=judge_observe,
             judge_apply_verdict=False,
