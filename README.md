@@ -28,7 +28,7 @@ This repository is the atom plane and a bounded judge, as source. The allowlist 
 
 | | Here | Live, on the Hermes aegis profile |
 |---|---|---|
-| Allowlist floor | capability-gate | enforce |
+| Allowlist floor | not this roof | capability-gate, enforce |
 | Triad plugin | source | not mounted |
 | Judge | subtract-only, proven | `judge_apply_verdict=False` |
 | Irreversible ops | default off | not enabled |
@@ -42,7 +42,7 @@ This repository is the atom plane and a bounded judge, as source. The allowlist 
 |---|---|---|
 | Floor (allowlist) | `Steck43/capability-gate` on `profiles/aegis` | live enforce, other roof |
 | Floor (atom plane) | this tree | source-present |
-| Judge | this tree (`bounded_judge.py`, J3) | proven, subtract-only; live mount keeps `apply_verdict=False` |
+| Judge | this tree (`bounded_judge.py`, J3) | proven, subtract-only; live mount keeps `judge_apply_verdict=False` |
 | Box | separate Rust tree | isolation-layer, not consumed here |
 | Audit | vault ledger | not shipped in this git |
 
@@ -103,7 +103,7 @@ This code lived in-tree in a Hermes-agent fork under `aegis-plugins/aegis-atoms`
 
 ## Status
 
-Capability-gate is the live allowlist. This roof stays observe: atoms enforce and a live `apply_verdict=True` mount wait on a separate GO.
+Capability-gate is the live allowlist. This roof stays observe: atoms enforce and a live `judge_apply_verdict=True` mount wait on a separate GO.
 
 ---
 

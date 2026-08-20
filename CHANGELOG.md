@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- README leads with stakes, then the three-object invention at length, then maps. Runtime grade is stated as fact. Supervisory reader-orders and the short-sentence opening run are gone. BREAK is the J3 negative-control file. The apply-path fuzzer caller with `judge_apply_verdict=True` is named; `evaluate_tool_call` defaults that flag to True. PDP evaluate is labeled a pre-tool call. 
+- README leads with stakes, then the three-object invention at length, then maps. Runtime grade is stated as fact. Supervisory reader-orders and the short-sentence opening run are gone. BREAK is the J3 negative-control file. The apply-path fuzzer caller with `judge_apply_verdict=True` is named; `evaluate_tool_call` defaults that flag to True. PDP evaluate is labeled a pre-tool call. The grade table's Here column names the allowlist as the other roof. The live-mount flag is `judge_apply_verdict` everywhere. 
 
 ### Fixed
 
