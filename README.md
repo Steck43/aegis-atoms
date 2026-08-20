@@ -109,11 +109,13 @@ Every tracked file is listed in `SHA256SUMS`. From a fresh clone:
 sha256sum -c SHA256SUMS
 ```
 
-The manifest is generated, not maintained. `scripts/gen_manifest.sh` reads each
-path from the git index rather than the working tree, so the rows are the bytes
-the repository stores and not the bytes any one checkout happens to hold. CI
-regenerates it on every push and fails if the committed file differs, then runs
-the command above against a clean checkout.
+The manifest is generated, not maintained. `scripts/gen_manifest.sh` reads
+each path from the git index rather than the working tree, so the rows are
+the bytes the repository stores and not the bytes any one checkout happens
+to hold. It is registered in `.floor/derived.tsv`, the list of files here
+that are a function of other files. CI regenerates everything in that list
+on each push and fails if a committed copy differs, then runs the command
+above against a clean checkout.
 
 ## Status
 

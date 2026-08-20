@@ -1,0 +1,11 @@
+# Files in this roof that are a function of other files, and the command that
+# produces them. Tab separated: artifact<TAB>command.
+#
+# Anything listed here is verified two ways: the `derived` workflow regenerates
+# it on every push and fails if the committed copy differs, and the estate's
+# nightly readiness probe reproduces it in a throwaway worktree of the published
+# default branch. Both read this file, so there is one registry and not two.
+#
+# The command must be plain argv. No pipes, redirects, or shell operators: the
+# probe runs it without a shell.
+SHA256SUMS	bash scripts/gen_manifest.sh
