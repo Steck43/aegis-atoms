@@ -1,17 +1,23 @@
 <!--
 Author:  Landen Stecker
 Date:    2026-08-19
-Version: 0.2.1
-Summary: Public README for aegis-atoms. Atom plane and bounded judge as source.
+Version: 0.2.3
+Summary: Public README for aegis-atoms. Stakes first, then the three-object invention, then maps.
 -->
 
 <div align="center">
 
 # Aegis atoms
 
-The atom plane and a bounded judge, as source. The allowlist that gates tool calls is capability-gate, a separate roof.
+</div>
 
-The floor decides. The judge doubts. The box contains. The audit attests.
+A static allowlist is necessary and not sufficient. It cannot see a path that aliases out of its root, a command that hides executable structure in an argument, or an instruction that arrives as ordinary content. An agent thinks in text, and every real consequence is a tool call; this plane sits on the line between the two.
+
+An atom is a fact with no opinion. It cannot authorize, DENY or ABSTAIN, never yes, because polarity and strength live on the edge, the effect lives on the control, and the rollup combines them deny-overrides, tracking maximum support and maximum contradiction independently rather than summing, so an allow that outranks a block cannot be expressed and argument order cannot change the result. Keeping the three objects apart is the point: the moment an atom carries its own effect it stops being reusable and becomes a decision. Support and contradiction both firing is CONFLICTING, and that case is the named handoff to the box.
+
+This repository is the atom plane and a bounded judge, as source. The allowlist that gates tool calls is capability-gate, on a separate roof. The floor decides, the judge doubts, the box contains, and the audit attests.
+
+<div align="center">
 
 ![Atoms harness](https://img.shields.io/badge/Atoms%20harness-7%2F16%20hard--deny-1f6feb)
 ![mode](https://img.shields.io/badge/mode-observe-informational)
@@ -20,49 +26,27 @@ The floor decides. The judge doubts. The box contains. The audit attests.
 
 </div>
 
----
-
-An atom is a fact with no opinion. It cannot authorize. Its decision is DENY or ABSTAIN, never yes. Polarity and strength live on the edge. The effect lives on the control. The rollup combines them deny-overrides, tracking maximum support and maximum contradiction independently rather than summing, so an allow that outranks a block cannot be expressed and argument order cannot change the result. Keeping the three objects apart is the point: the moment an atom carries its own effect it stops being reusable and becomes a decision.
-
-Support and contradiction both firing is CONFLICTING, and that escalates rather than guessing. That case is the named handoff to the box.
-
-This repository is source. It is not a mount.
-
 | | Here | Live, on the Hermes aegis profile |
 |---|---|---|
-| Allowlist floor | not this roof | capability-gate, enforce |
+| Allowlist floor | capability-gate | enforce |
 | Triad plugin | source | not mounted |
 | Judge | subtract-only, proven | `judge_apply_verdict=False` |
-| Irreversible ops | `evaluate_tool_call` defaults False | not enabled |
+| Irreversible ops | default off | not enabled |
 | Catalog | `catalog/Aegis-Atoms-v0.yaml`: 15 atoms, 2 delegates | mostly dormant |
 
-Two caller sets exist here on purpose. `property_fuzzer.py` runs the apply path with `judge_apply_verdict=True` to earn the subtract-invariant receipt, and the observe path with False to mirror the live mount. Both are harness callers. Neither is a tool call.
-
-`evaluate_tool_call` defaults `judge_apply_verdict` to True. A caller who omits the argument applies. Pass False on purpose.
-
-BREAK lives in `evidence/j3/negative-controls.md`. Those pytest functions monkeypatch the wire so the invariant fails. Going red is the proof the detector works. A green 10k run whose control was never exercised is a green on nothing.
-
-Inventory: **28** root Python modules, **2** evidence directories (`evidence`, `evidence/j3`), two receipted 10k runs (apply subtract + observe telemetry). No line-count in this file.
+`evaluate_tool_call` defaults `judge_apply_verdict` to True, so a caller who omits the argument applies; the live mount passes False. `property_fuzzer.py` runs both paths on purpose: apply, to earn the subtract-invariant receipt, and observe, to mirror the mount. BREAK lives in `evidence/j3/negative-controls.md`: those pytest functions monkeypatch the wire so the invariant fails, and going red is the proof the detector works. A green 10k run whose control was never exercised is a green on nothing. The tree carries 28 root Python modules and two evidence directories, with receipted 10k runs on both the apply subtract and the observe telemetry paths.
 
 ## Four-plane authority
 
-> The floor decides. The judge doubts. The box contains. The audit attests.
-
-That sentence is from the containment topic, quoted verbatim. This repository is not all four planes.
-
 | Plane | Where it lives | Grade here |
 |---|---|---|
-| Floor (allowlist) | `Steck43/capability-gate` on `profiles/aegis` | live enforce, not this repo |
-| Floor (atom plane) | this tree | source-present, not mounted on this roof |
-| Judge | this tree (`bounded_judge.py`, J3) | proven, subtract-only. Live mount keeps `apply_verdict=False` |
-| Box | separate Rust tree | not consumed by this plugin |
-| Audit | vault ledger | not shipped in git |
+| Floor (allowlist) | `Steck43/capability-gate` on `profiles/aegis` | live enforce, other roof |
+| Floor (atom plane) | this tree | source-present |
+| Judge | this tree (`bounded_judge.py`, J3) | proven, subtract-only; live mount keeps `apply_verdict=False` |
+| Box | separate Rust tree | isolation-layer, not consumed here |
+| Audit | vault ledger | not shipped in this git |
 
-Memory is a governed surface, not a fifth plane.
-
-## Why this exists
-
-An agent thinks and it acts. Thinking is text. Acting is a tool call. A static allowlist is necessary and not sufficient: it is structurally blind to capability aliasing, argument evasion, context, composition, and injection. Atoms are polarity-free facts. Edges carry polarity. Controls carry effect. Combination is deny-overrides.
+Memory is a governed surface, not a fifth plane, because it does not expire or delete on its own authority.
 
 ## How a decision is made
 
@@ -84,11 +68,7 @@ flowchart TD
     ENF --> OUT([allow · deny · escalate])
 ```
 
-PDP evaluate is a pre-tool call. The tool has not run yet. Pre-tool call goes to atoms. A contradiction the rollup cannot settle goes to the box.
-
-This ordering is design intent, not a forced path. Today a tool call meets the allowlist and runs. It does not have to enter the atom plane, does not have to enter the box, and does not pay a judge.
-
-Observe means consult plus telemetry. The engine can compute a subtract and then discard it when `judge_apply_verdict` is False. That is how the Hermes profile plugin is wired. This public extract is source-present, not a live mount.
+PDP evaluate is a pre-tool call: the tool has not run yet, the call goes to atoms, and a contradiction the rollup cannot settle goes to the box. On the live Hermes profile the engine can compute that subtract and discard it, because `judge_apply_verdict` is False; today the call still meets the allowlist and runs.
 
 ## The three-object model
 
@@ -109,30 +89,26 @@ Observe means consult plus telemetry. The engine can compute a subtract and then
 
 ## What the suite measures
 
-Two harnesses. Do not collapse the numbers.
+The atoms harness runs eighteen callables from `adversarial_suite.ALL_CASES`. Sixteen are attacks: seven hard-deny as `CAUGHT-NAIVE`, eight `FALSE-ALLOW`, and H1 `HALTED`, which sits in the sixteen and not in the hard-deny numerator. The two benign cases split `CORRECT-ALLOW` and `FALSE-DENY`. Fixture-era 8/16 is a prior KPI. The capability-gate Stage-1 lab is a different harness, and a tally that does not name which is not a comparable number.
 
-**Adversarial suite (atoms KPI):** **7/16** hard-deny from `adversarial_suite.ALL_CASES` (**18** callables). Breakdown pinned in `tests/test_adversarial_suite.py`: 16 attack (`CAUGHT-NAIVE=7`, `FALSE-ALLOW=8`, `HALTED=1` for H1; H1 is in the 16, not in the hard-deny numerator) + 2 benign (`CORRECT-ALLOW=1`, `FALSE-DENY=1`). Fixture-era 8/16 is not the live KPI.
-
-**CG Stage-1 lab** is a different harness on the capability-gate roof. Name which suite when you cite a tally.
-
-Framework mappings reference OWASP (LLM and Agentic Top 10), MITRE ATLAS `v2026.06` (`mitre-atlas/atlas-data` `dist/v6/ATLAS-2026.06.yaml`), and NIST AI RMF, and live on the control, not the atom.
+Framework mappings reference OWASP (LLM and Agentic Top 10), MITRE ATLAS `v2026.06` (`mitre-atlas/atlas-data` `dist/v6/ATLAS-2026.06.yaml`), and NIST AI RMF, and live on the control.
 
 ## The bounded judge
 
-The judge can concur, flag, tighten, or escalate. It cannot issue a floor verdict, and it cannot widen or approve. Receipts: `evidence/j3/j3-property-10k.json` (apply) and `evidence/j3/j3-observe-telemetry-10k.json` (observe).
+The judge can concur, flag, tighten, or escalate; it cannot issue a floor verdict, and it cannot widen or approve. Receipts live at `evidence/j3/j3-property-10k.json` for apply and `evidence/j3/j3-observe-telemetry-10k.json` for observe.
 
 ## History
 
-This code lived in-tree in a Hermes-agent fork under `aegis-plugins/aegis-atoms`. History stays there. A public extract is a deliberate allowlist copy into a new repository, not a dump of the fork, and not a Nous Research LICENSE.
+This code lived in-tree in a Hermes-agent fork under `aegis-plugins/aegis-atoms`; history stays there, and this repository is an allowlist extract of that tree.
 
 ## Status
 
-**Observe.** Capability-gate stays the live allowlist. Atoms enforce and a live `apply_verdict=True` mount are a separate GO.
+Capability-gate is the live allowlist. This roof stays observe: atoms enforce and a live `apply_verdict=True` mount wait on a separate GO.
 
 ---
 
 <div align="center">
 
-Built by **Landen Stecker** · CISSP · M.S. AI, Santa Clara University
+*Built by Landen Stecker · CISSP · MS AI, Santa Clara University*
 
 </div>
