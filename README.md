@@ -101,6 +101,20 @@ The judge can concur, flag, tighten, or escalate; it cannot issue a floor verdic
 
 This code lived in-tree in a Hermes-agent fork under `aegis-plugins/aegis-atoms`; history stays there, and this repository is an allowlist extract of that tree.
 
+## Verifying this tree
+
+Every tracked file is listed in `SHA256SUMS`. From a fresh clone:
+
+```
+sha256sum -c SHA256SUMS
+```
+
+The manifest is generated, not maintained. `scripts/gen_manifest.sh` reads each
+path from the git index rather than the working tree, so the rows are the bytes
+the repository stores and not the bytes any one checkout happens to hold. CI
+regenerates it on every push and fails if the committed file differs, then runs
+the command above against a clean checkout.
+
 ## Status
 
 Capability-gate is the live allowlist. This roof stays observe: atoms enforce and a live `judge_apply_verdict=True` mount wait on a separate GO.
