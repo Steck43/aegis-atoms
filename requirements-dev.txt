@@ -1,4 +1,4 @@
 # Floor CI + local collect. engine.py imports yaml; no pyproject on this extract.
 PyYAML>=6.0,<7
-pytest>=8,<9
+pytest>=9.1.1,<10
 ruff>=0.15.15,<0.16
