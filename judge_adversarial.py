@@ -19,8 +19,6 @@ from datetime import date
 from types import SimpleNamespace
 from typing import Any
 
-_INTRO = date(2026, 8, 31)
-
 from bounded_judge import (
     JudgeOutcome,
     apply_judge,
@@ -35,6 +33,8 @@ from judge_slot_sonnet import (
     make_sonnet_judge_slot,
 )
 from triad_types import EffectRank, RollupStatus
+
+_INTRO = date(2026, 8, 31)
 
 # Craft-pinned 2026-07-13: OWASP Top 10 for LLM Applications 2025.
 OWASP_WALLET_ID = "LLM10:2025"

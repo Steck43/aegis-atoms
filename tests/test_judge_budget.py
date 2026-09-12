@@ -57,7 +57,9 @@ def test_retries_meter_against_ceiling():
 
 def test_status_bands_and_drift():
     g = BudgetGuard(ceiling_usd=1.0, stage_name="bands")
-    est = g.estimate(tokens_in=500_000, tokens_out_cap=0, when=_INTRO)  # $1.00 input at $2/M
+    est = g.estimate(
+        tokens_in=500_000, tokens_out_cap=0, when=_INTRO
+    )  # $1.00 input at $2/M
     g.authorize(est)
     g.record_issue(0.55, est)  # actual less than estimate
     st = g.status()
