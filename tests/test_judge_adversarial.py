@@ -7,6 +7,7 @@ Date:    2026-07-13
 
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 
 from adversarial_suite import run_suite, summarize
@@ -74,7 +75,7 @@ def test_j2_dow_budget_exhausted_without_crossing_issue():
 
 
 def test_dow_cap_orders_of_magnitude_worse_for_attacker():
-    m = measure_dow_capped_vs_uncapped()
+    m = measure_dow_capped_vs_uncapped(when=date(2026, 8, 31))
     assert m["owasp"] == OWASP_WALLET_ID
     assert m["attacker_cost_ratio_uncapped_over_capped"] >= 10
     assert m["uncapped_first_call_exceeds_stage_one"] is True

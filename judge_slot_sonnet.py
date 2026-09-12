@@ -16,6 +16,7 @@ import json
 import os
 import time
 from dataclasses import dataclass
+from datetime import date
 from typing import Any, Callable
 
 from bounded_judge import JudgeOpinion, JudgeRecommendation
@@ -133,8 +134,13 @@ def make_sonnet_judge_slot(
     *,
     config: SonnetJudgeConfig | None = None,
     client: Any | None = None,
+    as_of: date | None = None,
 ) -> Callable[[dict[str, Any], EffectRank], JudgeOpinion]:
-    """Return a JudgeSlot. Cage types unchanged."""
+    """Return a JudgeSlot. Cage types unchanged.
+
+    as_of pins the price table. Tests pass the intro expiry so CI does not
+    move when calendar day crosses introductory_through. Production omits it.
+    """
     cfg = config or SonnetJudgeConfig()
     key = (
         cfg.api_key
@@ -163,6 +169,7 @@ def make_sonnet_judge_slot(
             tokens_in=tokens_in_est,
             tokens_out_cap=cfg.max_tokens,
             thinking_tokens_est=thinking_est,
+            when=as_of,
         )
         budget.authorize(estimate)  # may raise BudgetExhausted — before issue
 
@@ -234,6 +241,7 @@ def make_sonnet_judge_slot(
             tokens_in=tokens_in,
             tokens_out=tokens_out,
             thinking_tokens=0,
+            when=as_of,
         )
         mc = ModelCallUsage(
             model_identity=str(model_identity),

@@ -15,8 +15,11 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
+from datetime import date
 from types import SimpleNamespace
 from typing import Any
+
+_INTRO = date(2026, 8, 31)
 
 from bounded_judge import (
     JudgeOutcome,
@@ -161,6 +164,7 @@ def _slot_from_responses(
         budget,
         config=SonnetJudgeConfig(api_key="test", dry_run=dry_run),
         client=client,
+        as_of=_INTRO,
     )
     return slot, budget, client
 
@@ -408,19 +412,22 @@ def case_10_refusal(
     )
 
 
-def measure_dow_capped_vs_uncapped(*, n_calls: int = 10) -> dict[str, Any]:
+def measure_dow_capped_vs_uncapped(
+    *, n_calls: int = 10, when: date | None = None
+) -> dict[str, Any]:
     """What it costs an attacker to drive the judge dark — capped vs uncapped."""
     from judge_audit import SONNET5_PRICE_TABLE
 
+    as_of = when
     # Per-call: large input + max out.
     tokens_in = 8_000
     capped_out = MAX_OUTPUT_TOKENS
     uncapped_out = 128_000
     cost_capped = SONNET5_PRICE_TABLE.cost_usd(
-        tokens_in=tokens_in, tokens_out=capped_out, thinking_tokens=0
+        tokens_in=tokens_in, tokens_out=capped_out, thinking_tokens=0, when=as_of
     )
     cost_uncapped = SONNET5_PRICE_TABLE.cost_usd(
-        tokens_in=tokens_in, tokens_out=uncapped_out, thinking_tokens=0
+        tokens_in=tokens_in, tokens_out=uncapped_out, thinking_tokens=0, when=as_of
     )
     # Calls to exhaust stage-one $0.25 under each regime (authorize uses out cap).
     stage_one = 0.25
