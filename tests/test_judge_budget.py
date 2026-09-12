@@ -7,9 +7,13 @@ Date:    2026-07-13
 
 from __future__ import annotations
 
+from datetime import date
+
 import pytest
 
 from judge_budget import BudgetExhausted, BudgetGuard
+
+_INTRO = date(2026, 8, 31)
 
 
 def test_ceiling_cannot_exceed_wall():
@@ -19,7 +23,12 @@ def test_ceiling_cannot_exceed_wall():
 
 def test_authorize_refuses_before_issue():
     g = BudgetGuard(ceiling_usd=0.25, stage_name="stage_one")
-    est = g.estimate(tokens_in=1000, tokens_out_cap=2000, thinking_tokens_est=100)
+    est = g.estimate(
+        tokens_in=1000,
+        tokens_out_cap=2000,
+        thinking_tokens_est=100,
+        when=_INTRO,
+    )
     # Force spent near ceiling so next authorize refuses.
     g.spent_usd = 0.24
     # Tiny remaining — a full-cap estimate must refuse.
@@ -34,7 +43,7 @@ def test_authorize_refuses_before_issue():
 def test_retries_meter_against_ceiling():
     g = BudgetGuard(ceiling_usd=0.05, stage_name="meter")
     # Each authorize with a full 2000-out estimate (~$0.02) counts.
-    est = g.estimate(tokens_in=100, tokens_out_cap=2000)
+    est = g.estimate(tokens_in=100, tokens_out_cap=2000, when=_INTRO)
     g.authorize(est)
     g.record_issue(0.02, est)
     g.authorize(est)
@@ -48,7 +57,9 @@ def test_retries_meter_against_ceiling():
 
 def test_status_bands_and_drift():
     g = BudgetGuard(ceiling_usd=1.0, stage_name="bands")
-    est = g.estimate(tokens_in=500_000, tokens_out_cap=0)  # $1.00 input at $2/M
+    est = g.estimate(
+        tokens_in=500_000, tokens_out_cap=0, when=_INTRO
+    )  # $1.00 input at $2/M
     g.authorize(est)
     g.record_issue(0.55, est)  # actual less than estimate
     st = g.status()

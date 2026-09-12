@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+title: aegis-atoms
+message: If you use this software, please cite it as below.
+type: software
+authors:
+  - family-names: Stecker
+    given-names: Landen
+license: MIT
+repository-code: https://github.com/Steck43/aegis-atoms
+abstract: >
+  Atom-plane source and a bounded subtract-only judge for agent tool
+  calls. An atom is a polarity-free fact. The live Hermes mount is a
+  different tree; this extract is not the mount. Observe. Apply stays
+  off on the published extract until a named receipt says otherwise.
+keywords:
+  - atom plane
+  - bounded judge
+  - agent security
+  - three-object model

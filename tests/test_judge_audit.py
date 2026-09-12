@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -31,13 +32,38 @@ def test_model_call_requires_identity():
 
 def test_cost_recomputable_from_tokens():
     pt = SONNET5_PRICE_TABLE
+    intro = date(2026, 8, 31)
+    post = date(2026, 9, 1)
     # 1M in + 1M out + 0 thinking = $2 + $10 = $12 intro
     assert (
-        pt.cost_usd(tokens_in=1_000_000, tokens_out=1_000_000, thinking_tokens=0)
+        pt.cost_usd(
+            tokens_in=1_000_000,
+            tokens_out=1_000_000,
+            thinking_tokens=0,
+            when=intro,
+        )
         == 12.0
     )
     # thinking bills as output
-    assert pt.cost_usd(tokens_in=0, tokens_out=0, thinking_tokens=1_000_000) == 10.0
+    assert (
+        pt.cost_usd(
+            tokens_in=0,
+            tokens_out=0,
+            thinking_tokens=1_000_000,
+            when=intro,
+        )
+        == 10.0
+    )
+    # post-intro 3+15 = 18; do not hide the expiry behind date.today()
+    assert (
+        pt.cost_usd(
+            tokens_in=1_000_000,
+            tokens_out=1_000_000,
+            thinking_tokens=0,
+            when=post,
+        )
+        == 18.0
+    )
 
 
 def test_append_only_store(tmp_path: Path):
