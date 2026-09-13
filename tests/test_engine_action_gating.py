@@ -56,6 +56,40 @@ def test_action_gating_blocks_traversal_outside_allowed_root(tmp_path: Path):
         f.atom_id == "atoms.tool_invocation.path_resolves_outside_allowed_root"
         for f in result.firings
     )
+    assert all(
+        f.detector_kind == "action_gating_structural"
+        for f in result.firings
+        if f.atom_id == "atoms.tool_invocation.path_resolves_outside_allowed_root"
+    )
+
+
+def test_strangler_observe_marks_path_outside_only(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("AEGIS_STRANGLER_OBSERVE", "1")
+    catalog, env = _catalog_env(tmp_path)
+    allowed = tmp_path / "allowed"
+    secrets = tmp_path / "secrets"
+    allowed.mkdir()
+    secrets.mkdir()
+    (secrets / ".env").write_text("API_KEY=REDACTED\n", encoding="utf-8")
+    traversal = str(allowed / ".." / "secrets" / ".env")
+
+    result = evaluate_tool_call(
+        catalog,
+        "read_file",
+        {"path": traversal},
+        env=env,
+        plugin_mode="enforce",
+        action_gating_enabled=True,
+        allowed_roots=[str(allowed)],
+    )
+    path_firings = [
+        f
+        for f in result.firings
+        if f.atom_id == "atoms.tool_invocation.path_resolves_outside_allowed_root"
+    ]
+    assert path_firings
+    assert all(f.detector_kind == "strangler-observe" for f in path_firings)
+    assert result.block_message is not None
 
 
 def test_action_gating_blocks_unsanitized_shell(tmp_path: Path):
