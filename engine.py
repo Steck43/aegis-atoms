@@ -730,6 +730,7 @@ def evaluate_tool_call(
         from action_gating import (
             evaluate_action_gating,
             rollup_denial_message,
+            strangler_observe_split,
             ATOM_PATH_OUTSIDE,
             ATOM_SHELL_UNSANITIZED,
         )
@@ -769,6 +770,12 @@ def evaluate_tool_call(
             sev = "high"
             if edge and edge.control_id in ctrl_by_id:
                 sev = _severity_str(ctrl_by_id[edge.control_id].severity, effect)
+            split = strangler_observe_split(af.atom_id)
+            detector_kind = (
+                "strangler-observe"
+                if split == "strangler-observe"
+                else "action_gating_structural"
+            )
             firings.append(
                 Firing(
                     firing_id=af.firing_id,
@@ -779,7 +786,7 @@ def evaluate_tool_call(
                     enforcement_mode="monitor",
                     enforced=enforced_ag,
                     reason_public=denial or af.atom_id,
-                    detector_kind="action_gating_structural",
+                    detector_kind=detector_kind,
                     tool_name=tool_name,
                     paths=paths,
                     session_id=session_id,
