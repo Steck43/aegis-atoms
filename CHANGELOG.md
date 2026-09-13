@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- CONFLICTING rollup names the box door. `AEGIS_CONFLICTING_HANDOFF` points at `isolation-layer` `scripts/conflicting_handoff.py` and is invoked dry. Unset is `HANDOFF_UNWIRED`. The atoms seat never passes `--launch`. `always_invoked` stays false.
 - Judge consult is its own flag. Plugin mode no longer turns the judge off. The live mount passes `judge_apply_verdict=True` under a sitting quota (`AEGIS_JUDGE_SITTING_QUOTA`).
 - Omit-flag test: `evaluate_tool_call` defaults `judge_apply_verdict` to True; the live mount still passes False. This names the footgun. It does not flip apply.
 - CITATION.cff and `.zenodo.json` so a later tag can mint. No DOI on this record yet.
