@@ -30,11 +30,11 @@ This repository is the atom plane and a bounded judge, as source. The allowlist 
 |---|---|---|
 | Allowlist floor | not this roof | capability-gate, enforce |
 | Triad plugin | source | not mounted |
-| Judge | subtract-only, proven | `judge_apply_verdict=False` |
+| Judge | subtract-only, proven | `judge_apply_verdict=True`; consult is not coupled to plugin mode |
 | Irreversible ops | default off | not enabled |
 | Catalog | `catalog/Aegis-Atoms-v0.yaml`: 15 atoms, 2 delegates | mostly dormant |
 
-`evaluate_tool_call` defaults `judge_apply_verdict` to True, so a caller who omits the argument applies; the live mount passes False. `property_fuzzer.py` runs both paths on purpose: apply, to earn the subtract-invariant receipt, and observe, to mirror the mount. BREAK lives in `evidence/j3/negative-controls.md`: those pytest functions monkeypatch the wire so the invariant fails, and going red is the proof the detector works. A green 10k run whose control was never exercised is a green on nothing. The tree carries 28 root Python modules and two evidence directories, with receipted 10k runs on both the apply subtract and the observe telemetry paths.
+`evaluate_tool_call` defaults `judge_apply_verdict` to True. The live mount now passes True, with a sitting quota on consult. `property_fuzzer.py` still runs both paths: apply, to earn the subtract-invariant receipt, and observe, as the named contrast. BREAK lives in `evidence/j3/negative-controls.md`: those pytest functions monkeypatch the wire so the invariant fails, and going red is the proof the detector works. A green 10k run whose control was never exercised is a green on nothing. The tree carries 28 root Python modules and two evidence directories, with receipted 10k runs on both the apply subtract and the observe telemetry paths.
 
 ## Four-plane authority
 
@@ -42,7 +42,7 @@ This repository is the atom plane and a bounded judge, as source. The allowlist 
 |---|---|---|
 | Floor (allowlist) | `Steck43/capability-gate` on `profiles/aegis` | live enforce, other roof |
 | Floor (atom plane) | this tree | source-present |
-| Judge | this tree (`bounded_judge.py`, J3) | proven, subtract-only; live mount keeps `judge_apply_verdict=False` |
+| Judge | this tree (`bounded_judge.py`, J3) | proven, subtract-only; live mount passes `judge_apply_verdict=True` |
 | Box | separate Rust tree | isolation-layer, not consumed here |
 | Audit | vault ledger | not shipped in this git |
 
@@ -68,7 +68,7 @@ flowchart TD
     ENF --> OUT([allow · deny · escalate])
 ```
 
-PDP evaluate is a pre-tool call: the tool has not run yet, the call goes to atoms, and a contradiction the rollup cannot settle goes to the box. On the live Hermes profile the engine can compute that subtract and discard it, because `judge_apply_verdict` is False; today the call still meets the allowlist and runs.
+PDP evaluate is a pre-tool call: the tool has not run yet, the call goes to atoms, and a contradiction the rollup cannot settle goes to the box. On the live mount the judge subtracts when it flags, under a sitting quota. Plugin mode no longer turns the judge off.
 
 ## The three-object model
 
@@ -119,7 +119,7 @@ above against a clean checkout.
 
 ## Status
 
-Capability-gate is the live allowlist. This roof stays observe: atoms enforce and a live `judge_apply_verdict=True` mount wait on a separate GO.
+Capability-gate is the live allowlist. This roof stays observe until the atoms profile dest-read after C3a. The live mount passes `judge_apply_verdict=True`.
 
 ---
 

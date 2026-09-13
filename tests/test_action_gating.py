@@ -235,3 +235,17 @@ def test_c1_c2_catalog_edges_and_controls_registered():
         assert "OWASP LLM05:2025" in " ".join(c.framework_mappings) or any(
             "LLM05" in m for m in c.framework_mappings
         )
+
+
+def test_strangler_observe_split_one_deny() -> None:
+    from action_gating import (
+        ATOM_PATH_OUTSIDE,
+        ATOM_SHELL_UNSANITIZED,
+        strangler_observe_split,
+    )
+
+    assert (
+        strangler_observe_split(ATOM_PATH_OUTSIDE, observe=True) == "strangler-observe"
+    )
+    assert strangler_observe_split(ATOM_PATH_OUTSIDE, observe=False) == "legacy"
+    assert strangler_observe_split(ATOM_SHELL_UNSANITIZED, observe=True) == "legacy"

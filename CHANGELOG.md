@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Judge consult is its own flag. Plugin mode no longer turns the judge off. The live mount passes `judge_apply_verdict=True` under a sitting quota (`AEGIS_JUDGE_SITTING_QUOTA`).
 - Omit-flag test: `evaluate_tool_call` defaults `judge_apply_verdict` to True; the live mount still passes False. This names the footgun. It does not flip apply.
 - CITATION.cff and `.zenodo.json` so a later tag can mint. No DOI on this record yet.
 - `evidence/**/*.json` is marked `-text`, so receipts are stored as the bytes that were produced. Every other rule in `.gitattributes` normalises line endings on commit, which would rewrite a receipt after it was generated and leave any hash taken at generation time pointing at bytes the repository no longer holds.

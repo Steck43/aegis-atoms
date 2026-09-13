@@ -9,6 +9,7 @@ Summary: Surface two, action gating. Two atoms at the tool-call boundary. C1 fir
 
 from __future__ import annotations
 
+import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -340,6 +341,15 @@ def evaluate_action_gating(
     ]
     combined = combine_control_rollups(rollups)
     return firings, rollups, combined
+
+
+def strangler_observe_split(atom_id: str, *, observe: bool | None = None) -> str:
+    """One-deny observe split for path-outside-root. Does not grow the catalog."""
+    if observe is None:
+        observe = os.environ.get("AEGIS_STRANGLER_OBSERVE", "") == "1"
+    if atom_id == ATOM_PATH_OUTSIDE and observe:
+        return "strangler-observe"
+    return "legacy"
 
 
 def denial_line(

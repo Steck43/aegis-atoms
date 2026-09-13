@@ -69,8 +69,8 @@ def test_judge_apply_verdict_false_keeps_floor_allow(tmp_path):
     assert shadow.block_message is None
 
 
-def test_pre_tool_observe_mount_does_not_block(tmp_path, monkeypatch):
-    """__init__ observe path enables judge but must not deny from stub/flag."""
+def test_pre_tool_observe_mount_applies_subtract(tmp_path, monkeypatch):
+    """__init__ apply path subtracts a flag. Named harness: live mount."""
     import importlib
     import sys
 
@@ -86,6 +86,7 @@ def test_pre_tool_observe_mount_does_not_block(tmp_path, monkeypatch):
     monkeypatch.setenv("HERMES_HOME", str(tmp_path))
     monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(tmp_path / "vault"))
     monkeypatch.setattr(init, "_read_plugin_mode", lambda default="enforce": "observe")
+    monkeypatch.setattr(init, "_read_judge_enabled", lambda default=True: True)
     monkeypatch.setattr(init, "_resolve_vault", lambda: tmp_path / "vault")
 
     def flag_slot(case, floor_verdict):
@@ -112,10 +113,11 @@ def test_pre_tool_observe_mount_does_not_block(tmp_path, monkeypatch):
         session_id="s1",
         tool_call_id="c1",
     )
-    assert out is None
+    assert out is not None
+    assert out.get("action") == "block"
 
 
-def test_pre_tool_enforce_leaves_judge_off(tmp_path, monkeypatch):
+def test_pre_tool_enforce_keeps_judge_on(tmp_path, monkeypatch):
     import importlib
     import sys
 
@@ -129,6 +131,7 @@ def test_pre_tool_enforce_leaves_judge_off(tmp_path, monkeypatch):
     monkeypatch.setenv("HERMES_HOME", str(tmp_path))
     monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(tmp_path / "vault"))
     monkeypatch.setattr(init, "_read_plugin_mode", lambda default="enforce": "enforce")
+    monkeypatch.setattr(init, "_read_judge_enabled", lambda default=True: True)
     monkeypatch.setattr(init, "_resolve_vault", lambda: tmp_path / "vault")
 
     seen = {}
@@ -147,4 +150,5 @@ def test_pre_tool_enforce_leaves_judge_off(tmp_path, monkeypatch):
         task_id="t1",
         session_id="s1",
     )
-    assert seen["judge_enabled"] is False
+    assert seen["judge_enabled"] is True
+    assert seen["judge_apply_verdict"] is True

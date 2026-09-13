@@ -154,7 +154,7 @@ def test_pre_tool_wires_sonnet_when_key_present(tmp_path, monkeypatch):
     )
     assert out is None
     assert seen["judge_enabled"] is True
-    assert seen["judge_apply_verdict"] is False
+    assert seen["judge_apply_verdict"] is True
     assert seen["judge_force_consult"] is False
     assert seen["has_slot"] is True
     assert "write_file" in (seen["judge_consult_tools"] or set())
