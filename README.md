@@ -22,7 +22,7 @@ This repository is the atom plane and a bounded judge, as source. The allowlist 
 ![Atoms harness](https://img.shields.io/badge/Atoms%20harness-7%2F16%20hard--deny-1f6feb)
 ![mode](https://img.shields.io/badge/mode-observe-informational)
 ![python](https://img.shields.io/badge/python-3.11%2B-blue)
-![status](https://img.shields.io/badge/status-observe%20research%20build-blueviolet)
+![status](https://img.shields.io/badge/status-enforce%20research%20build-blueviolet)
 
 </div>
 
@@ -119,7 +119,7 @@ above against a clean checkout.
 
 ## Status
 
-Capability-gate is the live allowlist. This roof stays observe until the atoms profile dest-read after C3a. The live mount passes `judge_apply_verdict=True`.
+Capability-gate is the live allowlist. The live atoms profile is enforce. The live mount passes `judge_apply_verdict=True`. C1 path-outside records `strangler-observe` when `AEGIS_STRANGLER_OBSERVE=1`. A separate Hermes triad plugin is not in `plugins.enabled`.
 
 ---
 
