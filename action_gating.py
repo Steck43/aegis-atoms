@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import os
 import re
+import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -362,6 +364,26 @@ def denial_line(
     return f"[aegis-atoms] Blocked by {atom_id} via {control_id} (frameworks: {fw})"
 
 
+def conflicting_handoff_dry() -> str:
+    """Named box door. Dry only. Unset or missing script is path-around-box."""
+    raw = os.environ.get("AEGIS_CONFLICTING_HANDOFF", "").strip()
+    if not raw:
+        return "HANDOFF_UNWIRED"
+    path = Path(raw)
+    if not path.is_file():
+        return "HANDOFF_UNWIRED"
+    proc = subprocess.run(
+        [sys.executable, str(path), "CONFLICTING"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    out = f"{proc.stdout or ''}{proc.stderr or ''}"
+    if proc.returncode == 0 and "HANDOFF_OK" in out:
+        return "HANDOFF_OK"
+    return "HANDOFF_UNWIRED"
+
+
 def rollup_denial_message(rollups: list[ControlRollup]) -> str | None:
     """Build public denial from CONTRADICTED/CONFLICTING rollups."""
     ctrl_by_id = {c.control_id: c for c in ACTION_GATING_CONTROLS}
@@ -375,9 +397,10 @@ def rollup_denial_message(rollups: list[ControlRollup]) -> str | None:
                 denial_line(edge.atom_id, ctrl.control_id, ctrl.framework_mappings)
             )
         elif r.status is RollupStatus.CONFLICTING:
+            door = conflicting_handoff_dry()
             parts.append(
                 f"[aegis-atoms] Escalated by {r.control_id}: CONFLICTING support "
-                f"and contradiction (cannot auto-decide)"
+                f"and contradiction (cannot auto-decide) [{door}]"
             )
     if not parts:
         return None
