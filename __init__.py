@@ -122,6 +122,30 @@ def _load_catalog_cached() -> eng.Catalog | None:
     return catalog
 
 
+def _read_judge_enabled(default: bool = True) -> bool:
+    """Judge consult is its own flag. Plugin mode no longer turns it off."""
+    try:
+        from hermes_cli.config import cfg_get, load_config
+
+        cfg = load_config()
+        val = cfg_get(
+            cfg, "plugins", "entries", "aegis-atoms", "judge_enabled", default=None
+        )
+        if val is None:
+            return default
+        return bool(val)
+    except Exception:
+        return default
+
+
+_JUDGE_SITTING_USED = 0
+
+
+def _judge_quota_ok() -> bool:
+    ceiling = int(os.environ.get("AEGIS_JUDGE_SITTING_QUOTA", "64"))
+    return _JUDGE_SITTING_USED < ceiling
+
+
 def _read_plugin_mode(default: str = "enforce") -> str:
     # Fail-closed default is intentional: a broken/missing config read must not
     # silently observe. Clean installs seed observe via install-aegis-atoms.sh;
@@ -322,13 +346,12 @@ def pre_tool_call(
     mode = _read_plugin_mode()
     session_text = _session_text(session_id)
     flow_ctx = _session_flow(session_id, task_id)
-    # SETTLE3/4: observe = consult + subtract telemetry, no verdict apply.
-    # Paid Sonnet when key present (SETTLE4); stub otherwise. Enforce leaves judge off.
-    judge_observe = mode == "observe"
+    # Judge consult is not coupled to plugin mode. Enforce used to turn it off.
+    judge_enabled = _read_judge_enabled() and _judge_quota_ok()
     judge_audit = None
     judge_slot = None
     using_paid = False
-    if judge_observe:
+    if judge_enabled:
         judge_audit = str(
             Path(eng._expand("${HERMES_HOME}/logs/aegis-judge.jsonl", env))
         )
@@ -352,19 +375,22 @@ def pre_tool_call(
                 p for p in (env.get("HERMES_HOME"), env.get("OBSIDIAN_VAULT_PATH")) if p
             ],
             content_detection_enabled=False,
-            judge_enabled=judge_observe,
-            judge_apply_verdict=False,
+            judge_enabled=judge_enabled,
+            judge_apply_verdict=True,
             judge_force_consult=not using_paid,
             judge_consult_tools=_JUDGE_CONSULT_TOOLS if using_paid else None,
             judge_slot=judge_slot,
             judge_audit_path=judge_audit,
         )
         eng.append_firings(log_path, result.firings, catalog)
+        if result.judge_consumed:
+            global _JUDGE_SITTING_USED
+            _JUDGE_SITTING_USED += 1
         if result.judge_consumed and (
             result.judge_subtracted or result.judge_escalated
         ):
             logger.info(
-                "aegis-atoms J4 observe telemetry tool=%s subtracted=%s "
+                "aegis-atoms judge telemetry tool=%s subtracted=%s "
                 "escalated=%s recommendation=%s",
                 tool_name,
                 result.judge_subtracted,
