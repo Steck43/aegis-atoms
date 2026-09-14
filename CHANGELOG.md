@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- README badge that still said observe now names the live Hermes profile as enforce. The table already did.
 - README dest-reads the live atoms profile as enforce. C1 strangler-observe is named. Badge matches.
 - README leads with stakes, then the three-object invention at length, then maps. Runtime grade is stated as fact. Supervisory reader-orders and the short-sentence opening run are gone. BREAK is the J3 negative-control file. The apply-path fuzzer caller with `judge_apply_verdict=True` is named; `evaluate_tool_call` defaults that flag to True. PDP evaluate is labeled a pre-tool call. The grade table's Here column names the allowlist as the other roof. The live-mount flag is `judge_apply_verdict` everywhere. 
 
