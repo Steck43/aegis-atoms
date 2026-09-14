@@ -20,7 +20,7 @@ This repository is the atom plane and a bounded judge, as source. The allowlist 
 <div align="center">
 
 ![Atoms harness](https://img.shields.io/badge/Atoms%20harness-7%2F16%20hard--deny-1f6feb)
-![mode](https://img.shields.io/badge/mode-observe-informational)
+![mode](https://img.shields.io/badge/live%20profile-enforce-success)
 ![python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![status](https://img.shields.io/badge/status-enforce%20research%20build-blueviolet)
 
