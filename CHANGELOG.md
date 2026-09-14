@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- README names the author profile so a stranger can click once from this roof to `github.com/Steck43`.
+
 ### Added
 
 - C1 path-outside-root records `detector_kind=strangler-observe` when `AEGIS_STRANGLER_OBSERVE=1`. One deny. Shell stays on the legacy action-gating detector. The catalog is not grown.

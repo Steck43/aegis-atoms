@@ -9,6 +9,8 @@ Summary: Public README for aegis-atoms. Stakes first, then the three-object inve
 
 # Aegis atoms
 
+Author: [Landen Stecker](https://github.com/Steck43)
+
 </div>
 
 A static allowlist is necessary and not sufficient. It cannot see a path that aliases out of its root, a command that hides executable structure in an argument, or an instruction that arrives as ordinary content. An agent thinks in text, and every real consequence is a tool call; this plane sits on the line between the two.
