@@ -26,7 +26,10 @@ except ImportError:  # standalone test / script import
 
 logger = logging.getLogger(__name__)
 
-_SESSION_TEXT: dict[str, tuple[float, str]] = {}
+# session_id -> (monotonic ts, last user_message, origin). The origin is inferred
+# from pre_llm_call's platform and sender_id, so a relaxation in the catalog can
+# only fire on a turn a person typed. See engine.session_origin_from_hook.
+_SESSION_TEXT: dict[str, tuple[float, str, str]] = {}
 _SESSION_TTL_SEC = 120.0
 _SESSION_FLOW: dict[str, tuple[float, Any]] = {}
 _CATALOG_CACHE: tuple[float, eng.Catalog, str] | None = None
@@ -273,23 +276,30 @@ def _read_asserter(default: str = "aegis-atoms-plugin/0.1.0-unstamped") -> str:
     return default
 
 
-def _remember_session_text(session_id: str, user_message: str) -> None:
+def _remember_session_text(
+    session_id: str, user_message: str, origin: str = "unknown"
+) -> None:
     if not session_id:
         return
-    _SESSION_TEXT[session_id] = (time.monotonic(), user_message or "")
+    _SESSION_TEXT[session_id] = (time.monotonic(), user_message or "", origin)
+
+
+def _session_entry(session_id: str) -> tuple[str, str]:
+    """Return (text, origin) for the session, or ("", "unknown") when absent or stale."""
+    if not session_id:
+        return "", "unknown"
+    entry = _SESSION_TEXT.get(session_id)
+    if not entry:
+        return "", "unknown"
+    ts, text, origin = entry
+    if (time.monotonic() - ts) > _SESSION_TTL_SEC:
+        _SESSION_TEXT.pop(session_id, None)
+        return "", "unknown"
+    return text, origin
 
 
 def _session_text(session_id: str) -> str:
-    if not session_id:
-        return ""
-    entry = _SESSION_TEXT.get(session_id)
-    if not entry:
-        return ""
-    ts, text = entry
-    if (time.monotonic() - ts) > _SESSION_TTL_SEC:
-        _SESSION_TEXT.pop(session_id, None)
-        return ""
-    return text
+    return _session_entry(session_id)[0]
 
 
 def _session_flow(session_id: str, task_id: str = ""):
@@ -319,7 +329,8 @@ def pre_llm_call(
     platform: str,
     **kwargs: Any,
 ) -> Optional[dict]:
-    _remember_session_text(session_id, user_message)
+    origin = eng.session_origin_from_hook(platform, kwargs.get("sender_id", ""))
+    _remember_session_text(session_id, user_message, origin)
     return None
 
 
@@ -344,7 +355,7 @@ def pre_tool_call(
     log_path = Path(eng._expand(str(log_raw), env))
 
     mode = _read_plugin_mode()
-    session_text = _session_text(session_id)
+    session_text, session_origin = _session_entry(session_id)
     flow_ctx = _session_flow(session_id, task_id)
     # Judge consult is not coupled to plugin mode. Enforce used to turn it off.
     judge_enabled = _read_judge_enabled() and _judge_quota_ok()
@@ -366,6 +377,7 @@ def pre_tool_call(
             session_id=session_id,
             tool_call_id=tool_call_id,
             session_text=session_text,
+            session_origin=session_origin,
             plugin_mode=mode,
             asserter=_read_asserter(),
             session_ctx=flow_ctx,
