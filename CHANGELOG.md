@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The recursive-delete rule in `irreversible_operations.yaml` no longer cites AIID 1178. That incident was a failed mkdir followed by moves that overwrote files, which no match kind in the file can see, so the citation claimed coverage the rule never had.
 - Judge price-table tests pin `when=` to the introductory expiry (`2026-08-31`) and the day after. After that date, `cost_usd(when=None)` uses post-intro rates. The $0.25 stage-one wall is unchanged.
 - The published `SHA256SUMS` was generated from a Windows working tree, so 81 of its 110 rows did not match the repository that consumers clone. Regenerated from repository bytes.
 - First push of a new branch resolves craft BASE to the origin default, so required craft jobs do not fail on an all-zero `github.event.before`. Pack SoT is the vault `repo-floor` copy. 

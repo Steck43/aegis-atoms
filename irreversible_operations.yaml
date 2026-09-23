@@ -66,7 +66,14 @@ operations:
       values:
         - "\\brm\\b[^\\n]*(-[a-zA-Z]*r[a-zA-Z]*f|-rf|-fr)\\b"
         - "\\brm\\b[^\\n]*(-[a-zA-Z]*f[a-zA-Z]*r)\\b"
-    incident_source: "AIID 1178 Gemini CLI destructive; AIID 1469 recursive delete class"
+    incident_source: "AIID 1469 recursive delete class"
+    # AIID 1178 pin REMOVED 2026-09-23. Dest-read of the AIID page and
+    # google-gemini/gemini-cli#4586 shows the mechanism was a failed mkdir then a
+    # series of MOVE operations that overwrote all but one file. Not rm -rf. This
+    # rule never could have caught it, so the pin asserted coverage that did not
+    # exist. 1178 does NOT move to another rule: overwrite-via-move is a
+    # dest-existence fact and no match kind here can see it. A naive mv/Move-Item
+    # rule would false-fire on `mv notes.md notes.bak`. The residual is the box.
   - id: mass_delete_by_query
     match:
       kind: tool_names
