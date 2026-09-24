@@ -387,6 +387,10 @@ def pre_tool_call(
                 p for p in (env.get("HERMES_HOME"), env.get("OBSIDIAN_VAULT_PATH")) if p
             ],
             content_detection_enabled=False,
+            irreversible_ops_enabled=True,
+            irreversible_ops_path=str(
+                Path(__file__).resolve().parent / "irreversible_operations.yaml"
+            ),
             judge_enabled=judge_enabled,
             judge_apply_verdict=True,
             judge_force_consult=not using_paid,
