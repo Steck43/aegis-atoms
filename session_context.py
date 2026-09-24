@@ -11,8 +11,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from flow_types import OriginClass, ProvenanceTag, SinkClass
-from provenance import classify_origin, is_read_tool
+try:
+    from .flow_types import OriginClass, ProvenanceTag, SinkClass
+    from .provenance import classify_origin, is_read_tool
+except ImportError:  # standalone / sys.path test import
+    from flow_types import OriginClass, ProvenanceTag, SinkClass
+    from provenance import classify_origin, is_read_tool
 
 
 @dataclass

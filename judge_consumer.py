@@ -11,7 +11,10 @@ Summary: Consumes a caged JudgeOutcome to tighten floor effect / block_message.
 
 from __future__ import annotations
 
-from bounded_judge import JudgeOutcome, JudgeRecommendation
+try:
+    from .bounded_judge import JudgeOutcome, JudgeRecommendation
+except ImportError:  # standalone / sys.path test import
+    from bounded_judge import JudgeOutcome, JudgeRecommendation
 
 # Floor effect rank used by engine.EFFECT_RANK — keep aligned.
 _EFFECT_RANK = {None: 0, "monitor": 1, "human_review": 2, "block": 3}

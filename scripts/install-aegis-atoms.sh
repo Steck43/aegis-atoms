@@ -58,6 +58,17 @@ ASSERTER="aegis-atoms@${COMMIT}"
 log "Installing aegis-atoms → $DEST"
 log "Provenance: branch=$BRANCH commit=$COMMIT ts=$STAMP_TS"
 rm -rf "$HERMES_HOME/plugins/boswell-atoms" 2>/dev/null || true
+# Structural bak guard: move shadow tip copies out of the discovery root.
+mkdir -p "$HERMES_HOME/plugin-backups"
+shopt -s nullglob
+for bak in "$HERMES_HOME/plugins"/aegis-atoms.bak* "$HERMES_HOME/plugins"/aegis-atoms.tmp*; do
+  [[ -d "$bak" ]] || continue
+  base="$(basename "$bak")"
+  dest_bak="$HERMES_HOME/plugin-backups/${base}.$(date -u +%Y%m%dT%H%M%SZ)"
+  log "Moving backup plugin tree out of discovery: $bak → $dest_bak"
+  mv "$bak" "$dest_bak"
+done
+shopt -u nullglob
 mkdir -p "$DEST"
 
 cp "$SRC/plugin.yaml" "$SRC/__init__.py" "$SRC/engine.py" "$DEST/"
@@ -138,9 +149,16 @@ if "aegis-atoms" not in enabled:
 # Seed observe on first install only. Existing mode (including enforce left as
 # a P1 finding) is preserved via setdefault.
 entries.setdefault("aegis-atoms", {"mode": "observe"})
+# Capability-gate must be allowed to hide tool schemas (skill_manage) or the
+# organic floor cannot compose. Seed true on first install only.
+cg_entry = entries.setdefault("capability-gate", {})
+if isinstance(cg_entry, dict):
+    cg_entry.setdefault("allow_tool_override", True)
 cfg_path.write_text(yaml.dump(raw, default_flow_style=False, sort_keys=False), encoding="utf-8")
 mode = (entries.get("aegis-atoms") or {}).get("mode")
 print(f"aegis-atoms enabled (seeded/kept mode={mode!r})")
+cg = entries.get("capability-gate") or {}
+print(f"capability-gate allow_tool_override={cg.get('allow_tool_override')!r}")
 PY
 
 if [[ "$SKIP_SMOKE" != "1" ]]; then

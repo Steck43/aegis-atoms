@@ -19,26 +19,48 @@ from typing import Any
 
 import yaml
 
-from action_gating import canonicalize_path
-from flow_types import SINK_CLEARANCE
-from session_context import SessionContext, ToolCallView
-from triad_types import (
-    AtomDefinition,
-    AtomType,
-    Control,
-    Edge,
-    EffectRank,
-    EnforcementMode,
-    MappingMethod,
-    Polarity,
-    Provenance,
-    Severity,
-    Strength,
-    rollup_control,
-    combine_control_rollups,
-    ControlRollup,
-    RollupStatus,
-)
+try:
+    from .action_gating import canonicalize_path
+    from .flow_types import SINK_CLEARANCE
+    from .session_context import SessionContext, ToolCallView
+    from .triad_types import (
+        AtomDefinition,
+        AtomType,
+        Control,
+        Edge,
+        EffectRank,
+        EnforcementMode,
+        MappingMethod,
+        Polarity,
+        Provenance,
+        Severity,
+        Strength,
+        rollup_control,
+        combine_control_rollups,
+        ControlRollup,
+        RollupStatus,
+    )
+except ImportError:  # standalone / sys.path test import
+    from action_gating import canonicalize_path
+    from flow_types import SINK_CLEARANCE
+    from session_context import SessionContext, ToolCallView
+    from triad_types import (
+        AtomDefinition,
+        AtomType,
+        Control,
+        Edge,
+        EffectRank,
+        EnforcementMode,
+        MappingMethod,
+        Polarity,
+        Provenance,
+        Severity,
+        Strength,
+        rollup_control,
+        combine_control_rollups,
+        ControlRollup,
+        RollupStatus,
+    )
 
 ATOM_SECRET_TO_DURABLE = "atoms.memory.secret_origin_to_durable_sink"
 ATOM_WRITE_INSTRUCTION = "atoms.memory.write_target_is_instruction_surface"

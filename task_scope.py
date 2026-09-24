@@ -20,23 +20,42 @@ from urllib.parse import urlparse
 
 import yaml
 
-from triad_types import (
-    AtomDefinition,
-    AtomType,
-    Control,
-    Edge,
-    EffectRank,
-    EnforcementMode,
-    MappingMethod,
-    Polarity,
-    Provenance,
-    Severity,
-    Strength,
-    rollup_control,
-    combine_control_rollups,
-    ControlRollup,
-    RollupStatus,
-)
+try:
+    from .triad_types import (
+        AtomDefinition,
+        AtomType,
+        Control,
+        Edge,
+        EffectRank,
+        EnforcementMode,
+        MappingMethod,
+        Polarity,
+        Provenance,
+        Severity,
+        Strength,
+        rollup_control,
+        combine_control_rollups,
+        ControlRollup,
+        RollupStatus,
+    )
+except ImportError:  # standalone / sys.path test import
+    from triad_types import (
+        AtomDefinition,
+        AtomType,
+        Control,
+        Edge,
+        EffectRank,
+        EnforcementMode,
+        MappingMethod,
+        Polarity,
+        Provenance,
+        Severity,
+        Strength,
+        rollup_control,
+        combine_control_rollups,
+        ControlRollup,
+        RollupStatus,
+    )
 
 ATOM_TASK_SCOPE = "atoms.tool_invocation.destination_scope_exceeds_task_declaration"
 CTRL_NO_OUT_OF_TASK_SCOPE = "control.no_destination_outside_declared_task_scope"

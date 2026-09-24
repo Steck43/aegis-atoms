@@ -9,12 +9,20 @@ Summary: The flow atom shim. The memory-governance logic moved to the triad. Thi
 
 from __future__ import annotations
 
-from flow_types import AtomDecision
-from memory_governance import (
-    ATOM_SECRET_TO_DURABLE,
-    secret_origin_to_durable_sink,
-)
-from session_context import SessionContext, ToolCallView
+try:
+    from .flow_types import AtomDecision
+    from .memory_governance import (
+        ATOM_SECRET_TO_DURABLE,
+        secret_origin_to_durable_sink,
+    )
+    from .session_context import SessionContext, ToolCallView
+except ImportError:  # standalone / sys.path test import
+    from flow_types import AtomDecision
+    from memory_governance import (
+        ATOM_SECRET_TO_DURABLE,
+        secret_origin_to_durable_sink,
+    )
+    from session_context import SessionContext, ToolCallView
 
 
 class FlowAtom:
