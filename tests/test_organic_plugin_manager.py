@@ -51,21 +51,14 @@ _COPY_NAMES = [
 
 
 def _purge_plugin_modules() -> None:
+    """Drop only the organic package namespace.
+
+    Do not delete top-level tip modules (``engine``, ``supply_chain``, …) mid
+    suite — other tests already hold imports, and wiping ``sys.modules``
+    orphans them so later H1/G1 cases false-allow.
+    """
     for key in list(sys.modules):
         if key == "hermes_plugins" or key.startswith("hermes_plugins."):
-            del sys.modules[key]
-        if key in {
-            "__init__",
-            "engine",
-            "flow_atom",
-            "flow_types",
-            "session_context",
-            "provenance",
-            "memory_governance",
-            "action_gating",
-            "irreversible_ops",
-            "triad_types",
-        }:
             del sys.modules[key]
 
 
