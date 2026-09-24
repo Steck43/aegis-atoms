@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Restore `_is_backup_plugin_dirname` to compare against `lower` (a truncated `lowe` NameError blocked bak-path refusal under organic register).
 - Load heartbeat defaults `gateway_pid` to the registering process PID when `HERMES_GATEWAY_PID` is unset, so dest proves are not left with `gateway_pid=unset` under a normal PluginManager mount.
 - Organic package-load harness (`tests/test_organic_plugin_manager.py`) proves Hermes-style `hermes_plugins.aegis_atoms` registration blocks `rm -rf` and setup exceptions; bak siblings refuse register; heartbeat records `pid=` / `gateway_pid=`.
 - `plugin.yaml` sets `require_mount: true` so an enabled-but-unmounted atoms tip refuses ungoverned tool traffic under Hermes mount verification.
@@ -16,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Live mount can arm A4 instruction / task-scope / control-surface holds via `plugins.entries.aegis-atoms.*_enabled` (default off for strangers). Box CONFLICTING door is named by `AEGIS_CONFLICTING_HANDOFF` (dry only).
 - README names the author profile so a stranger can click once from this roof to `github.com/Steck43`.
 
 ### Added

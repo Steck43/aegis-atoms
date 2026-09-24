@@ -1,7 +1,7 @@
 """
 aegis-atoms — deterministic atomic constraint layer (v0).
 
-Author:  Landen Stecker
+Author:  Landen Stecke
 Date:    2026-07-11
 Version: 0.1.0
 Summary: The plugin's front door. It exports the atoms, the engine entry, and the evaluate call the Hermes adapter imports, and it holds the enable flags that keep each new surface off the default path until it is proven. Nothing decides here. It wires.
@@ -165,6 +165,20 @@ def _read_plugin_mode(default: str = "enforce") -> str:
     except Exception:
         pass
     return default
+
+
+def _read_entry_bool(key: str, default: bool = False) -> bool:
+    """Read plugins.entries.aegis-atoms.<key> as bool. Missing → default."""
+    try:
+        from hermes_cli.config import cfg_get, load_config
+
+        cfg = load_config()
+        val = cfg_get(cfg, "plugins", "entries", "aegis-atoms", key, default=None)
+        if val is None:
+            return default
+        return bool(val)
+    except Exception:
+        return default
 
 
 def _load_anthropic_key() -> str:
@@ -468,6 +482,17 @@ def pre_tool_call(
             irreversible_ops_enabled=True,
             irreversible_ops_path=str(
                 Path(__file__).resolve().parent / "irreversible_operations.yaml"
+            ),
+            instruction_surface_enabled=_read_entry_bool(
+                "instruction_surface_enabled", default=False
+            ),
+            task_scope_enabled=_read_entry_bool("task_scope_enabled", default=False),
+            task_scope_path=str(Path(__file__).resolve().parent / "task_scopes.yaml"),
+            control_surface_enabled=_read_entry_bool(
+                "control_surface_enabled", default=False
+            ),
+            control_surfaces_path=str(
+                Path(__file__).resolve().parent / "control_surfaces.yaml"
             ),
             judge_enabled=judge_enabled,
             judge_apply_verdict=True,
