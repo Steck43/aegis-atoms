@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Load heartbeat defaults `gateway_pid` to the registering process PID when `HERMES_GATEWAY_PID` is unset, so dest proves are not left with `gateway_pid=unset` under a normal PluginManager mount.
 - Organic package-load harness (`tests/test_organic_plugin_manager.py`) proves Hermes-style `hermes_plugins.aegis_atoms` registration blocks `rm -rf` and setup exceptions; bak siblings refuse register; heartbeat records `pid=` / `gateway_pid=`.
 - `plugin.yaml` sets `require_mount: true` so an enabled-but-unmounted atoms tip refuses ungoverned tool traffic under Hermes mount verification.
 - Enforce `pre_tool_call` fails closed on catalog miss and on any setup/evaluator exception, so Hermes hook swallow can no longer allow a destructive tool when the floor crashes. Package-relative sibling imports, register/install refusal of `.bak` tip shadows, widened `rm -r -f` / long-flag matching, and `tests/test_organic_fail_closed.py` pin the organic miss class.

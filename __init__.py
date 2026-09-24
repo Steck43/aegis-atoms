@@ -377,9 +377,12 @@ def _write_load_heartbeat(root: Path) -> None:
         log_dir.mkdir(parents=True, exist_ok=True)
         stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         pid = os.getpid()
-        gw = os.environ.get("HERMES_GATEWAY_PID", "")
+        gw = os.environ.get("HERMES_GATEWAY_PID", "").strip()
+        if not gw:
+            # Same process as the gateway when register() runs under PluginManager.
+            gw = str(pid)
         line = (
-            f"ts={stamp} pid={pid} gateway_pid={gw or 'unset'} "
+            f"ts={stamp} pid={pid} gateway_pid={gw} "
             f"plugin_root={root} "
             f"init={Path(__file__).resolve()} hooks=pre_llm_call,pre_tool_call\n"
         )

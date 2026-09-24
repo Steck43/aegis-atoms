@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
+import re
 import shutil
 import sys
 import types
@@ -129,6 +130,21 @@ def test_plugin_yaml_declares_require_mount():
     assert raw.get("require_mount") is True
     hooks = raw.get("provides_hooks") or raw.get("hooks") or []
     assert "pre_tool_call" in hooks
+
+
+def test_heartbeat_defaults_gateway_pid_to_process(organic_home, monkeypatch):
+    home, tip = organic_home
+    monkeypatch.delenv("HERMES_GATEWAY_PID", raising=False)
+    mod = _load_as_package(tip)
+    monkeypatch.setattr(mod, "_read_plugin_mode", lambda default="enforce": "enforce")
+    monkeypatch.setattr(mod, "_read_judge_enabled", lambda default=True: False)
+    mod._CATALOG_CACHE = None
+    mod.register(_Ctx())
+    text = (home / "logs" / "aegis-atoms-load.txt").read_text(encoding="utf-8")
+    # pid=N gateway_pid=N when env unset
+    m = re.search(r"pid=(\d+) gateway_pid=(\d+)", text)
+    assert m, text
+    assert m.group(1) == m.group(2)
 
 
 def test_organic_package_load_blocks_rm_rf(organic_home, monkeypatch):
