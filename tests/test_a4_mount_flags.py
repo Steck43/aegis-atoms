@@ -6,7 +6,6 @@ import importlib
 import sys
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -22,6 +21,16 @@ def _load_init(monkeypatch, tmp_path):
     return importlib.import_module("__init__")
 
 
+def test_coerce_bool_rejects_string_false(monkeypatch, tmp_path):
+    init = _load_init(monkeypatch, tmp_path)
+    assert init._coerce_bool("false", default=False) is False
+    assert init._coerce_bool("true", default=False) is True
+    assert init._coerce_bool("0", default=True) is False
+    assert init._coerce_bool(True, default=False) is True
+    assert init._coerce_bool(None, default=True) is True
+    assert init._coerce_bool("maybe", default=False) is False
+
+
 def test_read_entry_bool_missing_defaults(monkeypatch, tmp_path):
     init = _load_init(monkeypatch, tmp_path)
     fake = SimpleNamespace(
@@ -29,7 +38,6 @@ def test_read_entry_bool_missing_defaults(monkeypatch, tmp_path):
         load_config=dict,
     )
     monkeypatch.setitem(sys.modules, "hermes_cli.config", fake)
-    # Re-bind after mock — call through module (imports inside fn).
     assert init._read_entry_bool("instruction_surface_enabled", default=False) is False
     assert init._read_entry_bool("task_scope_enabled", default=True) is True
 
@@ -65,13 +73,17 @@ def test_build_env_includes_terminal_cwd(monkeypatch, tmp_path):
     assert env["HERMES_HOME"]
 
 
-def test_pre_tool_call_passes_active_task_id_when_known(monkeypatch, tmp_path):
+def test_pre_tool_call_passes_a4_flags_and_paths(monkeypatch, tmp_path):
+    """Irreversible-mount style: assert flags + YAML paths reach evaluate."""
     init = _load_init(monkeypatch, tmp_path)
-    fake = SimpleNamespace(
-        cfg_get=lambda *_a, **_k: False,
-        load_config=dict,
+    entry = init.AtomsEntryConfig(
+        mode="observe",
+        judge_enabled=False,
+        instruction_surface_enabled=True,
+        task_scope_enabled=True,
+        control_surface_enabled=True,
     )
-    monkeypatch.setitem(sys.modules, "hermes_cli.config", fake)
+    monkeypatch.setattr(init, "_load_atoms_entry", lambda: entry)
 
     captured: dict = {}
 
@@ -94,12 +106,9 @@ def test_pre_tool_call_passes_active_task_id_when_known(monkeypatch, tmp_path):
         "_load_catalog_cached",
         lambda: SimpleNamespace(logging={"firings_path": "${HERMES_HOME}/logs/x.jsonl"}),
     )
-    monkeypatch.setattr(init, "_read_plugin_mode", lambda: "observe")
     monkeypatch.setattr(init, "_read_asserter", lambda: None)
     monkeypatch.setattr(init, "_session_entry", lambda *_a, **_k: ("", None))
     monkeypatch.setattr(init, "_session_flow", lambda *_a, **_k: None)
-    monkeypatch.setattr(init, "_read_judge_enabled", lambda: False)
-    monkeypatch.setattr(init, "_read_entry_bool", lambda *_a, **_k: False)
 
     init.pre_tool_call(
         "read_file",
@@ -107,7 +116,14 @@ def test_pre_tool_call_passes_active_task_id_when_known(monkeypatch, tmp_path):
         task_id="staging_cleanup",
         session_id="s1",
     )
-    assert captured.get("active_task_id") == "staging_cleanup"
+    assert captured["instruction_surface_enabled"] is True
+    assert captured["task_scope_enabled"] is True
+    assert captured["control_surface_enabled"] is True
+    assert Path(captured["task_scope_path"]).name == "task_scopes.yaml"
+    assert Path(captured["control_surfaces_path"]).name == "control_surfaces.yaml"
+    assert captured["active_task_id"] == "staging_cleanup"
+    assert captured["plugin_mode"] == "observe"
+    assert captured["judge_enabled"] is False
 
     captured.clear()
     init.pre_tool_call(

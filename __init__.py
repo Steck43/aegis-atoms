@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 import os
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
@@ -149,22 +150,6 @@ def _load_catalog_cached() -> eng.Catalog | None:
     return catalog
 
 
-def _read_judge_enabled(default: bool = True) -> bool:
-    """Judge consult is its own flag. Plugin mode no longer turns it off."""
-    try:
-        from hermes_cli.config import cfg_get, load_config
-
-        cfg = load_config()
-        val = cfg_get(
-            cfg, "plugins", "entries", "aegis-atoms", "judge_enabled", default=None
-        )
-        if val is None:
-            return default
-        return bool(val)
-    except Exception:
-        return default
-
-
 _JUDGE_SITTING_USED = 0
 
 
@@ -173,34 +158,118 @@ def _judge_quota_ok() -> bool:
     return _JUDGE_SITTING_USED < ceiling
 
 
-def _read_plugin_mode(default: str = "enforce") -> str:
-    # Fail-closed default is intentional: a broken/missing config read must not
-    # silently observe. Clean installs seed observe via install-aegis-atoms.sh;
-    # that seed is separate from this default (see decision-trails/P1c).
+@dataclass(frozen=True)
+class AtomsEntryConfig:
+    """One snapshot of plugins.entries.aegis-atoms for a pre_tool_call."""
+
+    mode: str = "enforce"
+    judge_enabled: bool = True
+    instruction_surface_enabled: bool = False
+    task_scope_enabled: bool = False
+    control_surface_enabled: bool = False
+
+
+def _coerce_bool(val: Any, default: bool) -> bool:
+    """Strict bool coerce. Rejects bool(\"false\") → True footguns."""
+    if val is None:
+        return default
+    if isinstance(val, bool):
+        return val
+    if isinstance(val, (int, float)) and not isinstance(val, bool) and val in (0, 1):
+        return bool(val)
+    if isinstance(val, str):
+        s = val.strip().lower()
+        if s in ("true", "1", "yes", "on"):
+            return True
+        if s in ("false", "0", "no", "off", ""):
+            return False
+    logger.warning("aegis-atoms: unreadable bool %r; using default=%s", val, default)
+    return default
+
+
+def _load_atoms_entry() -> AtomsEntryConfig:
+    """Single load_config for mode + judge + A4 flags. Hermes-absent → defaults."""
+    # Fail-closed mode default: broken/missing config must not silently observe.
+    defaults = AtomsEntryConfig()
     try:
         from hermes_cli.config import cfg_get, load_config
 
         cfg = load_config()
         mode = cfg_get(
-            cfg, "plugins", "entries", "aegis-atoms", "mode", default=default
+            cfg, "plugins", "entries", "aegis-atoms", "mode", default=defaults.mode
         )
-        if mode in ("observe", "enforce"):
-            return str(mode)
+        if mode not in ("observe", "enforce"):
+            mode = defaults.mode
+        return AtomsEntryConfig(
+            mode=str(mode),
+            judge_enabled=_coerce_bool(
+                cfg_get(
+                    cfg,
+                    "plugins",
+                    "entries",
+                    "aegis-atoms",
+                    "judge_enabled",
+                    default=None,
+                ),
+                defaults.judge_enabled,
+            ),
+            instruction_surface_enabled=_coerce_bool(
+                cfg_get(
+                    cfg,
+                    "plugins",
+                    "entries",
+                    "aegis-atoms",
+                    "instruction_surface_enabled",
+                    default=None,
+                ),
+                False,
+            ),
+            task_scope_enabled=_coerce_bool(
+                cfg_get(
+                    cfg,
+                    "plugins",
+                    "entries",
+                    "aegis-atoms",
+                    "task_scope_enabled",
+                    default=None,
+                ),
+                False,
+            ),
+            control_surface_enabled=_coerce_bool(
+                cfg_get(
+                    cfg,
+                    "plugins",
+                    "entries",
+                    "aegis-atoms",
+                    "control_surface_enabled",
+                    default=None,
+                ),
+                False,
+            ),
+        )
     except Exception:
-        pass
-    return default
+        return defaults
+
+
+def _read_plugin_mode(default: str = "enforce") -> str:
+    """Compat wrapper. Prefer `_load_atoms_entry()` on the mount path."""
+    mode = _load_atoms_entry().mode
+    return mode if mode in ("observe", "enforce") else default
+
+
+def _read_judge_enabled(default: bool = True) -> bool:
+    """Compat wrapper. Prefer `_load_atoms_entry()` on the mount path."""
+    return _load_atoms_entry().judge_enabled
 
 
 def _read_entry_bool(key: str, default: bool = False) -> bool:
-    """Read plugins.entries.aegis-atoms.<key> as bool. Missing → default."""
+    """Compat single-key reader with strict coerce (tests / callers)."""
     try:
         from hermes_cli.config import cfg_get, load_config
 
         cfg = load_config()
         val = cfg_get(cfg, "plugins", "entries", "aegis-atoms", key, default=None)
-        if val is None:
-            return default
-        return bool(val)
+        return _coerce_bool(val, default)
     except Exception:
         return default
 
@@ -454,7 +523,8 @@ def pre_tool_call(
     # Default enforce so a mode-read failure still fails closed.
     mode = "enforce"
     try:
-        mode = _read_plugin_mode()
+        entry = _load_atoms_entry()
+        mode = entry.mode
         catalog = _load_catalog_cached()
         if catalog is None:
             if mode == "enforce":
@@ -475,7 +545,7 @@ def pre_tool_call(
         session_text, session_origin = _session_entry(session_id)
         flow_ctx = _session_flow(session_id, task_id)
         # Judge consult is not coupled to plugin mode. Enforce used to turn it off.
-        judge_enabled = _read_judge_enabled() and _judge_quota_ok()
+        judge_enabled = entry.judge_enabled and _judge_quota_ok()
         judge_audit = None
         judge_slot = None
         using_paid = False
@@ -485,6 +555,7 @@ def pre_tool_call(
             )
             judge_slot, using_paid = _observe_judge_slot(env)
 
+        plugin_root = Path(__file__).resolve().parent
         result = eng.evaluate_tool_call(
             catalog,
             tool_name,
@@ -504,21 +575,13 @@ def pre_tool_call(
             ],
             content_detection_enabled=False,
             irreversible_ops_enabled=True,
-            irreversible_ops_path=str(
-                Path(__file__).resolve().parent / "irreversible_operations.yaml"
-            ),
-            instruction_surface_enabled=_read_entry_bool(
-                "instruction_surface_enabled", default=False
-            ),
-            task_scope_enabled=_read_entry_bool("task_scope_enabled", default=False),
-            task_scope_path=str(Path(__file__).resolve().parent / "task_scopes.yaml"),
+            irreversible_ops_path=str(plugin_root / "irreversible_operations.yaml"),
+            instruction_surface_enabled=entry.instruction_surface_enabled,
+            task_scope_enabled=entry.task_scope_enabled,
+            task_scope_path=str(plugin_root / "task_scopes.yaml"),
             active_task_id=_active_task_id_for_scope(task_id),
-            control_surface_enabled=_read_entry_bool(
-                "control_surface_enabled", default=False
-            ),
-            control_surfaces_path=str(
-                Path(__file__).resolve().parent / "control_surfaces.yaml"
-            ),
+            control_surface_enabled=entry.control_surface_enabled,
+            control_surfaces_path=str(plugin_root / "control_surfaces.yaml"),
             judge_enabled=judge_enabled,
             judge_apply_verdict=True,
             judge_force_consult=not using_paid,

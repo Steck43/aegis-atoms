@@ -85,8 +85,11 @@ def test_pre_tool_observe_mount_applies_subtract(tmp_path, monkeypatch):
 
     monkeypatch.setenv("HERMES_HOME", str(tmp_path))
     monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(tmp_path / "vault"))
-    monkeypatch.setattr(init, "_read_plugin_mode", lambda default="enforce": "observe")
-    monkeypatch.setattr(init, "_read_judge_enabled", lambda default=True: True)
+    monkeypatch.setattr(
+        init,
+        "_load_atoms_entry",
+        lambda: init.AtomsEntryConfig(mode="observe", judge_enabled=True),
+    )
     monkeypatch.setattr(init, "_resolve_vault", lambda: tmp_path / "vault")
 
     def flag_slot(case, floor_verdict):
@@ -130,8 +133,11 @@ def test_pre_tool_enforce_keeps_judge_on(tmp_path, monkeypatch):
     (tmp_path / "vault" / "Agent_Learning_Map.md").write_text("x\n", encoding="utf-8")
     monkeypatch.setenv("HERMES_HOME", str(tmp_path))
     monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(tmp_path / "vault"))
-    monkeypatch.setattr(init, "_read_plugin_mode", lambda default="enforce": "enforce")
-    monkeypatch.setattr(init, "_read_judge_enabled", lambda default=True: True)
+    monkeypatch.setattr(
+        init,
+        "_load_atoms_entry",
+        lambda: init.AtomsEntryConfig(mode="enforce", judge_enabled=True),
+    )
     monkeypatch.setattr(init, "_resolve_vault", lambda: tmp_path / "vault")
 
     seen = {}

@@ -30,8 +30,11 @@ def _load_init(tmp_path, monkeypatch, mode: str = "enforce"):
     (vault / "Agent_Learning_Map.md").write_text("x\n", encoding="utf-8")
     monkeypatch.setenv("HERMES_HOME", str(tmp_path))
     monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(vault))
-    monkeypatch.setattr(init, "_read_plugin_mode", lambda default="enforce": mode)
-    monkeypatch.setattr(init, "_read_judge_enabled", lambda default=True: False)
+    monkeypatch.setattr(
+        init,
+        "_load_atoms_entry",
+        lambda: init.AtomsEntryConfig(mode=mode, judge_enabled=False),
+    )
     monkeypatch.setattr(init, "_resolve_vault", lambda: vault)
     init._CATALOG_CACHE = None
     return init
