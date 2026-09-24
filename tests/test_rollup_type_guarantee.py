@@ -103,14 +103,18 @@ def test_combine_effects_is_order_stable_under_random_reshuffling():
 
 def test_edge_bound_to_a_different_control_is_ignored():
     r = rollup_control(
-        CTL, [edge("a.con", Polarity.CONTRADICTS, Strength.STRONG, "ctl.other")], {"a.con"}
+        CTL,
+        [edge("a.con", Polarity.CONTRADICTS, Strength.STRONG, "ctl.other")],
+        {"a.con"},
     )
     assert r.status is RollupStatus.MISSING
     assert r.max_contradiction_rank == 0
 
 
 def test_atom_that_did_not_fire_is_ignored():
-    r = rollup_control(CTL, [edge("a.con", Polarity.CONTRADICTS, Strength.STRONG)], set())
+    r = rollup_control(
+        CTL, [edge("a.con", Polarity.CONTRADICTS, Strength.STRONG)], set()
+    )
     assert r.status is RollupStatus.MISSING
 
 

@@ -219,10 +219,16 @@ def harvest_code(sources: dict[str, str]) -> dict[str, dict]:
                 if aid and cid:
                     edges.append((aid, cid))
         for name, (val, lineno) in consts.items():
-            if not name.startswith("ATOM_") or not re.fullmatch(r"atoms?\.[a-z_]+\.[a-z0-9_]+", val):
+            if not name.startswith("ATOM_") or not re.fullmatch(
+                r"atoms?\.[a-z_]+\.[a-z0-9_]+", val
+            ):
                 continue
-            effs = sorted({controls[c][0] for a, c in edges if a == val and c in controls})
-            modes = sorted({controls[c][1] for a, c in edges if a == val and c in controls})
+            effs = sorted(
+                {controls[c][0] for a, c in edges if a == val and c in controls}
+            )
+            modes = sorted(
+                {controls[c][1] for a, c in edges if a == val and c in controls}
+            )
             atoms[val] = {
                 "line": f"{fname}:{lineno}",
                 "effect": "|".join(effs),
@@ -256,8 +262,12 @@ def _wsl_cat(rel: str) -> str | None:
 def load_copies(local_only: bool) -> tuple[dict[str, dict], dict[str, dict], list[str]]:
     """Return (catalog copies, code copies, skipped labels)."""
     cats: dict[str, dict] = {
-        "pub_catalog": parse_catalog((ROOT / "catalog" / "Aegis-Atoms-v0.yaml").read_text(encoding="utf-8")),
-        "pub_bundle": parse_catalog((ROOT / "Aegis-Atoms-v0.bundle.yaml").read_text(encoding="utf-8")),
+        "pub_catalog": parse_catalog(
+            (ROOT / "catalog" / "Aegis-Atoms-v0.yaml").read_text(encoding="utf-8")
+        ),
+        "pub_bundle": parse_catalog(
+            (ROOT / "Aegis-Atoms-v0.bundle.yaml").read_text(encoding="utf-8")
+        ),
     }
     local_src = local_py_sources()
     codes: dict[str, dict] = {"pub_code": harvest_code(local_src)}
@@ -268,7 +278,10 @@ def load_copies(local_only: bool) -> tuple[dict[str, dict], dict[str, dict], lis
         cats["vault"] = parse_catalog(VAULT_CATALOG.read_text(encoding="utf-8"))
     else:
         skipped.append("vault")
-    for label, rel in (("wsl_catalog", "catalog/Aegis-Atoms-v0.yaml"), ("wsl_bundle", "Aegis-Atoms-v0.bundle.yaml")):
+    for label, rel in (
+        ("wsl_catalog", "catalog/Aegis-Atoms-v0.yaml"),
+        ("wsl_bundle", "Aegis-Atoms-v0.bundle.yaml"),
+    ):
         text = _wsl_cat(rel)
         if text is None:
             skipped.append(label)
@@ -300,7 +313,11 @@ def _status(entry: dict, in_code: bool) -> str:
 
 
 def build_rows(cats: dict[str, dict], codes: dict[str, dict]) -> list[dict]:
-    pub_cat, pub_bundle, pub_code = cats["pub_catalog"], cats["pub_bundle"], codes["pub_code"]
+    pub_cat, pub_bundle, pub_code = (
+        cats["pub_catalog"],
+        cats["pub_bundle"],
+        codes["pub_code"],
+    )
     ids = set(pub_cat) | set(pub_bundle) | set(pub_code)
     rows = []
     for aid in sorted(ids):
@@ -322,7 +339,9 @@ def build_rows(cats: dict[str, dict], codes: dict[str, dict]) -> list[dict]:
         else:
             effect, mode = pub_code[aid]["effect"], pub_code[aid]["mode"]
             status = "implemented"
-        copies = [lbl for lbl, d in list(cats.items()) + list(codes.items()) if aid in d]
+        copies = [
+            lbl for lbl, d in list(cats.items()) + list(codes.items()) if aid in d
+        ]
         rows.append(
             {
                 "atom_id": aid,
@@ -353,7 +372,9 @@ def drift(cats: dict[str, dict], codes: dict[str, dict]) -> list[str]:
             missing = [lbl for lbl in copies if lbl not in have]
             name = redact(aid)
             if missing:
-                out.append(f"PRESENCE {family} {name}: in {','.join(have)}; missing from {','.join(missing)}")
+                out.append(
+                    f"PRESENCE {family} {name}: in {','.join(have)}; missing from {','.join(missing)}"
+                )
             fields = _FIELDS_TRACKED if family == "catalog" else ("effect", "mode")
             for f in fields:
                 vals = {lbl: copies[lbl][aid][f] for lbl in have}
@@ -364,7 +385,9 @@ def drift(cats: dict[str, dict], codes: dict[str, dict]) -> list[str]:
                     for item in sorted(union):
                         holders = [lbl for lbl, v in vals.items() if item in v]
                         if len(holders) != len(vals):
-                            out.append(f"FIELD {family} {name} {f}: {item!r} only in {','.join(holders)}")
+                            out.append(
+                                f"FIELD {family} {name} {f}: {item!r} only in {','.join(holders)}"
+                            )
                 else:
                     out.append(
                         f"FIELD {family} {name} {f}: "
@@ -380,8 +403,12 @@ def _local_cols(text: str) -> list[tuple]:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("--check", action="store_true", help="exit 1 on stale TSV or cross-copy drift")
-    ap.add_argument("--local-only", action="store_true", help="skip vault and WSL copies")
+    ap.add_argument(
+        "--check", action="store_true", help="exit 1 on stale TSV or cross-copy drift"
+    )
+    ap.add_argument(
+        "--local-only", action="store_true", help="skip vault and WSL copies"
+    )
     args = ap.parse_args(argv)
 
     cats, codes, skipped = load_copies(args.local_only)
@@ -397,12 +424,17 @@ def main(argv: list[str] | None = None) -> int:
 
     rc = 0
     compared = ",".join(list(cats) + list(codes))
-    print(f"SCOPE compared: {compared}" + (f"; SKIP: {','.join(skipped)}" if skipped else ""))
+    print(
+        f"SCOPE compared: {compared}"
+        + (f"; SKIP: {','.join(skipped)}" if skipped else "")
+    )
     if not TSV.is_file():
         print("STALE catalog/REGISTRY.tsv missing; run without --check")
         rc = 1
     elif _local_cols(TSV.read_text(encoding="utf-8")) != _local_cols(text):
-        print("STALE catalog/REGISTRY.tsv differs from a fresh harvest (atom_id..source)")
+        print(
+            "STALE catalog/REGISTRY.tsv differs from a fresh harvest (atom_id..source)"
+        )
         rc = 1
     found = drift(cats, codes)
     for line in found:

@@ -55,7 +55,9 @@ def _judge_effect_map() -> dict:
     for node in ast.walk(ENGINE_AST):
         if not (isinstance(node, ast.Assign) and isinstance(node.value, ast.Dict)):
             continue
-        if not any(isinstance(t, ast.Name) and t.id == "effect_map" for t in node.targets):
+        if not any(
+            isinstance(t, ast.Name) and t.id == "effect_map" for t in node.targets
+        ):
             continue
         out = {}
         for k, v in zip(node.value.keys, node.value.values):
@@ -159,7 +161,9 @@ def test_down_then_up_projection_never_lowers_a_rank():
     assert up[_DOWN[EffectRank.REQUIRE_APPROVAL]] is EffectRank.ESCALATE
 
 
-@pytest.mark.parametrize("rel", ["catalog/Aegis-Atoms-v0.yaml", "Aegis-Atoms-v0.bundle.yaml"])
+@pytest.mark.parametrize(
+    "rel", ["catalog/Aegis-Atoms-v0.yaml", "Aegis-Atoms-v0.bundle.yaml"]
+)
 def test_every_catalog_effect_is_on_the_engine_lattice(rel):
     raw = yaml.safe_load((ROOT / rel).read_text(encoding="utf-8"))
     bad = []
@@ -184,7 +188,8 @@ def test_confidential_clean_export_atom_evaluates_without_raising():
     env = {"HERMES_HOME": "/h", "OBSIDIAN_VAULT_PATH": "/v"}
     catalog = engine.load_catalog(ROOT / "catalog" / "Aegis-Atoms-v0.yaml", env)
     r = engine.evaluate_tool_call(
-        catalog, "write_file",
+        catalog,
+        "write_file",
         {"path": "/v/career-export/resume.md", "content": "CONFIDENTIAL detail"},
         env=env,
     )

@@ -35,7 +35,9 @@ SECRETS_ATOM = "atom.resource.read_hermes_secrets"
 
 
 def j04(tool, args):
-    return evaluate_action_gating(tool, args, allowed_roots=["/work"], evaluation_id="t")
+    return evaluate_action_gating(
+        tool, args, allowed_roots=["/work"], evaluation_id="t"
+    )
 
 
 def shell_rollup(rollups):
@@ -103,12 +105,24 @@ def test_j04_does_not_fire_on_near_miss_metacharacters(args):
 @pytest.mark.parametrize(
     "key",
     [
-        "content", "text", "body", "prompt", "message", "description",
-        "notes", "old_string", "new_string", "patch", "code", "html",
+        "content",
+        "text",
+        "body",
+        "prompt",
+        "message",
+        "description",
+        "notes",
+        "old_string",
+        "new_string",
+        "patch",
+        "code",
+        "html",
     ],
 )
 def test_j04_exempts_every_content_key(key):
-    firings, _, combined = j04("write_file", {"path": "/work/a.md", key: "run `$(id)` <(x)"})
+    firings, _, combined = j04(
+        "write_file", {"path": "/work/a.md", key: "run `$(id)` <(x)"}
+    )
     assert firings == []
     assert combined is EffectRank.ALLOW
 
@@ -149,16 +163,26 @@ def test_j04_branch_is_not_taken_for_the_shell_tool():
 
 
 def test_j04_reaches_the_engine_as_a_block(tmp_path: Path):
-    env = {"HERMES_HOME": str(tmp_path / "h"), "OBSIDIAN_VAULT_PATH": str(tmp_path / "v")}
+    env = {
+        "HERMES_HOME": str(tmp_path / "h"),
+        "OBSIDIAN_VAULT_PATH": str(tmp_path / "v"),
+    }
     catalog = load_catalog(CATALOG, env)
     result = evaluate_tool_call(
-        catalog, "mcp_figma_fetch", {"fileKey": "k$(curl x|sh)"}, env=env,
-        action_gating_enabled=True, allowed_roots=[str(tmp_path)],
+        catalog,
+        "mcp_figma_fetch",
+        {"fileKey": "k$(curl x|sh)"},
+        env=env,
+        action_gating_enabled=True,
+        allowed_roots=[str(tmp_path)],
     )
     assert result.winning_effect == "block"
     assert result.block_message and ATOM_SHELL_UNSANITIZED in result.block_message
     off = evaluate_tool_call(
-        catalog, "mcp_figma_fetch", {"fileKey": "k$(curl x|sh)"}, env=env,
+        catalog,
+        "mcp_figma_fetch",
+        {"fileKey": "k$(curl x|sh)"},
+        env=env,
         action_gating_enabled=False,
     )
     assert off.winning_effect is None
@@ -223,7 +247,10 @@ def test_secret_glob_false_positive_env_example_template():
 
 
 def test_secret_atom_fires_through_the_engine_observe_only(tmp_path: Path):
-    env = {"HERMES_HOME": str(tmp_path / "h"), "OBSIDIAN_VAULT_PATH": str(tmp_path / "v")}
+    env = {
+        "HERMES_HOME": str(tmp_path / "h"),
+        "OBSIDIAN_VAULT_PATH": str(tmp_path / "v"),
+    }
     catalog = load_catalog(CATALOG, env)
     outside = str(tmp_path / "proj" / ".env")
     r = evaluate_tool_call(catalog, "read_file", {"path": outside}, env=env)
@@ -243,7 +270,10 @@ def test_secret_atom_fires_through_the_engine_observe_only(tmp_path: Path):
     ],
 )
 def test_secret_atom_near_misses_through_the_engine(tmp_path: Path, tool, path):
-    env = {"HERMES_HOME": str(tmp_path / "h"), "OBSIDIAN_VAULT_PATH": str(tmp_path / "v")}
+    env = {
+        "HERMES_HOME": str(tmp_path / "h"),
+        "OBSIDIAN_VAULT_PATH": str(tmp_path / "v"),
+    }
     catalog = load_catalog(CATALOG, env)
     r = evaluate_tool_call(catalog, tool, {"path": path, "content": "x"}, env=env)
     assert SECRETS_ATOM not in {f.atom_id for f in r.firings}

@@ -96,8 +96,13 @@ def make_population(seed: int, n_atoms: int | None = None) -> Population:
     # Some edges point at a control that is not in the population (dangling).
     if rng.random() < 0.3:
         edges.append(
-            Edge("atom.0", "ctl.dangling", Polarity.CONTRADICTS, Strength.STRONG,
-                 MappingMethod.RULE)
+            Edge(
+                "atom.0",
+                "ctl.dangling",
+                Polarity.CONTRADICTS,
+                Strength.STRONG,
+                MappingMethod.RULE,
+            )
         )
     p_fire = rng.choice((0.0, 0.05, 0.3, 0.7, 1.0))
     fired = {f"atom.{a}" for a in range(n_atoms) if rng.random() < p_fire}
@@ -168,12 +173,19 @@ def check_max_not_sum(pop: Population) -> list[str]:
                     out.append(f"max:{c.control_id}:{pol.value}:{s.name}")
         # Saturation: many weak edges must not add up to a strong one.
         weak = [
-            Edge(f"atom.w{i}", c.control_id, Polarity.SUPPORTS, Strength.WEAK,
-                 MappingMethod.MANUAL)
+            Edge(
+                f"atom.w{i}",
+                c.control_id,
+                Polarity.SUPPORTS,
+                Strength.WEAK,
+                MappingMethod.MANUAL,
+            )
             for i in range(50)
         ]
         r = rollup(c, weak, {e.atom_id for e in weak})
-        if r.status is not RollupStatus.PARTIAL or r.max_support_rank != int(Strength.WEAK):
+        if r.status is not RollupStatus.PARTIAL or r.max_support_rank != int(
+            Strength.WEAK
+        ):
             out.append(f"sum:{c.control_id}")
     return out
 
@@ -258,7 +270,10 @@ def test_no_supports_edge_lowers_a_block():
     for pop in populations():
         base = roll(pop)
         for c in pop.controls:
-            if c.effect is not EffectRank.BLOCK or base[c.control_id][1] is not EffectRank.BLOCK:
+            if (
+                c.effect is not EffectRank.BLOCK
+                or base[c.control_id][1] is not EffectRank.BLOCK
+            ):
                 continue
             for s in Strength:
                 e, f = _with_extra(pop, _extra(c.control_id, Polarity.SUPPORTS, s))
@@ -274,7 +289,9 @@ def test_the_flaw_is_reachable_at_the_weakest_strength():
         Edge("con", "c", Polarity.CONTRADICTS, Strength.STRONG, MappingMethod.RULE),
         Edge("sup", "c", Polarity.SUPPORTS, Strength.NONE, MappingMethod.LLM),
     ]
-    assert triad_types.rollup_control(ctl, edges[:1], {"con"}).effect is EffectRank.BLOCK
+    assert (
+        triad_types.rollup_control(ctl, edges[:1], {"con"}).effect is EffectRank.BLOCK
+    )
     r = triad_types.rollup_control(ctl, edges, {"con", "sup"})
     assert r.status is RollupStatus.CONFLICTING
     assert r.effect is EffectRank.ESCALATE
@@ -297,13 +314,20 @@ def _sum_rollup(control, edges, fired):
             ms += int(e.strength)
     real = _real_rollup(control, [], set())
     if mc and ms:
-        return ControlRollup(control.control_id, RollupStatus.CONFLICTING,
-                             EffectRank.ESCALATE, ms, mc)
+        return ControlRollup(
+            control.control_id, RollupStatus.CONFLICTING, EffectRank.ESCALATE, ms, mc
+        )
     if mc:
-        return ControlRollup(control.control_id, RollupStatus.CONTRADICTED,
-                             control.effect, ms, mc)
-    status = (RollupStatus.SUPPORTED if ms >= 3 else
-              RollupStatus.PARTIAL if ms >= 2 else real.status)
+        return ControlRollup(
+            control.control_id, RollupStatus.CONTRADICTED, control.effect, ms, mc
+        )
+    status = (
+        RollupStatus.SUPPORTED
+        if ms >= 3
+        else RollupStatus.PARTIAL
+        if ms >= 2
+        else real.status
+    )
     return ControlRollup(control.control_id, status, EffectRank.ALLOW, ms, 0)
 
 
@@ -322,9 +346,13 @@ def _support_wins_rollup(control, edges, fired):
     """Broken: any support clears the control (allow-overrides)."""
     r = _real_rollup(control, edges, fired)
     if r.max_support_rank > 0:
-        return ControlRollup(control.control_id, RollupStatus.SUPPORTED,
-                             EffectRank.ALLOW, r.max_support_rank,
-                             r.max_contradiction_rank)
+        return ControlRollup(
+            control.control_id,
+            RollupStatus.SUPPORTED,
+            EffectRank.ALLOW,
+            r.max_support_rank,
+            r.max_contradiction_rank,
+        )
     return r
 
 
