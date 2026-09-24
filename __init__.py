@@ -412,9 +412,7 @@ def pre_tool_call(
             if mode == "enforce":
                 return {
                     "action": "block",
-                    "message": (
-                        "[aegis-atoms] catalog unavailable, failing closed"
-                    ),
+                    "message": ("[aegis-atoms] catalog unavailable, failing closed"),
                 }
             return None
         if not isinstance(args, dict):

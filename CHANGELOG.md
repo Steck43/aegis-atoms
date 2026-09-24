@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Enforce `pre_tool_call` fails closed on catalog miss and on any setup/evaluator exception, so Hermes hook swallow can no longer allow a destructive tool when the floor crashes. Package-relative sibling imports, register/install refusal of `.bak` tip shadows, widened `rm -r -f` / long-flag matching, and `tests/test_organic_fail_closed.py` pin the organic miss class.
+
 ### Changed
 
 - README names the author profile so a stranger can click once from this roof to `github.com/Steck43`.

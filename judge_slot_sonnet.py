@@ -32,6 +32,7 @@ from judge_audit import (
     utc_now_iso,
 )
 from judge_budget import BudgetGuard
+
 try:
     from .triad_types import EffectRank
 except ImportError:  # standalone / sys.path test import
