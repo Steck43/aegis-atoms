@@ -221,13 +221,36 @@ def test_c1_c2_catalog_edges_and_controls_registered():
     ids = {a.atom_id for a in ACTION_GATING_ATOMS}
     assert "atoms.tool_invocation.path_resolves_outside_allowed_root" in ids
     assert "atoms.tool_invocation.shell_invocation_unsanitized" in ids
+    assert "atoms.tool_invocation.shell_argv_schema_valid" in ids
     for a in ACTION_GATING_ATOMS:
         assert a.detector_ref is None
         assert a.provenance.source == "AML.M0033"
 
-    for e in ACTION_GATING_EDGES:
-        assert e.polarity is Polarity.CONTRADICTS
-        assert e.strength is Strength.STRONG
+    by_atom = {e.atom_id: e for e in ACTION_GATING_EDGES}
+    assert (
+        by_atom["atoms.tool_invocation.path_resolves_outside_allowed_root"].polarity
+        is Polarity.CONTRADICTS
+    )
+    assert (
+        by_atom["atoms.tool_invocation.path_resolves_outside_allowed_root"].strength
+        is Strength.STRONG
+    )
+    assert (
+        by_atom["atoms.tool_invocation.shell_invocation_unsanitized"].polarity
+        is Polarity.CONTRADICTS
+    )
+    assert (
+        by_atom["atoms.tool_invocation.shell_invocation_unsanitized"].strength
+        is Strength.STRONG
+    )
+    assert (
+        by_atom["atoms.tool_invocation.shell_argv_schema_valid"].polarity
+        is Polarity.SUPPORTS
+    )
+    assert (
+        by_atom["atoms.tool_invocation.shell_argv_schema_valid"].strength
+        is Strength.MODERATE
+    )
 
     for c in ACTION_GATING_CONTROLS:
         assert c.effect is EffectRank.BLOCK
