@@ -3,6 +3,7 @@
 Label: SYNTHETIC. Do not claim organic CONFLICTING.
 Organic SUPPORTS edges require a Landen-ratified catalog PR.
 """
+
 from __future__ import annotations
 
 from action_gating import (

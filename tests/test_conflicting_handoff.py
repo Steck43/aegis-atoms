@@ -107,9 +107,7 @@ def test_conflicting_rollup_invokes_dry_handoff(monkeypatch) -> None:
             mapping_method=MappingMethod.RULE,
         ),
     ]
-    rollup = rollup_control(
-        ctrl, edges, {ag.ATOM_SHELL_UNSANITIZED, synth_atom}
-    )
+    rollup = rollup_control(ctrl, edges, {ag.ATOM_SHELL_UNSANITIZED, synth_atom})
     assert rollup.status is RollupStatus.CONFLICTING
 
     msg = ag.rollup_denial_message([rollup])
