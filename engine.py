@@ -156,7 +156,11 @@ class EvaluationResult:
     judge_consumed: bool = False
     judge_escalated: bool = False
     judge_recommendation: str | None = None
+    # judge_subtracted = applied subtract only (floor mutated).
+    # judge_would_subtract = counterfactual; true in shadow when apply is false.
     judge_subtracted: bool = False
+    judge_would_subtract: bool = False
+    judge_applied: bool = False
 
 
 def _expand(text: str, env: dict[str, str]) -> str:
@@ -1268,13 +1272,30 @@ def evaluate_tool_call(
         new_effect, new_block, subtracted = apply_judge_subtract(
             best_effect, block_message, outcome
         )
-        # Observe mount (SETTLE3): consult + telemetry without mutating floor deny.
+        would_subtract = bool(subtracted)
+        # Observe / tune mount: consult + telemetry without mutating floor deny.
         if judge_apply_verdict:
             best_effect = new_effect
             block_message = new_block
         rec = None
         if outcome.opinion is not None:
             rec = outcome.opinion.recommendation.value
+        if judge_audit_path:
+            try:
+                audit_file = Path(judge_audit_path)
+                audit_file.parent.mkdir(parents=True, exist_ok=True)
+                decision = {
+                    "record_type": "judge_apply_decision",
+                    "evaluation_id": evaluation_id,
+                    "applied": bool(judge_apply_verdict),
+                    "would_subtract": would_subtract,
+                    "shadow_effect": new_effect,
+                    "winning_effect": best_effect,
+                }
+                with audit_file.open("a", encoding="utf-8") as fh:
+                    fh.write(json.dumps(decision, ensure_ascii=False) + "\n")
+            except OSError:
+                pass
         return EvaluationResult(
             block_message=block_message,
             firings=firings,
@@ -1282,7 +1303,9 @@ def evaluate_tool_call(
             judge_consumed=True,
             judge_escalated=bool(outcome.escalated),
             judge_recommendation=rec,
-            judge_subtracted=bool(subtracted),
+            judge_would_subtract=would_subtract,
+            judge_applied=bool(judge_apply_verdict),
+            judge_subtracted=bool(would_subtract and judge_apply_verdict),
         )
 
     return EvaluationResult(
