@@ -104,7 +104,9 @@ def test_pre_tool_call_passes_a4_flags_and_paths(monkeypatch, tmp_path):
     monkeypatch.setattr(
         init,
         "_load_catalog_cached",
-        lambda: SimpleNamespace(logging={"firings_path": "${HERMES_HOME}/logs/x.jsonl"}),
+        lambda: SimpleNamespace(
+            logging={"firings_path": "${HERMES_HOME}/logs/x.jsonl"}
+        ),
     )
     monkeypatch.setattr(init, "_read_asserter", lambda: None)
     monkeypatch.setattr(init, "_session_entry", lambda *_a, **_k: ("", None))
