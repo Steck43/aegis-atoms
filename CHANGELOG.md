@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Live mount arms `irreversible_ops_enabled=True` with the plugin's `irreversible_operations.yaml`. Declared deletes, `rm -rf`, and terraform destroy become holds under enforce. `tests/test_irreversible_mount.py` pins the flag and the hold path. Judge stays its own flag.
 - C1 path-outside-root records `detector_kind=strangler-observe` when `AEGIS_STRANGLER_OBSERVE=1`. One deny. Shell stays on the legacy action-gating detector. The catalog is not grown.
 - CONFLICTING rollup names the box door. `AEGIS_CONFLICTING_HANDOFF` points at `isolation-layer` `scripts/conflicting_handoff.py` and is invoked dry. Unset is `HANDOFF_UNWIRED`. The atoms seat never passes `--launch`. `always_invoked` stays false.
 - Judge consult is its own flag. Plugin mode no longer turns the judge off. The live mount passes `judge_apply_verdict=True` under a sitting quota (`AEGIS_JUDGE_SITTING_QUOTA`).
