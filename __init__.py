@@ -164,6 +164,8 @@ class AtomsEntryConfig:
 
     mode: str = "enforce"
     judge_enabled: bool = True
+    # Default false: consult + audit for tune. Landen GO flips apply live.
+    judge_apply_verdict: bool = False
     instruction_surface_enabled: bool = False
     task_scope_enabled: bool = False
     control_surface_enabled: bool = False
@@ -212,6 +214,17 @@ def _load_atoms_entry() -> AtomsEntryConfig:
                     default=None,
                 ),
                 defaults.judge_enabled,
+            ),
+            judge_apply_verdict=_coerce_bool(
+                cfg_get(
+                    cfg,
+                    "plugins",
+                    "entries",
+                    "aegis-atoms",
+                    "judge_apply_verdict",
+                    default=None,
+                ),
+                defaults.judge_apply_verdict,
             ),
             instruction_surface_enabled=_coerce_bool(
                 cfg_get(
@@ -583,7 +596,7 @@ def pre_tool_call(
             control_surface_enabled=entry.control_surface_enabled,
             control_surfaces_path=str(plugin_root / "control_surfaces.yaml"),
             judge_enabled=judge_enabled,
-            judge_apply_verdict=True,
+            judge_apply_verdict=entry.judge_apply_verdict,
             judge_force_consult=not using_paid,
             judge_consult_tools=_JUDGE_CONSULT_TOOLS if using_paid else None,
             judge_slot=judge_slot,

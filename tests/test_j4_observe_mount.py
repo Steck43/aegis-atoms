@@ -88,7 +88,11 @@ def test_pre_tool_observe_mount_applies_subtract(tmp_path, monkeypatch):
     monkeypatch.setattr(
         init,
         "_load_atoms_entry",
-        lambda: init.AtomsEntryConfig(mode="observe", judge_enabled=True),
+        lambda: init.AtomsEntryConfig(
+            mode="observe",
+            judge_enabled=True,
+            judge_apply_verdict=True,
+        ),
     )
     monkeypatch.setattr(init, "_resolve_vault", lambda: tmp_path / "vault")
 
@@ -157,4 +161,5 @@ def test_pre_tool_enforce_keeps_judge_on(tmp_path, monkeypatch):
         session_id="s1",
     )
     assert seen["judge_enabled"] is True
-    assert seen["judge_apply_verdict"] is True
+    # Tune-before-deploy default: consult + audit, do not mutate floor.
+    assert seen["judge_apply_verdict"] is False
