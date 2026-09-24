@@ -136,8 +136,11 @@ def test_heartbeat_defaults_gateway_pid_to_process(organic_home, monkeypatch):
     home, tip = organic_home
     monkeypatch.delenv("HERMES_GATEWAY_PID", raising=False)
     mod = _load_as_package(tip)
-    monkeypatch.setattr(mod, "_read_plugin_mode", lambda default="enforce": "enforce")
-    monkeypatch.setattr(mod, "_read_judge_enabled", lambda default=True: False)
+    monkeypatch.setattr(
+        mod,
+        "_load_atoms_entry",
+        lambda: mod.AtomsEntryConfig(mode="enforce", judge_enabled=False),
+    )
     mod._CATALOG_CACHE = None
     mod.register(_Ctx())
     text = (home / "logs" / "aegis-atoms-load.txt").read_text(encoding="utf-8")
@@ -150,8 +153,11 @@ def test_heartbeat_defaults_gateway_pid_to_process(organic_home, monkeypatch):
 def test_organic_package_load_blocks_rm_rf(organic_home, monkeypatch):
     home, tip = organic_home
     mod = _load_as_package(tip)
-    monkeypatch.setattr(mod, "_read_plugin_mode", lambda default="enforce": "enforce")
-    monkeypatch.setattr(mod, "_read_judge_enabled", lambda default=True: False)
+    monkeypatch.setattr(
+        mod,
+        "_load_atoms_entry",
+        lambda: mod.AtomsEntryConfig(mode="enforce", judge_enabled=False),
+    )
     mod._CATALOG_CACHE = None
     ctx = _Ctx()
     mod.register(ctx)
@@ -174,8 +180,11 @@ def test_organic_package_load_blocks_rm_rf(organic_home, monkeypatch):
 def test_organic_package_load_blocks_setup_exception(organic_home, monkeypatch):
     home, tip = organic_home
     mod = _load_as_package(tip)
-    monkeypatch.setattr(mod, "_read_plugin_mode", lambda default="enforce": "enforce")
-    monkeypatch.setattr(mod, "_read_judge_enabled", lambda default=True: False)
+    monkeypatch.setattr(
+        mod,
+        "_load_atoms_entry",
+        lambda: mod.AtomsEntryConfig(mode="enforce", judge_enabled=False),
+    )
     mod._CATALOG_CACHE = None
 
     def boom(*_a, **_k):

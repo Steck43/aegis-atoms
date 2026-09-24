@@ -245,7 +245,11 @@ def evaluate_destination_scope(
         task_id = active_task_id or "default_local"
         tasks = cfg["tasks"]
         if task_id not in tasks:
-            raise ValueError(f"unknown task_id {task_id!r}")
+            # Unknown ids (e.g. Hermes UUIDs) fall back to default_local instead
+            # of fail-closed — a missing map must not block the whole mount.
+            coords["unknown_task_id"] = task_id
+            task_id = "default_local"
+            coords["active_task_id_resolved"] = task_id
         allowed = list(tasks[task_id].get("allowed_scopes") or [])
         coords["allowed_scopes"] = allowed
         dests = _extract_destinations(args)

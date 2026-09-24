@@ -401,8 +401,11 @@ def _plugin(monkeypatch, tmp_path):
         "HERMES_HOME": str(home.resolve()),
         "OBSIDIAN_VAULT_PATH": str(vault.resolve()),
     }
-    monkeypatch.setattr(init, "_read_plugin_mode", lambda default="enforce": "enforce")
-    monkeypatch.setattr(init, "_read_judge_enabled", lambda default=True: False)
+    monkeypatch.setattr(
+        init,
+        "_load_atoms_entry",
+        lambda: init.AtomsEntryConfig(mode="enforce", judge_enabled=False),
+    )
     monkeypatch.setattr(init, "_resolve_vault", lambda: vault)
     monkeypatch.setattr(
         init, "_load_catalog_cached", lambda: _engine_catalog("monitor")
