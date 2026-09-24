@@ -23,40 +23,40 @@ try:
         AtomDefinition,
         AtomType,
         Control,
+        ControlRollup,
         Edge,
         EffectRank,
         EnforcementMode,
         MappingMethod,
         Polarity,
         Provenance,
+        RollupStatus,
         Severity,
         Strength,
         TrustDomain,
+        combine_control_rollups,
         parse_atom_firing,
         rollup_control,
-        combine_control_rollups,
-        ControlRollup,
-        RollupStatus,
     )
 except ImportError:  # standalone / sys.path test import
     from triad_types import (
         AtomDefinition,
         AtomType,
         Control,
+        ControlRollup,
         Edge,
         EffectRank,
         EnforcementMode,
         MappingMethod,
         Polarity,
         Provenance,
+        RollupStatus,
         Severity,
         Strength,
         TrustDomain,
+        combine_control_rollups,
         parse_atom_firing,
         rollup_control,
-        combine_control_rollups,
-        ControlRollup,
-        RollupStatus,
     )
 
 # /proc/self/root is the Linux synonym for the real host root from inside a
@@ -66,6 +66,7 @@ _PROC_ROOT_ALIASES = re.compile(r"(?:^|/)proc/(?:1|self)/root(?=/|$)")
 
 ATOM_PATH_OUTSIDE = "atoms.tool_invocation.path_resolves_outside_allowed_root"
 ATOM_SHELL_UNSANITIZED = "atoms.tool_invocation.shell_invocation_unsanitized"
+ATOM_SHELL_ARGV_SCHEMA_VALID = "atoms.tool_invocation.shell_argv_schema_valid"
 CTRL_PATH = "control.no_file_access_outside_allowed_roots"
 CTRL_SHELL = "control.no_unparameterized_command_execution"
 
@@ -116,6 +117,23 @@ ACTION_GATING_ATOMS: list[AtomDefinition] = [
         ),
         version="1.0.0",
     ),
+    AtomDefinition(
+        atom_id=ATOM_SHELL_ARGV_SCHEMA_VALID,
+        atom_type=AtomType.ACTION,
+        predicate=(
+            "the terminal call carries a non-empty argv list of plain string tokens"
+        ),
+        detector_ref=None,
+        provenance=Provenance(
+            source="AML.M0033",
+            source_type="mitigation",
+            extracted_from=(
+                "supports C2 when argv schema is present; pairs with "
+                "shell_invocation_unsanitized for CONFLICTING observe-tune"
+            ),
+        ),
+        version="1.0.0",
+    ),
 ]
 
 
@@ -152,6 +170,13 @@ ACTION_GATING_EDGES: list[Edge] = [
         control_id=CTRL_SHELL,
         polarity=Polarity.CONTRADICTS,
         strength=Strength.STRONG,
+        mapping_method=MappingMethod.RULE,
+    ),
+    Edge(
+        atom_id=ATOM_SHELL_ARGV_SCHEMA_VALID,
+        control_id=CTRL_SHELL,
+        polarity=Polarity.SUPPORTS,
+        strength=Strength.MODERATE,
         mapping_method=MappingMethod.RULE,
     ),
 ]
@@ -299,6 +324,28 @@ def evaluate_shell_unsanitized(
         return True, coords
 
 
+def evaluate_shell_argv_schema_valid(
+    call: str | dict[str, Any],
+) -> tuple[bool, dict[str, Any]]:
+    """True when terminal call carries a non-empty argv of plain strings.
+
+    Schema-valid is structural only. Shell grammar inside argv tokens still
+    counts as schema-valid so SUPPORTS can co-fire with unsanitized and yield
+    organic CONFLICTING for observe-tune.
+    """
+    coords: dict[str, Any] = {}
+    if not isinstance(call, dict) or "argv" not in call:
+        return False, coords
+    argv = call["argv"]
+    if not isinstance(argv, list) or not argv:
+        return False, coords
+    if not all(isinstance(t, str) for t in argv):
+        return False, coords
+    coords["argv"] = list(argv)
+    coords["schema"] = "argv_list_of_strings"
+    return True, coords
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -374,6 +421,12 @@ def evaluate_action_gating(
         if fires:
             fired_ids.add(ATOM_SHELL_UNSANITIZED)
             firings.append(_make_firing(ATOM_SHELL_UNSANITIZED, evaluation_id, coords))
+        schema_fires, schema_coords = evaluate_shell_argv_schema_valid(call)
+        if schema_fires:
+            fired_ids.add(ATOM_SHELL_ARGV_SCHEMA_VALID)
+            firings.append(
+                _make_firing(ATOM_SHELL_ARGV_SCHEMA_VALID, evaluation_id, schema_coords)
+            )
     else:
         # J04 (CVE-2025-53967): the agent-visible half is executable substitution
         # in a NON-shell tool arg. Widening SHELL_TOOLS cannot see it, because that
@@ -453,7 +506,11 @@ def conflicting_handoff_dry() -> str:
 def rollup_denial_message(rollups: list[ControlRollup]) -> str | None:
     """Build public denial from CONTRADICTED/CONFLICTING rollups."""
     ctrl_by_id = {c.control_id: c for c in ACTION_GATING_CONTROLS}
-    edge_by_ctrl = {e.control_id: e for e in ACTION_GATING_EDGES}
+    # Prefer CONTRADICTS when multiple edges share a control_id (SUPPORTS peer).
+    edge_by_ctrl: dict[str, Edge] = {}
+    for e in ACTION_GATING_EDGES:
+        if e.polarity is Polarity.CONTRADICTS or e.control_id not in edge_by_ctrl:
+            edge_by_ctrl[e.control_id] = e
     parts: list[str] = []
     for r in rollups:
         if r.status is RollupStatus.CONTRADICTED and r.effect is EffectRank.BLOCK:
