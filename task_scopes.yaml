@@ -15,6 +15,7 @@ scopes:
     path_prefixes:
       - "${HERMES_HOME}"
       - "${TERMINAL_CWD}"
+      - "${OBSIDIAN_VAULT_PATH}"
     host_suffixes: []
     resource_classes: []
   staging:

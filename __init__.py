@@ -1,7 +1,7 @@
 """
 aegis-atoms — deterministic atomic constraint layer (v0).
 
-Author:  Landen Stecke
+Author:  Landen Stecker
 Date:    2026-07-11
 Version: 0.1.0
 Summary: The plugin's front door. It exports the atoms, the engine entry, and the evaluate call the Hermes adapter imports, and it holds the enable flags that keep each new surface off the default path until it is proven. Nothing decides here. It wires.
@@ -83,10 +83,34 @@ def _resolve_vault() -> Path | None:
 
 def _build_env() -> dict[str, str]:
     vault = _resolve_vault()
-    return {
+    # TERMINAL_CWD/PWD let instruction/control/task-scope cwd_* and local
+    # path_prefixes see the Hermes working directory (PR #35 review).
+    cwd = (os.environ.get("TERMINAL_CWD") or os.environ.get("PWD") or "").strip()
+    env = {
         "HERMES_HOME": _hermes_home(),
         "OBSIDIAN_VAULT_PATH": str(vault) if vault else "",
     }
+    if cwd:
+        env["TERMINAL_CWD"] = cwd
+        env["PWD"] = cwd
+    return env
+
+
+_KNOWN_TASK_SCOPE_IDS = frozenset(
+    {"default_local", "staging_cleanup", "production_ops"}
+)
+
+
+def _active_task_id_for_scope(task_id: str | None) -> str | None:
+    """Pass only task ids declared in task_scopes.yaml.
+
+    Hermes session task_ids are usually opaque UUIDs. Feeding those into
+    evaluate_destination_scope raises unknown-task fail-closed and blocks
+    ordinary traffic when task_scope_enabled is on.
+    """
+    if not task_id:
+        return None
+    return task_id if task_id in _KNOWN_TASK_SCOPE_IDS else None
 
 
 def _catalog_path() -> Path | None:
@@ -488,6 +512,7 @@ def pre_tool_call(
             ),
             task_scope_enabled=_read_entry_bool("task_scope_enabled", default=False),
             task_scope_path=str(Path(__file__).resolve().parent / "task_scopes.yaml"),
+            active_task_id=_active_task_id_for_scope(task_id),
             control_surface_enabled=_read_entry_bool(
                 "control_surface_enabled", default=False
             ),

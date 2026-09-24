@@ -6,6 +6,7 @@ import importlib
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -42,3 +43,77 @@ def test_read_entry_bool_true(monkeypatch, tmp_path):
     fake = SimpleNamespace(cfg_get=cfg_get, load_config=dict)
     monkeypatch.setitem(sys.modules, "hermes_cli.config", fake)
     assert init._read_entry_bool("control_surface_enabled", default=False) is True
+
+
+def test_active_task_id_for_scope_filters_hermes_uuids(monkeypatch, tmp_path):
+    init = _load_init(monkeypatch, tmp_path)
+    assert init._active_task_id_for_scope("staging_cleanup") == "staging_cleanup"
+    assert init._active_task_id_for_scope("default_local") == "default_local"
+    assert init._active_task_id_for_scope("abc-uuid-not-declared") is None
+    assert init._active_task_id_for_scope("") is None
+    assert init._active_task_id_for_scope(None) is None
+
+
+def test_build_env_includes_terminal_cwd(monkeypatch, tmp_path):
+    init = _load_init(monkeypatch, tmp_path)
+    monkeypatch.setenv("TERMINAL_CWD", "/tmp/work")
+    monkeypatch.delenv("PWD", raising=False)
+    monkeypatch.setattr(init, "_resolve_vault", lambda: None)
+    env = init._build_env()
+    assert env["TERMINAL_CWD"] == "/tmp/work"
+    assert env["PWD"] == "/tmp/work"
+    assert env["HERMES_HOME"]
+
+
+def test_pre_tool_call_passes_active_task_id_when_known(monkeypatch, tmp_path):
+    init = _load_init(monkeypatch, tmp_path)
+    fake = SimpleNamespace(
+        cfg_get=lambda *_a, **_k: False,
+        load_config=dict,
+    )
+    monkeypatch.setitem(sys.modules, "hermes_cli.config", fake)
+
+    captured: dict = {}
+
+    def fake_eval(*_a, **kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(
+            firings=[],
+            judge_consumed=False,
+            judge_subtracted=False,
+            judge_escalated=False,
+            judge_recommendation=None,
+            block_message=None,
+            winning_effect=None,
+        )
+
+    monkeypatch.setattr(init.eng, "evaluate_tool_call", fake_eval)
+    monkeypatch.setattr(init.eng, "append_firings", lambda *a, **k: None)
+    monkeypatch.setattr(
+        init,
+        "_load_catalog_cached",
+        lambda: SimpleNamespace(logging={"firings_path": "${HERMES_HOME}/logs/x.jsonl"}),
+    )
+    monkeypatch.setattr(init, "_read_plugin_mode", lambda: "observe")
+    monkeypatch.setattr(init, "_read_asserter", lambda: None)
+    monkeypatch.setattr(init, "_session_entry", lambda *_a, **_k: ("", None))
+    monkeypatch.setattr(init, "_session_flow", lambda *_a, **_k: None)
+    monkeypatch.setattr(init, "_read_judge_enabled", lambda: False)
+    monkeypatch.setattr(init, "_read_entry_bool", lambda *_a, **_k: False)
+
+    init.pre_tool_call(
+        "read_file",
+        {"path": str(tmp_path / "h" / "x.md")},
+        task_id="staging_cleanup",
+        session_id="s1",
+    )
+    assert captured.get("active_task_id") == "staging_cleanup"
+
+    captured.clear()
+    init.pre_tool_call(
+        "read_file",
+        {"path": str(tmp_path / "h" / "x.md")},
+        task_id="not-a-declared-task",
+        session_id="s1",
+    )
+    assert captured.get("active_task_id") is None

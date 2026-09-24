@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Restore Author line `Landen Stecker` after the LF-index normalizer truncated a trailing `r` (same class as the in-branch `lowe` miss).
+- Pass `active_task_id` from the live mount only when the id is declared in `task_scopes.yaml`; unknown Hermes UUIDs no longer fail-closed the whole mount. Unknown ids inside `task_scope.py` also fall back to `default_local`.
+- `_build_env` forwards `TERMINAL_CWD`/`PWD` so instruction/control/task-scope cwd and local prefixes can see the Hermes working directory. Local scope includes `${OBSIDIAN_VAULT_PATH}`.
 - Restore `_is_backup_plugin_dirname` to compare against `lower` (a truncated `lowe` NameError blocked bak-path refusal under organic register).
 - Load heartbeat defaults `gateway_pid` to the registering process PID when `HERMES_GATEWAY_PID` is unset, so dest proves are not left with `gateway_pid=unset` under a normal PluginManager mount.
 - Organic package-load harness (`tests/test_organic_plugin_manager.py`) proves Hermes-style `hermes_plugins.aegis_atoms` registration blocks `rm -rf` and setup exceptions; bak siblings refuse register; heartbeat records `pid=` / `gateway_pid=`.
