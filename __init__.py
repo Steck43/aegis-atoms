@@ -167,6 +167,20 @@ def _read_plugin_mode(default: str = "enforce") -> str:
     return default
 
 
+def _read_entry_bool(key: str, default: bool = False) -> bool:
+    """Read plugins.entries.aegis-atoms.<key> as bool. Missing → default."""
+    try:
+        from hermes_cli.config import cfg_get, load_config
+
+        cfg = load_config()
+        val = cfg_get(cfg, "plugins", "entries", "aegis-atoms", key, default=None)
+        if val is None:
+            return default
+        return bool(val)
+    except Exception:
+        return default
+
+
 def _load_anthropic_key() -> str:
     env = os.environ.get("ANTHROPIC_API_KEY", "").strip()
     if env:
@@ -468,6 +482,19 @@ def pre_tool_call(
             irreversible_ops_enabled=True,
             irreversible_ops_path=str(
                 Path(__file__).resolve().parent / "irreversible_operations.yaml"
+            ),
+            instruction_surface_enabled=_read_entry_bool(
+                "instruction_surface_enabled", default=False
+            ),
+            task_scope_enabled=_read_entry_bool("task_scope_enabled", default=False),
+            task_scope_path=str(
+                Path(__file__).resolve().parent / "task_scopes.yaml"
+            ),
+            control_surface_enabled=_read_entry_bool(
+                "control_surface_enabled", default=False
+            ),
+            control_surfaces_path=str(
+                Path(__file__).resolve().parent / "control_surfaces.yaml"
             ),
             judge_enabled=judge_enabled,
             judge_apply_verdict=True,

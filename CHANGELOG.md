@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Live mount can arm A4 instruction / task-scope / control-surface holds via `plugins.entries.aegis-atoms.*_enabled` (default off for strangers). Box CONFLICTING door is named by `AEGIS_CONFLICTING_HANDOFF` (dry only).
 - README names the author profile so a stranger can click once from this roof to `github.com/Steck43`.
 
 ### Added
