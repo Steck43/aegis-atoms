@@ -338,10 +338,10 @@ def _is_backup_plugin_dirname(name: str) -> bool:
     """True for trees Hermes would otherwise discover as a second tip copy."""
     lower = name.lower()
     return (
-        ".bak" in lowe
+        ".bak" in lower
         or lower.endswith("~")
         or lower.endswith(".tmp")
-        or ".tmp." in lowe
+        or ".tmp." in lower
     )
 
 
