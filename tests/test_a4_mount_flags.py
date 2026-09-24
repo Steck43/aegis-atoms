@@ -25,7 +25,7 @@ def test_read_entry_bool_missing_defaults(monkeypatch, tmp_path):
     init = _load_init(monkeypatch, tmp_path)
     fake = SimpleNamespace(
         cfg_get=lambda *_a, **_k: None,
-        load_config=lambda: {},
+        load_config=dict,
     )
     monkeypatch.setitem(sys.modules, "hermes_cli.config", fake)
     # Re-bind after mock — call through module (imports inside fn).
@@ -39,6 +39,6 @@ def test_read_entry_bool_true(monkeypatch, tmp_path):
     def cfg_get(_cfg, *_parts, default=None):
         return True
 
-    fake = SimpleNamespace(cfg_get=cfg_get, load_config=lambda: {})
+    fake = SimpleNamespace(cfg_get=cfg_get, load_config=dict)
     monkeypatch.setitem(sys.modules, "hermes_cli.config", fake)
     assert init._read_entry_bool("control_surface_enabled", default=False) is True

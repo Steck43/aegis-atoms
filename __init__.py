@@ -487,9 +487,7 @@ def pre_tool_call(
                 "instruction_surface_enabled", default=False
             ),
             task_scope_enabled=_read_entry_bool("task_scope_enabled", default=False),
-            task_scope_path=str(
-                Path(__file__).resolve().parent / "task_scopes.yaml"
-            ),
+            task_scope_path=str(Path(__file__).resolve().parent / "task_scopes.yaml"),
             control_surface_enabled=_read_entry_bool(
                 "control_surface_enabled", default=False
             ),
