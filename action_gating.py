@@ -304,6 +304,23 @@ def _make_firing(
 
 PATH_TOOLS = frozenset({"read_file", "write_file", "patch", "search_files"})
 SHELL_TOOLS = frozenset({"terminal"})
+_ARG_SUBSTITUTION = re.compile(r"(?:\$\(|`|<\(|>\()")
+_CONTENT_ARG_KEYS = frozenset(
+    {
+        "content",
+        "text",
+        "body",
+        "prompt",
+        "message",
+        "description",
+        "notes",
+        "old_string",
+        "new_string",
+        "patch",
+        "code",
+        "html",
+    }
+)
 
 
 def evaluate_action_gating(
@@ -336,6 +353,34 @@ def evaluate_action_gating(
         if fires:
             fired_ids.add(ATOM_SHELL_UNSANITIZED)
             firings.append(_make_firing(ATOM_SHELL_UNSANITIZED, evaluation_id, coords))
+    else:
+        # J04 (CVE-2025-53967): the agent-visible half is executable substitution
+        # in a NON-shell tool arg. Widening SHELL_TOOLS cannot see it, because that
+        # branch reads argv/command and an MCP tool carries neither. Substitution
+        # only; full shell-structure matching here would false-fire on ordinary
+        # metacharacters (search_files pattern "foo|bar").
+        for key, val in args.items():
+            if key in _CONTENT_ARG_KEYS:
+                continue
+            if not isinstance(val, str):
+                continue
+            m = _ARG_SUBSTITUTION.search(val)
+            if not m:
+                continue
+            fired_ids.add(ATOM_SHELL_UNSANITIZED)
+            firings.append(
+                _make_firing(
+                    ATOM_SHELL_UNSANITIZED,
+                    evaluation_id,
+                    {
+                        "structure": m.group(0),
+                        "permitted": False,
+                        "arg": key,
+                        "command": val,
+                    },
+                )
+            )
+            break
 
     rollups = [
         rollup_control(ctrl, ACTION_GATING_EDGES, fired_ids)

@@ -73,6 +73,9 @@ Thumbs.db
 # Cursor local IDE state
 .cursor/
 
+# Local-only atom-id fence patterns for tools/build_registry.py. Not public.
+catalog/.fence
+
 
 # Point-in-time backups of live config — never track.
 live-config.yaml.*

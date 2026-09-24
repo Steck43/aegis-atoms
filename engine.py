@@ -185,7 +185,7 @@ def load_catalog(path: Path, env: dict[str, str]) -> Catalog:
                 claim=str(item.get("claim", "")),
                 detector=dict(item.get("detector") or {}),
                 control=dict(item.get("control") or {}),
-                relaxations=list(item.get("relaxations") or []),
+                relaxations=_relaxation_list(item.get("relaxations")),
             )
         )
     return Catalog(
@@ -238,15 +238,102 @@ def _path_matches_glob(path: str, glob: str) -> bool:
     return fnmatch(norm, g) or norm.startswith(g.rstrip("*"))
 
 
-def _effective_effect(atom: AtomDef, session_text: str) -> tuple[str, str]:
+# Who wrote the session text a relaxation is matched against. Only "human" can
+# relax. A relaxation keyed on text is a policy input, and in Hermes the text
+# reaching pre_llm_call is not always typed by a person: a delegated child's
+# user_message is the goal its parent model wrote, and a cron job's is the
+# stored prompt, which the agent can author. Anything not attested as a human
+# turn is treated as untrusted and cannot lower an effect.
+SESSION_ORIGINS = frozenset({"human", "delegate", "cron", "webhook", "unknown"})
+
+# Hermes platforms whose turns come from a person at an interactive surface.
+# Read-only against hermes-agent on 2026-09-23: agent/turn_context.py passes
+# platform=agent.platform and sender_id=agent._user_id to pre_llm_call;
+# tools/delegate_tool.py builds children with platform="subagent";
+# cron/scheduler.py builds job agents with platform="cron"; the gateway passes
+# the adapter's Platform value and the webhook adapter sets user_id to
+# "webhook:<route>". An allowlist, so a platform added upstream later lands on
+# "unknown" and cannot relax until it is named here.
+_HUMAN_PLATFORMS_LOCAL = frozenset({"cli", "tui"})
+_HUMAN_PLATFORMS_MESSAGING = frozenset(
+    {
+        "telegram",
+        "discord",
+        "slack",
+        "signal",
+        "whatsapp",
+        "whatsapp_cloud",
+        "matrix",
+        "mattermost",
+        "imessage",
+        "bluebubbles",
+    }
+)
+_PLATFORM_ORIGIN = {
+    "subagent": "delegate",
+    "cron": "cron",
+    "webhook": "webhook",
+    "msgraph_webhook": "webhook",
+    "wecom_callback": "webhook",
+}
+
+
+def session_origin_from_hook(platform: Any, sender_id: Any = "") -> str:
+    """Map pre_llm_call's platform and sender_id to a SESSION_ORIGINS value.
+
+    A local CLI or TUI turn has no sender id and is human. A messaging turn is
+    human only when the adapter named a sender, since a messaging agent with no
+    sender is not a turn anyone attested. A webhook-shaped sender id wins over
+    the platform. Everything unrecognised is "unknown", which cannot relax.
+    """
+    p = str(platform or "").strip().lower()
+    s = str(sender_id or "").strip()
+    if s.startswith("webhook:"):
+        return "webhook"
+    if p in _PLATFORM_ORIGIN:
+        return _PLATFORM_ORIGIN[p]
+    if p in _HUMAN_PLATFORMS_LOCAL:
+        return "human"
+    if p in _HUMAN_PLATFORMS_MESSAGING and s:
+        return "human"
+    return "unknown"
+
+
+def _relaxation_list(raw: Any) -> list[dict[str, Any]]:
+    # A bare mapping is one relaxation, not a list of its keys. The public
+    # bundle still carries one in that shape, and iterating it yielded strings.
+    if isinstance(raw, dict):
+        raw = [raw]
+    if not isinstance(raw, list):
+        return []
+    return [r for r in raw if isinstance(r, dict)]
+
+
+def _effective_effect(
+    atom: AtomDef, session_text: str, session_origin: str = "unknown"
+) -> tuple[str, str]:
     effect = str(atom.control.get("effect", "monitor"))
     mode = str(atom.control.get("enforcement_mode", "observe"))
-    for relax in atom.relaxations:
+    if session_origin != "human":
+        return effect, mode
+    for relax in _relaxation_list(atom.relaxations):
         pat = relax.get("when_session_matches")
         if pat and re.search(str(pat), session_text or ""):
-            down = relax.get("downgrade_effect")
-            if down:
-                effect = str(down)
+            down = str(relax.get("downgrade_effect") or "")
+            if down not in EFFECT_RANK:
+                continue
+            # Clamp rather than refuse at load. Enforcement acts only on block
+            # and human_review, so a downgrade to monitor on an enforce atom
+            # keeps the firing and drops the decision. Refusing the catalog at
+            # load would be worse: the plugin returns no decision at all when
+            # the catalog does not load, which opens every atom to remove one
+            # bad relaxation. Invariant: an enforce atom that decided still
+            # decides after any relaxation.
+            if mode == "enforce" and EFFECT_RANK[down] < EFFECT_RANK["human_review"]:
+                down = "human_review"
+            # A relaxation only lowers. One naming a stronger effect is ignored.
+            if EFFECT_RANK[down] < EFFECT_RANK.get(effect, EFFECT_RANK["block"]):
+                effect = down
     return effect, mode
 
 
@@ -382,6 +469,7 @@ def evaluate_tool_call(
     session_id: str = "",
     tool_call_id: str = "",
     session_text: str = "",
+    session_origin: str = "unknown",
     plugin_mode: str = "enforce",
     asserter: str = "aegis-atoms-plugin/0.1.0",
     session_ctx: Any | None = None,
@@ -964,7 +1052,7 @@ def evaluate_tool_call(
         fired = _evaluate_detector(atom, tool_name, args, paths, env, session_text)
         if not fired:
             continue
-        effect, mode = _effective_effect(atom, session_text)
+        effect, mode = _effective_effect(atom, session_text, session_origin)
         enforced = mode == "enforce" and plugin_mode == "enforce"
         if mode == "observe" or plugin_mode == "observe":
             enforced = False
