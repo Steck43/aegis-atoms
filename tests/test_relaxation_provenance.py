@@ -393,18 +393,26 @@ def _plugin(monkeypatch, tmp_path):
     if str(ROOT) not in sys.path:
         sys.path.insert(0, str(ROOT))
     init = importlib.import_module("__init__")
+    home = tmp_path / "h"
+    home.mkdir(parents=True, exist_ok=True)
+    vault = tmp_path / "vault"
+    vault.mkdir(parents=True, exist_ok=True)
+    env = {
+        "HERMES_HOME": str(home.resolve()),
+        "OBSIDIAN_VAULT_PATH": str(vault.resolve()),
+    }
     monkeypatch.setattr(init, "_read_plugin_mode", lambda default="enforce": "enforce")
     monkeypatch.setattr(init, "_read_judge_enabled", lambda default=True: False)
-    monkeypatch.setattr(init, "_resolve_vault", lambda: tmp_path / "vault")
+    monkeypatch.setattr(init, "_resolve_vault", lambda: vault)
     monkeypatch.setattr(
         init, "_load_catalog_cached", lambda: _engine_catalog("monitor")
     )
-    monkeypatch.setattr(init, "_build_env", lambda: dict(ENV))
+    monkeypatch.setattr(init, "_build_env", lambda e=env: dict(e))
     monkeypatch.setattr(init, "_SESSION_TEXT", {})
     # Flow context is per session and process-global; another test can leave a
     # SECRET read on the same session id.
     monkeypatch.setattr(init, "_SESSION_FLOW", {})
-    return init
+    return init, home
 
 
 @pytest.mark.parametrize(
@@ -422,7 +430,7 @@ def _plugin(monkeypatch, tmp_path):
 def test_hook_threads_origin_to_the_engine(
     monkeypatch, tmp_path, platform, sender, origin
 ):
-    init = _plugin(monkeypatch, tmp_path)
+    init, home = _plugin(monkeypatch, tmp_path)
     seen = {}
     real = init.eng.evaluate_tool_call
 
@@ -441,7 +449,10 @@ def test_hook_threads_origin_to_the_engine(
         sender_id=sender,
     )
     out = init.pre_tool_call(
-        "write_file", {"path": "/h/SOUL.md"}, task_id="t", session_id="s1"
+        "write_file",
+        {"path": str(home / "SOUL.md")},
+        task_id="t",
+        session_id="s1",
     )
     assert seen["session_origin"] == origin
     assert seen["session_text"] == SYNTH_TEXT
@@ -454,7 +465,7 @@ def test_hook_threads_origin_to_the_engine(
 
 
 def test_hook_without_sender_kwarg_is_not_human_on_messaging(monkeypatch, tmp_path):
-    init = _plugin(monkeypatch, tmp_path)
+    init, _home = _plugin(monkeypatch, tmp_path)
     init.pre_llm_call(
         session_id="s2",
         user_message=SYNTH_TEXT,
