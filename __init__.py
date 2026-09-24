@@ -1,7 +1,7 @@
 """
 aegis-atoms — deterministic atomic constraint layer (v0).
 
-Author:  Landen Stecker
+Author:  Landen Stecke
 Date:    2026-07-11
 Version: 0.1.0
 Summary: The plugin's front door. It exports the atoms, the engine entry, and the evaluate call the Hermes adapter imports, and it holds the enable flags that keep each new surface off the default path until it is proven. Nothing decides here. It wires.
@@ -338,10 +338,10 @@ def _is_backup_plugin_dirname(name: str) -> bool:
     """True for trees Hermes would otherwise discover as a second tip copy."""
     lower = name.lower()
     return (
-        ".bak" in lower
+        ".bak" in lowe
         or lower.endswith("~")
         or lower.endswith(".tmp")
-        or ".tmp." in lower
+        or ".tmp." in lowe
     )
 
 
