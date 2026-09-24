@@ -5,6 +5,12 @@ Organic SUPPORTS edges require a Landen-ratified catalog PR.
 """
 from __future__ import annotations
 
+from action_gating import (
+    ATOM_SHELL_UNSANITIZED,
+    CTRL_SHELL,
+    conflicting_handoff_dry,
+    rollup_denial_message,
+)
 from triad_types import (
     Control,
     Edge,
@@ -12,17 +18,10 @@ from triad_types import (
     EnforcementMode,
     MappingMethod,
     Polarity,
+    RollupStatus,
     Severity,
     Strength,
     rollup_control,
-    RollupStatus,
-)
-
-from action_gating import (
-    ATOM_SHELL_UNSANITIZED,
-    CTRL_SHELL,
-    conflicting_handoff_dry,
-    rollup_denial_message,
 )
 
 # Synthetic support atom id. Not in production ACTION_GATING_ATOMS.

@@ -63,6 +63,7 @@ def test_conflicting_rollup_invokes_dry_handoff(monkeypatch) -> None:
     remains unreachable until a Landen-ratified SUPPORTS edge lands. This
     fixture is labeled SYNTHETIC and must not be cited as organic.
     """
+    import action_gating as ag
     from triad_types import (
         Control,
         Edge,
@@ -73,7 +74,6 @@ def test_conflicting_rollup_invokes_dry_handoff(monkeypatch) -> None:
         Strength,
         rollup_control,
     )
-    import action_gating as ag
 
     calls: list[str] = []
     monkeypatch.setattr(
