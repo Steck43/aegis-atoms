@@ -260,7 +260,13 @@ def _load_atoms_entry() -> AtomsEntryConfig:
                 False,
             ),
         )
-    except Exception:
+    except Exception as exc:
+        logger.warning(
+            "aegis-atoms: entry config load failed; using defaults "
+            "(judge_apply_verdict=%s): %r",
+            defaults.judge_apply_verdict,
+            exc,
+        )
         return defaults
 
 
@@ -607,13 +613,16 @@ def pre_tool_call(
             global _JUDGE_SITTING_USED
             _JUDGE_SITTING_USED += 1
         if result.judge_consumed and (
-            result.judge_subtracted or result.judge_escalated
+            result.judge_would_subtract
+            or result.judge_subtracted
+            or result.judge_escalated
         ):
             logger.info(
-                "aegis-atoms judge telemetry tool=%s subtracted=%s "
-                "escalated=%s recommendation=%s",
+                "aegis-atoms judge telemetry tool=%s would_subtract=%s "
+                "applied=%s escalated=%s recommendation=%s",
                 tool_name,
-                result.judge_subtracted,
+                result.judge_would_subtract,
+                result.judge_applied,
                 result.judge_escalated,
                 result.judge_recommendation,
             )

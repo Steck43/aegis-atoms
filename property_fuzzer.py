@@ -252,7 +252,9 @@ def check_engine_observe_telemetry(
     return InvariantResult(
         ok=True,
         widened=False,
-        subtracted=bool(present.judge_subtracted),
+        subtracted=bool(
+            getattr(present, "judge_would_subtract", present.judge_subtracted)
+        ),
         detail="observe telemetry consumed; floor identity held",
     )
 
@@ -658,7 +660,10 @@ def permit_from_outcome(floor: EffectRank, outcome: JudgeOutcome | None) -> Perm
 def permit_from_evaluation(result: Any, call_id: str) -> PermitSet:
     """Derive permits from engine EvaluationResult (winning_effect / block_message)."""
     consumed = bool(getattr(result, "judge_consumed", False))
-    subtracted = bool(getattr(result, "judge_subtracted", False))
+    would = getattr(result, "judge_would_subtract", None)
+    subtracted = bool(
+        would if would is not None else getattr(result, "judge_subtracted", False)
+    )
     effect = result.winning_effect
     if effect == "block" or (
         result.block_message is not None and effect in (None, "block", "human_review")

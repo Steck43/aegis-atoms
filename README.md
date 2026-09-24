@@ -32,11 +32,11 @@ This repository is the atom plane and a bounded judge, as source. The allowlist 
 |---|---|---|
 | Allowlist floor | not this roof | capability-gate, enforce |
 | Triad plugin | source | not mounted |
-| Judge | subtract-only, proven | `judge_apply_verdict=True`; consult is not coupled to plugin mode |
+| Judge | subtract-only, proven | `judge_apply_verdict` config (default false = tune); consult is not coupled to plugin mode |
 | Irreversible ops | default off | not enabled |
 | Catalog | `catalog/Aegis-Atoms-v0.yaml`: 15 atoms, 2 delegates | mostly dormant |
 
-`evaluate_tool_call` defaults `judge_apply_verdict` to True. The live mount now passes True, with a sitting quota on consult. `property_fuzzer.py` still runs both paths: apply, to earn the subtract-invariant receipt, and observe, as the named contrast. BREAK lives in `evidence/j3/negative-controls.md`: those pytest functions monkeypatch the wire so the invariant fails, and going red is the proof the detector works. A green 10k run whose control was never exercised is a green on nothing. The tree carries 28 root Python modules and two evidence directories, with receipted 10k runs on both the apply subtract and the observe telemetry paths.
+`evaluate_tool_call` defaults `judge_apply_verdict` to True (engine harness). The live mount defaults false via `plugins.entries.aegis-atoms.judge_apply_verdict` so consult and `aegis-judge.jsonl` can tune without mutating the floor; Landen GO arms apply. Sitting quota `AEGIS_JUDGE_SITTING_QUOTA` still caps paid consults. `property_fuzzer.py` still runs both paths: apply, to earn the subtract-invariant receipt, and observe, as the named contrast. BREAK lives in `evidence/j3/negative-controls.md`: those pytest functions monkeypatch the wire so the invariant fails, and going red is the proof the detector works. A green 10k run whose control was never exercised is a green on nothing. The tree carries 28 root Python modules and two evidence directories, with receipted 10k runs on both the apply subtract and the observe telemetry paths.
 
 ## Four-plane authority
 
@@ -44,7 +44,7 @@ This repository is the atom plane and a bounded judge, as source. The allowlist 
 |---|---|---|
 | Floor (allowlist) | `Steck43/capability-gate` on `profiles/aegis` | live enforce, other roof |
 | Floor (atom plane) | this tree | source-present |
-| Judge | this tree (`bounded_judge.py`, J3) | proven, subtract-only; live mount passes `judge_apply_verdict=True` |
+| Judge | this tree (`bounded_judge.py`, J3) | proven, subtract-only; live mount defaults `judge_apply_verdict=false` (tune) |
 | Box | separate Rust tree | isolation-layer, not consumed here |
 | Audit | vault ledger | not shipped in this git |
 
@@ -121,7 +121,7 @@ above against a clean checkout.
 
 ## Status
 
-Capability-gate is the live allowlist. The live atoms profile is enforce. The live mount passes `judge_apply_verdict=True`. C1 path-outside records `strangler-observe` when `AEGIS_STRANGLER_OBSERVE=1`. A separate Hermes triad plugin is not in `plugins.enabled`.
+Capability-gate is the live allowlist. The live atoms profile is enforce. The live mount defaults `judge_apply_verdict=false` (tune; Landen GO arms apply). C1 path-outside records `strangler-observe` when `AEGIS_STRANGLER_OBSERVE=1`. A separate Hermes triad plugin is not in `plugins.enabled`.
 
 ---
 

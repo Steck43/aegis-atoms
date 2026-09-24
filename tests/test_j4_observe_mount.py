@@ -59,11 +59,15 @@ def test_judge_apply_verdict_false_keeps_floor_allow(tmp_path):
         tool_call_id="shadow",
     )
     assert applied.judge_subtracted is True
+    assert applied.judge_would_subtract is True
+    assert applied.judge_applied is True
     assert applied.winning_effect == "human_review"
     assert applied.block_message is not None
 
     assert shadow.judge_consumed is True
-    assert shadow.judge_subtracted is True
+    assert shadow.judge_would_subtract is True
+    assert shadow.judge_applied is False
+    assert shadow.judge_subtracted is False
     assert shadow.judge_recommendation == "flag_for_review"
     assert shadow.winning_effect is None
     assert shadow.block_message is None
