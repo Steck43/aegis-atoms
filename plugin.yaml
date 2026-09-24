@@ -5,3 +5,7 @@ author: Landen Stecker
 hooks:
   - pre_llm_call
   - pre_tool_call
+provides_hooks:
+  - pre_llm_call
+  - pre_tool_call
+require_mount: true
