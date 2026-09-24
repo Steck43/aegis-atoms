@@ -364,7 +364,11 @@ def _assert_live_plugin_path() -> Path:
 
 
 def _write_load_heartbeat(root: Path) -> None:
-    """Tip path + hook count so organic probes can see the loaded module."""
+    """Tip path + process pid so organic probes can bind load to a process.
+
+    Heartbeat alone is not proof the gateway mounted the plugin — callers must
+    compare ``pid=`` to the live gateway PID (or a Discord-turn firing).
+    """
     home = os.environ.get("HERMES_HOME")
     if not home:
         return
@@ -372,8 +376,11 @@ def _write_load_heartbeat(root: Path) -> None:
         log_dir = Path(home) / "logs"
         log_dir.mkdir(parents=True, exist_ok=True)
         stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        pid = os.getpid()
+        gw = os.environ.get("HERMES_GATEWAY_PID", "")
         line = (
-            f"ts={stamp} plugin_root={root} "
+            f"ts={stamp} pid={pid} gateway_pid={gw or 'unset'} "
+            f"plugin_root={root} "
             f"init={Path(__file__).resolve()} hooks=pre_llm_call,pre_tool_call\n"
         )
         (log_dir / "aegis-atoms-load.txt").write_text(line, encoding="utf-8")
