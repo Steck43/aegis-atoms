@@ -9,8 +9,10 @@ Summary: Coarse origin classification at the tool boundary. Tags read tools and 
 
 from __future__ import annotations
 
-
-from flow_types import OriginClass
+try:
+    from .flow_types import OriginClass
+except ImportError:  # standalone / sys.path test import
+    from flow_types import OriginClass
 
 WEB_READ_TOOLS = frozenset(
     {

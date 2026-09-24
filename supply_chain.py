@@ -23,25 +23,46 @@ from uuid import uuid4
 
 import yaml
 
-from triad_types import (
-    AtomDefinition,
-    AtomType,
-    Control,
-    Edge,
-    EffectRank,
-    EnforcementMode,
-    MappingMethod,
-    Polarity,
-    Provenance,
-    Severity,
-    Strength,
-    TrustDomain,
-    parse_atom_firing,
-    rollup_control,
-    combine_control_rollups,
-    ControlRollup,
-    RollupStatus,
-)
+try:
+    from .triad_types import (
+        AtomDefinition,
+        AtomType,
+        Control,
+        Edge,
+        EffectRank,
+        EnforcementMode,
+        MappingMethod,
+        Polarity,
+        Provenance,
+        Severity,
+        Strength,
+        TrustDomain,
+        parse_atom_firing,
+        rollup_control,
+        combine_control_rollups,
+        ControlRollup,
+        RollupStatus,
+    )
+except ImportError:  # standalone / sys.path test import
+    from triad_types import (
+        AtomDefinition,
+        AtomType,
+        Control,
+        Edge,
+        EffectRank,
+        EnforcementMode,
+        MappingMethod,
+        Polarity,
+        Provenance,
+        Severity,
+        Strength,
+        TrustDomain,
+        parse_atom_firing,
+        rollup_control,
+        combine_control_rollups,
+        ControlRollup,
+        RollupStatus,
+    )
 
 ATOM_TOOL_INTEGRITY = "atoms.supply_chain.tool_integrity_unverified"
 ATOM_UNEXPECTED_EGRESS = "atoms.supply_chain.unexpected_egress_check"

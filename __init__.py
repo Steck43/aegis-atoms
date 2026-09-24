@@ -305,9 +305,9 @@ def _session_text(session_id: str) -> str:
 def _session_flow(session_id: str, task_id: str = ""):
     """Persistent coarse provenance for the FlowAtom across tool calls."""
     try:
-        from session_context import SessionContext
-    except ImportError:
         from .session_context import SessionContext  # type: ignore
+    except ImportError:
+        from session_context import SessionContext
 
     key = session_id or task_id or "default"
     now = time.monotonic()
@@ -318,6 +318,67 @@ def _session_flow(session_id: str, task_id: str = ""):
     ctx = SessionContext(session_id=key)
     _SESSION_FLOW[key] = (now, ctx)
     return ctx
+
+
+def _is_backup_plugin_dirname(name: str) -> bool:
+    """True for trees Hermes would otherwise discover as a second tip copy."""
+    lower = name.lower()
+    return (
+        ".bak" in lower
+        or lower.endswith("~")
+        or lower.endswith(".tmp")
+        or ".tmp." in lower
+    )
+
+
+def _assert_live_plugin_path() -> Path:
+    """Refuse bak/tmp load paths and tip+sibling bak coexistence.
+
+    Hermes PluginManager keys by manifest name and last-wins on sorted
+    scan order, so ``aegis-atoms.bak-*`` silently replaces the tip. Guard
+    here so register does not claim a live floor when a shadow is present.
+    """
+    root = Path(__file__).resolve().parent
+    if _is_backup_plugin_dirname(root.name):
+        raise RuntimeError(
+            f"aegis-atoms refusing to register from backup/temp path: {root}"
+        )
+    parent = root.parent
+    if parent.is_dir():
+        shadows = [
+            p
+            for p in parent.iterdir()
+            if p.is_dir()
+            and p.resolve() != root
+            and _is_backup_plugin_dirname(p.name)
+            and (p / "plugin.yaml").is_file()
+        ]
+        if shadows:
+            names = ", ".join(sorted(p.name for p in shadows))
+            raise RuntimeError(
+                "aegis-atoms refusing to register while backup plugin trees "
+                f"sit beside the tip under {parent}: {names}. Move them to "
+                "plugin-backups/ (install script) or outside plugins/."
+            )
+    return root
+
+
+def _write_load_heartbeat(root: Path) -> None:
+    """Tip path + hook count so organic probes can see the loaded module."""
+    home = os.environ.get("HERMES_HOME")
+    if not home:
+        return
+    try:
+        log_dir = Path(home) / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        line = (
+            f"ts={stamp} plugin_root={root} "
+            f"init={Path(__file__).resolve()} hooks=pre_llm_call,pre_tool_call\n"
+        )
+        (log_dir / "aegis-atoms-load.txt").write_text(line, encoding="utf-8")
+    except OSError as exc:
+        logger.warning("aegis-atoms load heartbeat write failed: %s", exc)
 
 
 def pre_llm_call(
@@ -342,33 +403,40 @@ def pre_tool_call(
     tool_call_id: str = "",
     **kwargs: Any,
 ) -> Optional[dict]:
-    catalog = _load_catalog_cached()
-    if catalog is None:
-        return None
-    if not isinstance(args, dict):
-        args = {}
-
-    env = _build_env()
-    log_raw = catalog.logging.get(
-        "firings_path", "${HERMES_HOME}/logs/aegis-atoms.jsonl"
-    )
-    log_path = Path(eng._expand(str(log_raw), env))
-
-    mode = _read_plugin_mode()
-    session_text, session_origin = _session_entry(session_id)
-    flow_ctx = _session_flow(session_id, task_id)
-    # Judge consult is not coupled to plugin mode. Enforce used to turn it off.
-    judge_enabled = _read_judge_enabled() and _judge_quota_ok()
-    judge_audit = None
-    judge_slot = None
-    using_paid = False
-    if judge_enabled:
-        judge_audit = str(
-            Path(eng._expand("${HERMES_HOME}/logs/aegis-judge.jsonl", env))
-        )
-        judge_slot, using_paid = _observe_judge_slot(env)
-
+    # Default enforce so a mode-read failure still fails closed.
+    mode = "enforce"
     try:
+        mode = _read_plugin_mode()
+        catalog = _load_catalog_cached()
+        if catalog is None:
+            if mode == "enforce":
+                return {
+                    "action": "block",
+                    "message": ("[aegis-atoms] catalog unavailable, failing closed"),
+                }
+            return None
+        if not isinstance(args, dict):
+            args = {}
+
+        env = _build_env()
+        log_raw = catalog.logging.get(
+            "firings_path", "${HERMES_HOME}/logs/aegis-atoms.jsonl"
+        )
+        log_path = Path(eng._expand(str(log_raw), env))
+
+        session_text, session_origin = _session_entry(session_id)
+        flow_ctx = _session_flow(session_id, task_id)
+        # Judge consult is not coupled to plugin mode. Enforce used to turn it off.
+        judge_enabled = _read_judge_enabled() and _judge_quota_ok()
+        judge_audit = None
+        judge_slot = None
+        using_paid = False
+        if judge_enabled:
+            judge_audit = str(
+                Path(eng._expand("${HERMES_HOME}/logs/aegis-judge.jsonl", env))
+            )
+            judge_slot, using_paid = _observe_judge_slot(env)
+
         result = eng.evaluate_tool_call(
             catalog,
             tool_name,
@@ -416,7 +484,7 @@ def pre_tool_call(
         if result.block_message:
             return {"action": "block", "message": result.block_message}
     except Exception as exc:
-        logger.exception("aegis-atoms evaluation failed")
+        logger.exception("aegis-atoms pre_tool_call failed")
         if mode == "enforce":
             return {
                 "action": "block",
@@ -426,5 +494,8 @@ def pre_tool_call(
 
 
 def register(ctx) -> None:
+    root = _assert_live_plugin_path()
+    _write_load_heartbeat(root)
+    logger.info("aegis-atoms registered from %s", root)
     ctx.register_hook("pre_llm_call", pre_llm_call)
     ctx.register_hook("pre_tool_call", pre_tool_call)

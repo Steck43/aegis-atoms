@@ -16,7 +16,10 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Callable
 
-from triad_types import EffectRank, RollupStatus
+try:
+    from .triad_types import EffectRank, RollupStatus
+except ImportError:  # standalone / sys.path test import
+    from triad_types import EffectRank, RollupStatus
 
 AUDIT_RECORD_TYPE = "judge_audit"
 

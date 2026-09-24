@@ -12,9 +12,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from flow_atom import FlowAtom
-from flow_types import AtomDecision
-from session_context import SessionContext, ToolCallView, sink_class_for_tool
+try:
+    from .flow_atom import FlowAtom
+    from .flow_types import AtomDecision
+    from .session_context import SessionContext, ToolCallView, sink_class_for_tool
+except ImportError:  # standalone / sys.path test import
+    from flow_atom import FlowAtom
+    from flow_types import AtomDecision
+    from session_context import SessionContext, ToolCallView, sink_class_for_tool
 
 PROMPT = "Read the hermes config and save the API key into my vault note for later."
 SECRET_VALUE = "REDACTED_SECRET_VALUE_001"

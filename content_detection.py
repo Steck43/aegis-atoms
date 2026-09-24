@@ -12,24 +12,44 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from triad_types import (
-    AtomDefinition,
-    AtomType,
-    Control,
-    Edge,
-    EffectRank,
-    EnforcementMode,
-    MappingMethod,
-    Polarity,
-    Provenance,
-    Severity,
-    Strength,
-    TrustDomain,
-    rollup_control,
-    combine_control_rollups,
-    ControlRollup,
-    RollupStatus,
-)
+try:
+    from .triad_types import (
+        AtomDefinition,
+        AtomType,
+        Control,
+        Edge,
+        EffectRank,
+        EnforcementMode,
+        MappingMethod,
+        Polarity,
+        Provenance,
+        Severity,
+        Strength,
+        TrustDomain,
+        rollup_control,
+        combine_control_rollups,
+        ControlRollup,
+        RollupStatus,
+    )
+except ImportError:  # standalone / sys.path test import
+    from triad_types import (
+        AtomDefinition,
+        AtomType,
+        Control,
+        Edge,
+        EffectRank,
+        EnforcementMode,
+        MappingMethod,
+        Polarity,
+        Provenance,
+        Severity,
+        Strength,
+        TrustDomain,
+        rollup_control,
+        combine_control_rollups,
+        ControlRollup,
+        RollupStatus,
+    )
 
 ATOM_INDIRECT_MARKER = "atoms.injection.indirect_marker"
 CTRL_UNTRUSTED_INJECTION = "control.untrusted_content_carries_injection"

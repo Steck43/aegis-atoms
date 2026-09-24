@@ -20,23 +20,42 @@ from typing import Any
 
 import yaml
 
-from triad_types import (
-    AtomDefinition,
-    AtomType,
-    Control,
-    Edge,
-    EffectRank,
-    EnforcementMode,
-    MappingMethod,
-    Polarity,
-    Provenance,
-    Severity,
-    Strength,
-    rollup_control,
-    combine_control_rollups,
-    ControlRollup,
-    RollupStatus,
-)
+try:
+    from .triad_types import (
+        AtomDefinition,
+        AtomType,
+        Control,
+        Edge,
+        EffectRank,
+        EnforcementMode,
+        MappingMethod,
+        Polarity,
+        Provenance,
+        Severity,
+        Strength,
+        rollup_control,
+        combine_control_rollups,
+        ControlRollup,
+        RollupStatus,
+    )
+except ImportError:  # standalone / sys.path test import
+    from triad_types import (
+        AtomDefinition,
+        AtomType,
+        Control,
+        Edge,
+        EffectRank,
+        EnforcementMode,
+        MappingMethod,
+        Polarity,
+        Provenance,
+        Severity,
+        Strength,
+        rollup_control,
+        combine_control_rollups,
+        ControlRollup,
+        RollupStatus,
+    )
 
 ATOM_IRREVERSIBLE = "atoms.tool_invocation.operation_in_declared_irreversible_set"
 CTRL_IRREVERSIBLE_APPROVAL = "control.require_approval_for_declared_irreversible_ops"

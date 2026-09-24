@@ -19,7 +19,10 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any, Callable
 
-from bounded_judge import JudgeOpinion, JudgeRecommendation
+try:
+    from .bounded_judge import JudgeOpinion, JudgeRecommendation
+except ImportError:  # standalone / sys.path test import
+    from bounded_judge import JudgeOpinion, JudgeRecommendation
 from judge_audit import (
     SONNET5_PRICE_TABLE,
     AuditStore,
@@ -29,7 +32,11 @@ from judge_audit import (
     utc_now_iso,
 )
 from judge_budget import BudgetGuard
-from triad_types import EffectRank
+
+try:
+    from .triad_types import EffectRank
+except ImportError:  # standalone / sys.path test import
+    from triad_types import EffectRank
 
 MODEL_ID = "claude-sonnet-5"
 EFFORT_FLOOR = "low"  # lowest selectable; adaptive thinking stays on (pack pin)

@@ -516,13 +516,26 @@ def evaluate_tool_call(
     # Typed memory-governance triad (Surface 3). Predicate fires bool;
     # CONTRADICTED + block-effect → block. Replaces FlowAtom DENY/ABSTAIN return.
     if flow_atom_enabled and session_ctx is not None:
-        from memory_governance import (
-            evaluate_memory_flow,
-            memory_denial_message,
-            ATOM_SECRET_TO_DURABLE,
-        )
-        from session_context import ToolCallView, sink_class_for_tool
-        from triad_types import EffectRank as MemEffect
+        try:
+            from .memory_governance import (
+                evaluate_memory_flow,
+                memory_denial_message,
+                ATOM_SECRET_TO_DURABLE,
+            )
+        except ImportError:
+            from memory_governance import (
+                evaluate_memory_flow,
+                memory_denial_message,
+                ATOM_SECRET_TO_DURABLE,
+            )
+        try:
+            from .session_context import ToolCallView, sink_class_for_tool
+        except ImportError:
+            from session_context import ToolCallView, sink_class_for_tool
+        try:
+            from .triad_types import EffectRank as MemEffect
+        except ImportError:
+            from triad_types import EffectRank as MemEffect
 
         session_ctx.record_read(tool_name, paths, env)
         sink = sink_class_for_tool(tool_name)
@@ -579,12 +592,22 @@ def evaluate_tool_call(
     # Instruction-surface write triad (AML.CS0051-shaped). Opt-in so the
     # 18-case suite distribution stays invariant unless a case enables it.
     if instruction_surface_enabled and tool_name in WRITE_TOOLS:
-        from memory_governance import (
-            evaluate_instruction_surface_write,
-            memory_denial_message as instr_denial_message,
-            ATOM_WRITE_INSTRUCTION,
-        )
-        from triad_types import EffectRank as InstrEffect
+        try:
+            from .memory_governance import (
+                evaluate_instruction_surface_write,
+                memory_denial_message as instr_denial_message,
+                ATOM_WRITE_INSTRUCTION,
+            )
+        except ImportError:
+            from memory_governance import (
+                evaluate_instruction_surface_write,
+                memory_denial_message as instr_denial_message,
+                ATOM_WRITE_INSTRUCTION,
+            )
+        try:
+            from .triad_types import EffectRank as InstrEffect
+        except ImportError:
+            from triad_types import EffectRank as InstrEffect
 
         hermes = env.get("HERMES_HOME", "")
         cwd = env.get("TERMINAL_CWD") or env.get("PWD") or ""
@@ -643,12 +666,22 @@ def evaluate_tool_call(
 
     # Declared irreversible ops (corpus Atom 1). Opt-in. Effect: human_review.
     if irreversible_ops_enabled:
-        from irreversible_ops import (
-            evaluate_irreversible_ops,
-            irreversible_denial_message,
-            ATOM_IRREVERSIBLE,
-        )
-        from triad_types import EffectRank as IrrEffect
+        try:
+            from .irreversible_ops import (
+                evaluate_irreversible_ops,
+                irreversible_denial_message,
+                ATOM_IRREVERSIBLE,
+            )
+        except ImportError:
+            from irreversible_ops import (
+                evaluate_irreversible_ops,
+                irreversible_denial_message,
+                ATOM_IRREVERSIBLE,
+            )
+        try:
+            from .triad_types import EffectRank as IrrEffect
+        except ImportError:
+            from triad_types import EffectRank as IrrEffect
 
         fired_r, coords_r, rollups_r, combined_r = evaluate_irreversible_ops(
             tool_name,
@@ -696,12 +729,22 @@ def evaluate_tool_call(
 
     # Task-scope destination (corpus Atom 2). Opt-in. Effect: block.
     if task_scope_enabled:
-        from task_scope import (
-            evaluate_task_scope,
-            task_scope_denial_message,
-            ATOM_TASK_SCOPE,
-        )
-        from triad_types import EffectRank as ScopeEffect
+        try:
+            from .task_scope import (
+                evaluate_task_scope,
+                task_scope_denial_message,
+                ATOM_TASK_SCOPE,
+            )
+        except ImportError:
+            from task_scope import (
+                evaluate_task_scope,
+                task_scope_denial_message,
+                ATOM_TASK_SCOPE,
+            )
+        try:
+            from .triad_types import EffectRank as ScopeEffect
+        except ImportError:
+            from triad_types import EffectRank as ScopeEffect
 
         fired_s, coords_s, rollups_s, combined_s = evaluate_task_scope(
             tool_name,
@@ -751,12 +794,22 @@ def evaluate_tool_call(
 
     # Control-surface write (corpus Atom 3). Opt-in. Effect: block.
     if control_surface_enabled and tool_name in WRITE_TOOLS:
-        from memory_governance import (
-            evaluate_control_surface_write,
-            control_surface_denial_message,
-            ATOM_WRITE_CONTROL,
-        )
-        from triad_types import EffectRank as CtrlEffect
+        try:
+            from .memory_governance import (
+                evaluate_control_surface_write,
+                control_surface_denial_message,
+                ATOM_WRITE_CONTROL,
+            )
+        except ImportError:
+            from memory_governance import (
+                evaluate_control_surface_write,
+                control_surface_denial_message,
+                ATOM_WRITE_CONTROL,
+            )
+        try:
+            from .triad_types import EffectRank as CtrlEffect
+        except ImportError:
+            from triad_types import EffectRank as CtrlEffect
 
         hermes_c = env.get("HERMES_HOME", "")
         cwd_c = env.get("TERMINAL_CWD") or env.get("PWD") or ""
@@ -815,14 +868,26 @@ def evaluate_tool_call(
     # Action-gating triad (C1/C2): CONTRADICTED + block-effect → block.
     # Opt-in via action_gating_enabled; default path unchanged (blast-radius).
     if action_gating_enabled:
-        from action_gating import (
-            evaluate_action_gating,
-            rollup_denial_message,
-            strangler_observe_split,
-            ATOM_PATH_OUTSIDE,
-            ATOM_SHELL_UNSANITIZED,
-        )
-        from triad_types import EffectRank, RollupStatus
+        try:
+            from .action_gating import (
+                evaluate_action_gating,
+                rollup_denial_message,
+                strangler_observe_split,
+                ATOM_PATH_OUTSIDE,
+                ATOM_SHELL_UNSANITIZED,
+            )
+        except ImportError:
+            from action_gating import (
+                evaluate_action_gating,
+                rollup_denial_message,
+                strangler_observe_split,
+                ATOM_PATH_OUTSIDE,
+                ATOM_SHELL_UNSANITIZED,
+            )
+        try:
+            from .triad_types import EffectRank, RollupStatus
+        except ImportError:
+            from triad_types import EffectRank, RollupStatus
 
         roots = list(allowed_roots or [])
         if not roots:
@@ -836,7 +901,10 @@ def evaluate_tool_call(
             evaluation_id=evaluation_id,
         )
         denial = rollup_denial_message(rollups)
-        from action_gating import ACTION_GATING_CONTROLS
+        try:
+            from .action_gating import ACTION_GATING_CONTROLS
+        except ImportError:
+            from action_gating import ACTION_GATING_CONTROLS
 
         ctrl_by_id = {c.control_id: c for c in ACTION_GATING_CONTROLS}
         for af in ag_firings:
@@ -850,7 +918,10 @@ def evaluate_tool_call(
                 "human_review",
             )
             # Severity lives on the control; firings read it via the edge so they do not invent it.
-            from action_gating import ACTION_GATING_EDGES
+            try:
+                from .action_gating import ACTION_GATING_EDGES
+            except ImportError:
+                from action_gating import ACTION_GATING_EDGES
 
             edge = next(
                 (e for e in ACTION_GATING_EDGES if e.atom_id == af.atom_id), None
@@ -905,12 +976,22 @@ def evaluate_tool_call(
     # Content-detection triad (Surface 1): heuristic markers → require_approval.
     # Opt-in via content_detection_enabled; default off (blast-radius).
     if content_detection_enabled:
-        from content_detection import (
-            evaluate_content_detection,
-            content_denial_message,
-            ATOM_INDIRECT_MARKER,
-        )
-        from triad_types import EffectRank as ER, TrustDomain
+        try:
+            from .content_detection import (
+                evaluate_content_detection,
+                content_denial_message,
+                ATOM_INDIRECT_MARKER,
+            )
+        except ImportError:
+            from content_detection import (
+                evaluate_content_detection,
+                content_denial_message,
+                ATOM_INDIRECT_MARKER,
+            )
+        try:
+            from .triad_types import EffectRank as ER, TrustDomain
+        except ImportError:
+            from triad_types import EffectRank as ER, TrustDomain
         import uuid as _uuid
 
         blobs: list[str] = []
@@ -977,15 +1058,28 @@ def evaluate_tool_call(
     # Supply-chain triad (Surface 4): tool integrity vs approved baseline.
     # Opt-in via supply_chain_enabled; default off until hosts pass tool metadata.
     if supply_chain_enabled:
-        from supply_chain import (
-            evaluate_supply_chain,
-            rollup_denial_message as sc_denial,
-            ATOM_TOOL_INTEGRITY,
-            SUPPLY_CHAIN_CONTROLS,
-            SUPPLY_CHAIN_EDGES,
-            DEFAULT_BASELINE_PATH,
-        )
-        from triad_types import EffectRank as ScEffect, RollupStatus as ScRS
+        try:
+            from .supply_chain import (
+                evaluate_supply_chain,
+                rollup_denial_message as sc_denial,
+                ATOM_TOOL_INTEGRITY,
+                SUPPLY_CHAIN_CONTROLS,
+                SUPPLY_CHAIN_EDGES,
+                DEFAULT_BASELINE_PATH,
+            )
+        except ImportError:
+            from supply_chain import (
+                evaluate_supply_chain,
+                rollup_denial_message as sc_denial,
+                ATOM_TOOL_INTEGRITY,
+                SUPPLY_CHAIN_CONTROLS,
+                SUPPLY_CHAIN_EDGES,
+                DEFAULT_BASELINE_PATH,
+            )
+        try:
+            from .triad_types import EffectRank as ScEffect, RollupStatus as ScRS
+        except ImportError:
+            from triad_types import EffectRank as ScEffect, RollupStatus as ScRS
 
         meta = tool_metadata if isinstance(tool_metadata, dict) else {}
         baseline = approved_tools_path or str(DEFAULT_BASELINE_PATH)
@@ -1109,12 +1203,22 @@ def evaluate_tool_call(
 
     # Bounded judge cage + J4 subtract-only consumer. Default off (judge_enabled=False).
     if judge_enabled:
-        from bounded_judge import (
-            apply_judge,
-            judge_slot_stub,
-            set_audit_path,
-        )
-        from triad_types import EffectRank as JudgeEffect
+        try:
+            from .bounded_judge import (
+                apply_judge,
+                judge_slot_stub,
+                set_audit_path,
+            )
+        except ImportError:
+            from bounded_judge import (
+                apply_judge,
+                judge_slot_stub,
+                set_audit_path,
+            )
+        try:
+            from .triad_types import EffectRank as JudgeEffect
+        except ImportError:
+            from triad_types import EffectRank as JudgeEffect
 
         if judge_audit_path:
             set_audit_path(judge_audit_path)
@@ -1155,7 +1259,10 @@ def evaluate_tool_call(
                 case["security_relevant"] = True
         slot = judge_slot if judge_slot is not None else judge_slot_stub
         threshold = 0.85 if judge_threshold is None else float(judge_threshold)
-        from judge_consumer import apply_judge_subtract
+        try:
+            from .judge_consumer import apply_judge_subtract
+        except ImportError:
+            from judge_consumer import apply_judge_subtract
 
         outcome = apply_judge(floor_verdict, case, slot, threshold=threshold, cap=3)
         new_effect, new_block, subtracted = apply_judge_subtract(
