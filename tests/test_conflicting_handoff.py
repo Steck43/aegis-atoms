@@ -59,9 +59,8 @@ def test_denial_names_unwired_door(monkeypatch) -> None:
 def test_conflicting_rollup_invokes_dry_handoff(monkeypatch) -> None:
     """SYNTHETIC dual-polarity fixture: CONFLICTING denial names the door.
 
-    Production ACTION_GATING_EDGES stay CONTRADICTS-only. Organic CONFLICTING
-    remains unreachable until a Landen-ratified SUPPORTS edge lands. This
-    fixture is labeled SYNTHETIC and must not be cited as organic.
+    Ad-hoc edges remain labeled SYNTHETIC. Organic prove is
+    test_organic_conflicting_via_supports_edge.
     """
     import action_gating as ag
     from triad_types import (
@@ -115,3 +114,30 @@ def test_conflicting_rollup_invokes_dry_handoff(monkeypatch) -> None:
     assert msg is not None
     assert "CONFLICTING" in msg
     assert "[HANDOFF_OK]" in msg
+
+
+def test_organic_conflicting_via_supports_edge(monkeypatch, tmp_path) -> None:
+    """Production SUPPORTS + CONTRADICTS co-fire on argv-with-grammar."""
+    import action_gating as ag
+
+    script = tmp_path / "handoff.py"
+    script.write_text("print('HANDOFF_OK CONFLICTING')\n", encoding="utf-8")
+    monkeypatch.setenv("AEGIS_CONFLICTING_HANDOFF", str(script))
+
+    firings, rollups, _combined = ag.evaluate_action_gating(
+        "terminal",
+        {"argv": ["sh", "-c", "echo $(whoami)"]},
+        allowed_roots=["/tmp"],
+        evaluation_id="organic-conflicting",
+    )
+    fired = {f.atom_id for f in firings}
+    assert ag.ATOM_SHELL_UNSANITIZED in fired
+    assert ag.ATOM_SHELL_ARGV_SCHEMA_VALID in fired
+
+    shell = next(r for r in rollups if r.control_id == ag.CTRL_SHELL)
+    assert shell.status is RollupStatus.CONFLICTING
+
+    msg = ag.rollup_denial_message(rollups)
+    assert msg is not None
+    assert "CONFLICTING" in msg
+    assert "HANDOFF_OK" in msg
