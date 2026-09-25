@@ -298,17 +298,12 @@ def test_dual_import_judge_opinion_reboxes_not_slot_error(tmp_path, monkeypatch)
         "evaluation_id": "dual-import-cycle",
         "security_relevant": True,
     }
-    outcome = cage.apply_judge(
-        EffectRank.BLOCK, case, twin_slot, threshold=0.5, cap=3
-    )
+    outcome = cage.apply_judge(EffectRank.BLOCK, case, twin_slot, threshold=0.5, cap=3)
     assert outcome.escalated is False
     assert outcome.floor_verdict is EffectRank.BLOCK
     assert outcome.opinion is not None
     assert type(outcome.opinion) is cage.JudgeOpinion
-    assert (
-        outcome.opinion.recommendation
-        is cage.JudgeRecommendation.FLAG_FOR_REVIEW
-    )
+    assert outcome.opinion.recommendation is cage.JudgeRecommendation.FLAG_FOR_REVIEW
     assert outcome.opinion.confidence == 0.91
 
 
