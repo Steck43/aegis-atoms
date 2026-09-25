@@ -23,15 +23,28 @@ try:
     from .bounded_judge import JudgeOpinion, JudgeRecommendation
 except ImportError:  # standalone / sys.path test import
     from bounded_judge import JudgeOpinion, JudgeRecommendation
-from judge_audit import (
-    SONNET5_PRICE_TABLE,
-    AuditStore,
-    CycleAuditRecord,
-    ModelCallUsage,
-    new_cycle_id,
-    utc_now_iso,
-)
-from judge_budget import BudgetGuard
+try:
+    from .judge_audit import (
+        SONNET5_PRICE_TABLE,
+        AuditStore,
+        CycleAuditRecord,
+        ModelCallUsage,
+        new_cycle_id,
+        utc_now_iso,
+    )
+except ImportError:  # standalone / sys.path test import
+    from judge_audit import (
+        SONNET5_PRICE_TABLE,
+        AuditStore,
+        CycleAuditRecord,
+        ModelCallUsage,
+        new_cycle_id,
+        utc_now_iso,
+    )
+try:
+    from .judge_budget import BudgetGuard
+except ImportError:  # standalone / sys.path test import
+    from judge_budget import BudgetGuard
 
 try:
     from .triad_types import EffectRank

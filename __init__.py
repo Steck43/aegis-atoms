@@ -337,19 +337,22 @@ def _observe_judge_slot(env: dict[str, str]) -> tuple[Any | None, bool]:
     if cached is not None:
         return cached, True
 
+    # Prefer package-relative imports so the Sonnet slot's JudgeOpinion shares
+    # identity with engine/bounded_judge. Flat-first dual-loads the plugin and
+    # trips cage isinstance (slot_error:TypeError) while cycle audits still fire.
     try:
-        from judge_audit import AuditStore
-        from judge_budget import BudgetGuard
-        from judge_slot_sonnet import (
+        from .judge_audit import AuditStore  # type: ignore
+        from .judge_budget import BudgetGuard  # type: ignore
+        from .judge_slot_sonnet import (  # type: ignore
             EFFORT_FLOOR,
             MAX_OUTPUT_TOKENS,
             SonnetJudgeConfig,
             make_sonnet_judge_slot,
         )
     except ImportError:
-        from .judge_audit import AuditStore  # type: ignore
-        from .judge_budget import BudgetGuard  # type: ignore
-        from .judge_slot_sonnet import (  # type: ignore
+        from judge_audit import AuditStore
+        from judge_budget import BudgetGuard
+        from judge_slot_sonnet import (
             EFFORT_FLOOR,
             MAX_OUTPUT_TOKENS,
             SonnetJudgeConfig,

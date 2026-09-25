@@ -257,6 +257,56 @@ def test_malformed_opinion_escalates_not_acts():
     assert outcome.opinion is None
 
 
+def test_dual_import_judge_opinion_reboxes_not_slot_error(tmp_path, monkeypatch):
+    """Plugin dir on sys.path + package load yields twin JudgeOpinion classes.
+
+    Live symptom: Sonnet cycle audits complete while cage emits
+    slot_error:TypeError: slot must return JudgeOpinion.
+    """
+    import importlib.util
+    import sys
+    from pathlib import Path
+
+    import bounded_judge as cage
+
+    monkeypatch.setattr(cage, "_audit_path", tmp_path / "judge-audit.jsonl")
+
+    plug = Path(cage.__file__).resolve().parent
+    twin_name = "aegis_atoms_twin_bounded_judge"
+    spec = importlib.util.spec_from_file_location(twin_name, plug / "bounded_judge.py")
+    assert spec is not None and spec.loader is not None
+    twin = importlib.util.module_from_spec(spec)
+    sys.modules[twin_name] = twin
+    spec.loader.exec_module(twin)
+
+    twin_op = twin.JudgeOpinion(
+        recommendation=twin.JudgeRecommendation.FLAG_FOR_REVIEW,
+        confidence=0.91,
+        reason="twin-module opinion",
+        advisory=True,
+    )
+    assert type(twin_op) is not cage.JudgeOpinion
+    assert isinstance(twin_op, cage.JudgeOpinion) is False
+
+    def twin_slot(case, floor_verdict):
+        return twin_op
+
+    case = {
+        "ambiguous": True,
+        "rollup_status": RollupStatus.CONFLICTING.value,
+        "locked_atoms": [],
+        "evaluation_id": "dual-import-cycle",
+        "security_relevant": True,
+    }
+    outcome = cage.apply_judge(EffectRank.BLOCK, case, twin_slot, threshold=0.5, cap=3)
+    assert outcome.escalated is False
+    assert outcome.floor_verdict is EffectRank.BLOCK
+    assert outcome.opinion is not None
+    assert type(outcome.opinion) is cage.JudgeOpinion
+    assert outcome.opinion.recommendation is cage.JudgeRecommendation.FLAG_FOR_REVIEW
+    assert outcome.opinion.confidence == 0.91
+
+
 def test_every_judge_call_emits_audit_record(tmp_path: Path, monkeypatch):
     from bounded_judge import (
         apply_judge,

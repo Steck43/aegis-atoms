@@ -109,18 +109,51 @@ def _should_consult(case: dict[str, Any]) -> bool:
     return False
 
 
+def _coerce_recommendation(rec: Any) -> JudgeRecommendation:
+    """Map twin-module enums / string values onto this module's recommendation set."""
+    if isinstance(rec, JudgeRecommendation):
+        return rec
+    val = getattr(rec, "value", rec)
+    if isinstance(val, str):
+        try:
+            return JudgeRecommendation(val)
+        except ValueError as exc:
+            raise TypeError("recommendation must be JudgeRecommendation") from exc
+    raise TypeError("recommendation must be JudgeRecommendation")
+
+
 def _validate_opinion(raw: Any) -> JudgeOpinion:
-    if not isinstance(raw, JudgeOpinion):
-        raise TypeError("slot must return JudgeOpinion")
+    """Accept same-module or dual-import JudgeOpinion; reject dicts / allow verdicts."""
+    if isinstance(raw, JudgeOpinion):
+        opinion = raw
+    else:
+        # Hermes may load the plugin as a package *and* put the plugin dir on
+        # sys.path. The Sonnet slot then constructs a twin-module JudgeOpinion
+        # whose isinstance check against this cage's class fails. Re-box when
+        # the shape is advisory; refuse anything else (dicts, allow/block).
+        if not all(
+            hasattr(raw, name)
+            for name in ("recommendation", "confidence", "reason", "advisory")
+        ):
+            raise TypeError("slot must return JudgeOpinion")
+        try:
+            opinion = JudgeOpinion(
+                recommendation=_coerce_recommendation(raw.recommendation),
+                confidence=float(raw.confidence),
+                reason=str(raw.reason),
+                advisory=raw.advisory,
+            )
+        except (TypeError, ValueError) as exc:
+            raise TypeError(f"slot must return JudgeOpinion: {exc}") from exc
     # Re-check invariants in case a subclass or mutate slipped through.
-    if raw.advisory is not True:
+    if opinion.advisory is not True:
         raise ValueError("opinion must be advisory")
-    if not isinstance(raw.recommendation, JudgeRecommendation):
+    if not isinstance(opinion.recommendation, JudgeRecommendation):
         raise TypeError("recommendation must be JudgeRecommendation")
-    conf = float(raw.confidence)
+    conf = float(opinion.confidence)
     if conf < 0.0 or conf > 1.0:
         raise ValueError("confidence out of range")
-    return raw
+    return opinion
 
 
 def _emit_audit(

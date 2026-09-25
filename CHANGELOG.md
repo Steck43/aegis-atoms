@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Cage `_validate_opinion` re-boxes twin-module `JudgeOpinion` (plugin dir on `sys.path` plus package load) so live Sonnet cycle audits no longer pair with `slot_error:TypeError: slot must return JudgeOpinion`. Observe mount and Sonnet/budget modules prefer package-relative imports for `judge_audit` / `judge_budget` / `judge_slot_sonnet` so oneshot package load and the cage share one class identity. `tests/test_bounded_judge.py` pins the dual-import path.
 - Retract the production SUPPORTS edge on `CTRL_SHELL` (argv schema-valid). Argv shell grammar is CONTRADICTED/BLOCK again; organic CONFLICTING stays SYNTHETIC-probe only. Terminal checks inspect `command` whenever present so a clean `argv` cannot mask an unsafe string. CONFLICTING handoff subprocess gains a 5s timeout and skips under observe (`AEGIS_ATOMS_MODE`). Action-gating ESCALATE no longer overwrites an earlier BLOCK (`best_effect != "block"`).
 - Restore Author line `Landen Stecker` after the LF-index normalizer truncated a trailing `r` (same class as the in-branch `lowe` miss).
 - Pass `active_task_id` from the live mount only when the id is declared in `task_scopes.yaml`; unknown Hermes UUIDs no longer fail-closed the whole mount. Unknown ids inside `task_scope.py` also fall back to `default_local`.
