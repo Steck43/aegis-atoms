@@ -14,7 +14,10 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
-from judge_audit import PriceTable, SONNET5_PRICE_TABLE
+try:
+    from .judge_audit import PriceTable, SONNET5_PRICE_TABLE
+except ImportError:  # standalone / sys.path test import
+    from judge_audit import PriceTable, SONNET5_PRICE_TABLE
 
 
 class BudgetExhausted(Exception):
