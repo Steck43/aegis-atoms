@@ -1,7 +1,8 @@
 """SYNTHETIC CONFLICTING probe for observe-tune.
 
 Label: SYNTHETIC. Do not claim organic CONFLICTING.
-Organic SUPPORTS edges require a Landen-ratified catalog PR.
+Production ACTION_GATING_EDGES is CONTRADICTS-only (SUPPORTS retract 2026-09-24).
+This fixture keeps an ad-hoc SUPPORTS peer so the dry door can be exercised.
 """
 
 from __future__ import annotations

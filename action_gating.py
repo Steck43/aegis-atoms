@@ -66,9 +66,10 @@ _PROC_ROOT_ALIASES = re.compile(r"(?:^|/)proc/(?:1|self)/root(?=/|$)")
 
 ATOM_PATH_OUTSIDE = "atoms.tool_invocation.path_resolves_outside_allowed_root"
 ATOM_SHELL_UNSANITIZED = "atoms.tool_invocation.shell_invocation_unsanitized"
-ATOM_SHELL_ARGV_SCHEMA_VALID = "atoms.tool_invocation.shell_argv_schema_valid"
 CTRL_PATH = "control.no_file_access_outside_allowed_roots"
 CTRL_SHELL = "control.no_unparameterized_command_execution"
+# Handoff door: bounded wait. Hang or timeout → path-around-box, not a contains claim.
+_HANDOFF_TIMEOUT_S = 5.0
 
 _FRAMEWORKS_SHARED = [
     "OWASP LLM05:2025 Improper Output Handling",
@@ -117,23 +118,6 @@ ACTION_GATING_ATOMS: list[AtomDefinition] = [
         ),
         version="1.0.0",
     ),
-    AtomDefinition(
-        atom_id=ATOM_SHELL_ARGV_SCHEMA_VALID,
-        atom_type=AtomType.ACTION,
-        predicate=(
-            "the terminal call carries a non-empty argv list of plain string tokens"
-        ),
-        detector_ref=None,
-        provenance=Provenance(
-            source="AML.M0033",
-            source_type="mitigation",
-            extracted_from=(
-                "supports C2 when argv schema is present; pairs with "
-                "shell_invocation_unsanitized for CONFLICTING observe-tune"
-            ),
-        ),
-        version="1.0.0",
-    ),
 ]
 
 
@@ -170,13 +154,6 @@ ACTION_GATING_EDGES: list[Edge] = [
         control_id=CTRL_SHELL,
         polarity=Polarity.CONTRADICTS,
         strength=Strength.STRONG,
-        mapping_method=MappingMethod.RULE,
-    ),
-    Edge(
-        atom_id=ATOM_SHELL_ARGV_SCHEMA_VALID,
-        control_id=CTRL_SHELL,
-        polarity=Polarity.SUPPORTS,
-        strength=Strength.MODERATE,
         mapping_method=MappingMethod.RULE,
     ),
 ]
@@ -324,28 +301,6 @@ def evaluate_shell_unsanitized(
         return True, coords
 
 
-def evaluate_shell_argv_schema_valid(
-    call: str | dict[str, Any],
-) -> tuple[bool, dict[str, Any]]:
-    """True when terminal call carries a non-empty argv of plain strings.
-
-    Schema-valid is structural only. Shell grammar inside argv tokens still
-    counts as schema-valid so SUPPORTS can co-fire with unsanitized and yield
-    organic CONFLICTING for observe-tune.
-    """
-    coords: dict[str, Any] = {}
-    if not isinstance(call, dict) or "argv" not in call:
-        return False, coords
-    argv = call["argv"]
-    if not isinstance(argv, list) or not argv:
-        return False, coords
-    if not all(isinstance(t, str) for t in argv):
-        return False, coords
-    coords["argv"] = list(argv)
-    coords["schema"] = "argv_list_of_strings"
-    return True, coords
-
-
 def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -413,20 +368,25 @@ def evaluate_action_gating(
                 firings.append(_make_firing(ATOM_PATH_OUTSIDE, evaluation_id, coords))
 
     if tool_name in SHELL_TOOLS:
-        if "argv" in args and isinstance(args["argv"], list):
-            call: str | dict[str, Any] = {"argv": args["argv"]}
-        else:
-            call = str(args.get("command") or "")
-        fires, coords = evaluate_shell_unsanitized(call)
-        if fires:
-            fired_ids.add(ATOM_SHELL_UNSANITIZED)
-            firings.append(_make_firing(ATOM_SHELL_UNSANITIZED, evaluation_id, coords))
-        schema_fires, schema_coords = evaluate_shell_argv_schema_valid(call)
-        if schema_fires:
-            fired_ids.add(ATOM_SHELL_ARGV_SCHEMA_VALID)
-            firings.append(
-                _make_firing(ATOM_SHELL_ARGV_SCHEMA_VALID, evaluation_id, schema_coords)
-            )
+        # Inspect every present surface. Prefer-argv alone let a clean argv mask
+        # an unsafe command string (Hermes runs command; check must not ignore it).
+        calls: list[str | dict[str, Any]] = []
+        argv = args.get("argv")
+        if isinstance(argv, list):
+            calls.append({"argv": argv})
+        command = args.get("command")
+        if isinstance(command, str) and command:
+            calls.append(command)
+        if not calls:
+            calls.append("")
+        for call in calls:
+            fires, coords = evaluate_shell_unsanitized(call)
+            if fires:
+                fired_ids.add(ATOM_SHELL_UNSANITIZED)
+                firings.append(
+                    _make_firing(ATOM_SHELL_UNSANITIZED, evaluation_id, coords)
+                )
+                break
     else:
         # J04 (CVE-2025-53967): the agent-visible half is executable substitution
         # in a NON-shell tool arg. Widening SHELL_TOOLS cannot see it, because that
@@ -484,19 +444,27 @@ def denial_line(
 
 
 def conflicting_handoff_dry() -> str:
-    """Named box door. Dry only. Unset or missing script is path-around-box."""
+    """Named box door. Dry only. Unset, missing, hang, or observe-skip → unwired."""
     raw = os.environ.get("AEGIS_CONFLICTING_HANDOFF", "").strip()
     if not raw:
         return "HANDOFF_UNWIRED"
     path = Path(raw)
     if not path.is_file():
         return "HANDOFF_UNWIRED"
-    proc = subprocess.run(
-        [sys.executable, str(path), "CONFLICTING"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    # Side-effect only under enforce. Observe names the door as unwired.
+    mode = os.environ.get("AEGIS_ATOMS_MODE", "enforce").strip().lower()
+    if mode != "enforce":
+        return "HANDOFF_UNWIRED"
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(path), "CONFLICTING"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=_HANDOFF_TIMEOUT_S,
+        )
+    except subprocess.TimeoutExpired:
+        return "HANDOFF_UNWIRED"
     out = f"{proc.stdout or ''}{proc.stderr or ''}"
     if proc.returncode == 0 and "HANDOFF_OK" in out:
         return "HANDOFF_OK"
@@ -506,7 +474,7 @@ def conflicting_handoff_dry() -> str:
 def rollup_denial_message(rollups: list[ControlRollup]) -> str | None:
     """Build public denial from CONTRADICTED/CONFLICTING rollups."""
     ctrl_by_id = {c.control_id: c for c in ACTION_GATING_CONTROLS}
-    # Prefer CONTRADICTS when multiple edges share a control_id (SUPPORTS peer).
+    # Prefer CONTRADICTS when multiple edges share a control_id (legacy SUPPORTS peer).
     edge_by_ctrl: dict[str, Edge] = {}
     for e in ACTION_GATING_EDGES:
         if e.polarity is Polarity.CONTRADICTS or e.control_id not in edge_by_ctrl:

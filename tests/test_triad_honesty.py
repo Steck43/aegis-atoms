@@ -10,7 +10,6 @@ from action_gating import (
     ACTION_GATING_ATOMS,
     ACTION_GATING_CONTROLS,
     ACTION_GATING_EDGES,
-    ATOM_SHELL_ARGV_SCHEMA_VALID,
     ATOM_SHELL_UNSANITIZED,
     CTRL_SHELL,
 )
@@ -48,7 +47,7 @@ def test_armed_surfaces_use_edge_polarity_not_atom_effect() -> None:
         assert ctrl.control_id
 
     for edge in ACTION_GATING_EDGES:
-        assert edge.polarity in (Polarity.CONTRADICTS, Polarity.SUPPORTS)
+        assert edge.polarity is Polarity.CONTRADICTS
         assert edge.strength is not None
         assert edge.atom_id
         assert edge.control_id
@@ -62,18 +61,9 @@ def test_legacy_catalog_effect_on_atom_is_residual_named() -> None:
         assert not atom_id.startswith("atoms.")
 
 
-def test_supports_edge_pairs_shell_control() -> None:
-    supports = [
-        e for e in ACTION_GATING_EDGES if e.atom_id == ATOM_SHELL_ARGV_SCHEMA_VALID
-    ]
-    assert len(supports) == 1
-    assert supports[0].control_id == CTRL_SHELL
-    assert supports[0].polarity is Polarity.SUPPORTS
-
-    contra = [
-        e
-        for e in ACTION_GATING_EDGES
-        if e.atom_id == ATOM_SHELL_UNSANITIZED and e.control_id == CTRL_SHELL
-    ]
-    assert len(contra) == 1
-    assert contra[0].polarity is Polarity.CONTRADICTS
+def test_shell_control_is_contradicts_only() -> None:
+    shell_edges = [e for e in ACTION_GATING_EDGES if e.control_id == CTRL_SHELL]
+    assert len(shell_edges) == 1
+    assert shell_edges[0].atom_id == ATOM_SHELL_UNSANITIZED
+    assert shell_edges[0].polarity is Polarity.CONTRADICTS
+    assert not any(e.polarity is Polarity.SUPPORTS for e in ACTION_GATING_EDGES)
