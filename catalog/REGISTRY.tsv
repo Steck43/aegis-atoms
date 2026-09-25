@@ -23,5 +23,4 @@ atoms.supply_chain.unexpected_egress_check	implemented	block	monitor	supply_chai
 atoms.tool_invocation.destination_scope_exceeds_task_declaration	implemented	block	monitor	task_scope.py:60	pub_code
 atoms.tool_invocation.operation_in_declared_irreversible_set	implemented	require_approval	monitor	irreversible_ops.py:60	pub_code
 atoms.tool_invocation.path_resolves_outside_allowed_root	implemented	block	monitor	action_gating.py:67	pub_code
-atoms.tool_invocation.shell_argv_schema_valid	implemented	block	monitor	action_gating.py:69	pub_code
 atoms.tool_invocation.shell_invocation_unsanitized	implemented	block	monitor	action_gating.py:68	pub_code

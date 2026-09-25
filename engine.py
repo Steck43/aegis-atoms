@@ -970,7 +970,8 @@ def evaluate_tool_call(
                 best_atom_id = next(
                     (af.atom_id for af in ag_firings), best_atom_id or "action_gating"
                 )
-            elif combined is EffectRank.ESCALATE:
+            elif combined is EffectRank.ESCALATE and best_effect != "block":
+                # Deny-overrides: prior BLOCK from another plane stays BLOCK.
                 best_effect = "human_review"
                 best_reason = denial
                 best_atom_id = next(
