@@ -31,6 +31,14 @@ PATH_ARG = {
 EFFECT_RANK = {"monitor": 1, "human_review": 2, "block": 3}
 
 
+def defined_atom_version(atoms: list[Any], atom_id: str) -> str:
+    """Version on the definition. A firing literal drifts from the catalog."""
+    for atom in atoms:
+        if atom.atom_id == atom_id:
+            return str(atom.version)
+    raise KeyError(atom_id)
+
+
 @dataclass
 class AtomDef:
     atom_id: str
@@ -525,12 +533,14 @@ def evaluate_tool_call(
                 evaluate_memory_flow,
                 memory_denial_message,
                 ATOM_SECRET_TO_DURABLE,
+                MEMORY_ATOMS,
             )
         except ImportError:
             from memory_governance import (
                 evaluate_memory_flow,
                 memory_denial_message,
                 ATOM_SECRET_TO_DURABLE,
+                MEMORY_ATOMS,
             )
         try:
             from .session_context import ToolCallView, sink_class_for_tool
@@ -562,7 +572,9 @@ def evaluate_tool_call(
                 Firing(
                     firing_id=str(uuid.uuid4()),
                     atom_id=ATOM_SECRET_TO_DURABLE,
-                    atom_version="2.0.0",
+                    atom_version=defined_atom_version(
+                        MEMORY_ATOMS, ATOM_SECRET_TO_DURABLE
+                    ),
                     fired=True,
                     effect="block",
                     enforcement_mode="monitor",
@@ -601,12 +613,14 @@ def evaluate_tool_call(
                 evaluate_instruction_surface_write,
                 memory_denial_message as instr_denial_message,
                 ATOM_WRITE_INSTRUCTION,
+                MEMORY_ATOMS,
             )
         except ImportError:
             from memory_governance import (
                 evaluate_instruction_surface_write,
                 memory_denial_message as instr_denial_message,
                 ATOM_WRITE_INSTRUCTION,
+                MEMORY_ATOMS,
             )
         try:
             from .triad_types import EffectRank as InstrEffect
@@ -638,7 +652,9 @@ def evaluate_tool_call(
                     Firing(
                         firing_id=str(uuid.uuid4()),
                         atom_id=ATOM_WRITE_INSTRUCTION,
-                        atom_version="1.0.0",
+                        atom_version=defined_atom_version(
+                            MEMORY_ATOMS, ATOM_WRITE_INSTRUCTION
+                        ),
                         fired=True,
                         effect="block",
                         enforcement_mode="monitor",
@@ -675,12 +691,14 @@ def evaluate_tool_call(
                 evaluate_irreversible_ops,
                 irreversible_denial_message,
                 ATOM_IRREVERSIBLE,
+                IRREVERSIBLE_ATOMS,
             )
         except ImportError:
             from irreversible_ops import (
                 evaluate_irreversible_ops,
                 irreversible_denial_message,
                 ATOM_IRREVERSIBLE,
+                IRREVERSIBLE_ATOMS,
             )
         try:
             from .triad_types import EffectRank as IrrEffect
@@ -702,7 +720,9 @@ def evaluate_tool_call(
                 Firing(
                     firing_id=str(uuid.uuid4()),
                     atom_id=ATOM_IRREVERSIBLE,
-                    atom_version="1.0.0",
+                    atom_version=defined_atom_version(
+                        IRREVERSIBLE_ATOMS, ATOM_IRREVERSIBLE
+                    ),
                     fired=True,
                     effect="human_review",
                     enforcement_mode="monitor",
@@ -738,12 +758,14 @@ def evaluate_tool_call(
                 evaluate_task_scope,
                 task_scope_denial_message,
                 ATOM_TASK_SCOPE,
+                TASK_SCOPE_ATOMS,
             )
         except ImportError:
             from task_scope import (
                 evaluate_task_scope,
                 task_scope_denial_message,
                 ATOM_TASK_SCOPE,
+                TASK_SCOPE_ATOMS,
             )
         try:
             from .triad_types import EffectRank as ScopeEffect
@@ -767,7 +789,9 @@ def evaluate_tool_call(
                 Firing(
                     firing_id=str(uuid.uuid4()),
                     atom_id=ATOM_TASK_SCOPE,
-                    atom_version="1.0.0",
+                    atom_version=defined_atom_version(
+                        TASK_SCOPE_ATOMS, ATOM_TASK_SCOPE
+                    ),
                     fired=True,
                     effect="block",
                     enforcement_mode="monitor",
@@ -803,12 +827,14 @@ def evaluate_tool_call(
                 evaluate_control_surface_write,
                 control_surface_denial_message,
                 ATOM_WRITE_CONTROL,
+                MEMORY_ATOMS,
             )
         except ImportError:
             from memory_governance import (
                 evaluate_control_surface_write,
                 control_surface_denial_message,
                 ATOM_WRITE_CONTROL,
+                MEMORY_ATOMS,
             )
         try:
             from .triad_types import EffectRank as CtrlEffect
@@ -839,7 +865,9 @@ def evaluate_tool_call(
                     Firing(
                         firing_id=str(uuid.uuid4()),
                         atom_id=ATOM_WRITE_CONTROL,
-                        atom_version="1.0.0",
+                        atom_version=defined_atom_version(
+                            MEMORY_ATOMS, ATOM_WRITE_CONTROL
+                        ),
                         fired=True,
                         effect="block",
                         enforcement_mode="monitor",
@@ -879,6 +907,7 @@ def evaluate_tool_call(
                 strangler_observe_split,
                 ATOM_PATH_OUTSIDE,
                 ATOM_SHELL_UNSANITIZED,
+                ACTION_GATING_ATOMS,
             )
         except ImportError:
             from action_gating import (
@@ -887,6 +916,7 @@ def evaluate_tool_call(
                 strangler_observe_split,
                 ATOM_PATH_OUTSIDE,
                 ATOM_SHELL_UNSANITIZED,
+                ACTION_GATING_ATOMS,
             )
         try:
             from .triad_types import EffectRank, RollupStatus
@@ -943,7 +973,9 @@ def evaluate_tool_call(
                 Firing(
                     firing_id=af.firing_id,
                     atom_id=af.atom_id,
-                    atom_version="1.0.0",
+                    atom_version=defined_atom_version(
+                        ACTION_GATING_ATOMS, af.atom_id
+                    ),
                     fired=True,
                     effect=effect,
                     enforcement_mode="monitor",
@@ -986,12 +1018,14 @@ def evaluate_tool_call(
                 evaluate_content_detection,
                 content_denial_message,
                 ATOM_INDIRECT_MARKER,
+                CONTENT_DETECTION_ATOMS,
             )
         except ImportError:
             from content_detection import (
                 evaluate_content_detection,
                 content_denial_message,
                 ATOM_INDIRECT_MARKER,
+                CONTENT_DETECTION_ATOMS,
             )
         try:
             from .triad_types import EffectRank as ER, TrustDomain
@@ -1030,7 +1064,9 @@ def evaluate_tool_call(
                 Firing(
                     firing_id=str(_uuid.uuid4()),
                     atom_id=ATOM_INDIRECT_MARKER,
-                    atom_version="1.0.0",
+                    atom_version=defined_atom_version(
+                        CONTENT_DETECTION_ATOMS, ATOM_INDIRECT_MARKER
+                    ),
                     fired=True,
                     effect=effect,
                     enforcement_mode="monitor",
@@ -1070,6 +1106,7 @@ def evaluate_tool_call(
                 ATOM_TOOL_INTEGRITY,
                 SUPPLY_CHAIN_CONTROLS,
                 SUPPLY_CHAIN_EDGES,
+                SUPPLY_CHAIN_ATOMS,
                 DEFAULT_BASELINE_PATH,
             )
         except ImportError:
@@ -1079,6 +1116,7 @@ def evaluate_tool_call(
                 ATOM_TOOL_INTEGRITY,
                 SUPPLY_CHAIN_CONTROLS,
                 SUPPLY_CHAIN_EDGES,
+                SUPPLY_CHAIN_ATOMS,
                 DEFAULT_BASELINE_PATH,
             )
         try:
@@ -1117,7 +1155,7 @@ def evaluate_tool_call(
                 Firing(
                     firing_id=af.firing_id,
                     atom_id=af.atom_id,
-                    atom_version="1.0.0",
+                    atom_version=defined_atom_version(SUPPLY_CHAIN_ATOMS, af.atom_id),
                     fired=True,
                     effect=effect,
                     enforcement_mode="monitor",
