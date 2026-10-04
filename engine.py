@@ -1181,9 +1181,11 @@ def evaluate_tool_call(
         )
         firings.append(rec)
 
-        if effect in ("block", "human_review") and enforced:
+        # Full lattice, not only block/human_review. Monitor must not clear
+        # a stronger best_effect; >= keeps deny-overrides ( <= would not).
+        if enforced and effect in EFFECT_RANK:
             rank = EFFECT_RANK[effect]
-            if best_effect is None or rank >= EFFECT_RANK[best_effect]:
+            if best_effect is None or rank >= EFFECT_RANK.get(best_effect, 0):
                 best_effect = effect
                 best_reason = reason
                 best_atom_id = atom.atom_id

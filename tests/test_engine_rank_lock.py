@@ -119,6 +119,4 @@ def test_content_hold_cannot_overwrite_action_gating_block(tmp_path: Path):
         f.atom_id == "atoms.tool_invocation.path_resolves_outside_allowed_root"
         for f in result.firings
     )
-    assert any(
-        f.atom_id == "atoms.injection.indirect_marker" for f in result.firings
-    )
+    assert any(f.atom_id == "atoms.injection.indirect_marker" for f in result.firings)

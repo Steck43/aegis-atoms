@@ -38,10 +38,12 @@ def test_task_scope_enabled_published_default_is_false(monkeypatch, tmp_path):
     """Published default stays off. A recorded flip to true left this file green."""
     init = _load_init(monkeypatch, tmp_path)
     assert init.AtomsEntryConfig().task_scope_enabled is False
+    assert init.AtomsEntryConfig().judge_apply_verdict is False
     param = inspect.signature(evaluate_tool_call).parameters["task_scope_enabled"]
     assert param.default is False
     got = init._load_atoms_entry()
     assert got.task_scope_enabled is False
+    assert got.judge_apply_verdict is False
 
 
 def test_read_entry_bool_missing_defaults(monkeypatch, tmp_path):
