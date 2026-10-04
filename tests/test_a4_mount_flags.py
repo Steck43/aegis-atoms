@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import importlib
+import inspect
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+
+from engine import evaluate_tool_call
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -29,6 +32,16 @@ def test_coerce_bool_rejects_string_false(monkeypatch, tmp_path):
     assert init._coerce_bool(True, default=False) is True
     assert init._coerce_bool(None, default=True) is True
     assert init._coerce_bool("maybe", default=False) is False
+
+
+def test_task_scope_enabled_published_default_is_false(monkeypatch, tmp_path):
+    """Published default stays off. A recorded flip to true left this file green."""
+    init = _load_init(monkeypatch, tmp_path)
+    assert init.AtomsEntryConfig().task_scope_enabled is False
+    param = inspect.signature(evaluate_tool_call).parameters["task_scope_enabled"]
+    assert param.default is False
+    got = init._load_atoms_entry()
+    assert got.task_scope_enabled is False
 
 
 def test_read_entry_bool_missing_defaults(monkeypatch, tmp_path):
