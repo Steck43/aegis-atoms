@@ -3,6 +3,11 @@
 A recorded local run left these mutations green: a later monitor clearing
 best_effect, flipping the catalog rank compare from >= to <=, and dropping
 the content-plane guard that refuses to write over a prior block.
+
+The older catalog loop (`if effect in ("block", "human_review") and
+enforced`) already keeps a later monitor from clearing a block. The full
+lattice is pinned by an enforce monitor that must win when nothing
+stronger fired.
 """
 
 from __future__ import annotations
@@ -54,6 +59,12 @@ def _eval(catalog: Catalog, tmp_path: Path):
         env=env,
         plugin_mode="enforce",
     )
+
+
+def test_enforce_monitor_wins_when_nothing_stronger(tmp_path: Path):
+    """Older form skips monitor and leaves winning_effect None."""
+    result = _eval(_catalog(_atom("atom.rank.monitor", "monitor")), tmp_path)
+    assert result.winning_effect == "monitor"
 
 
 def test_later_monitor_does_not_clear_block(tmp_path: Path):
