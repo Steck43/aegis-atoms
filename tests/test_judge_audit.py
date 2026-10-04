@@ -77,6 +77,39 @@ def test_append_only_store(tmp_path: Path):
     assert json.loads(lines[0])["model_call"]["model_identity"] == "claude-sonnet-5"
 
 
+def test_append_stores_previous_hash(tmp_path: Path):
+    path = tmp_path / "audit.jsonl"
+    store = AuditStore(path)
+    store.append(sample_record())
+    store.append(sample_record())
+    rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+    assert rows[0]["prev_hash"]
+    assert rows[1]["prev_hash"]
+    assert rows[1]["prev_hash"] != rows[0]["prev_hash"]
+    store.verify()
+
+
+def test_rewriting_older_line_fails_verify(tmp_path: Path):
+    path = tmp_path / "audit.jsonl"
+    store = AuditStore(path)
+    first = sample_record()
+    second = sample_record()
+    first.cycle_id = "jc_chain_a"
+    second.cycle_id = "jc_chain_b"
+    store.append(first)
+    store.append(second)
+    store.verify()
+
+    lines = path.read_text(encoding="utf-8").splitlines()
+    older = json.loads(lines[0])
+    older["notes"] = {"rewritten": True}
+    lines[0] = json.dumps(older, ensure_ascii=False, sort_keys=True)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="(?i)hash|chain|rewrite|tamper"):
+        store.verify()
+
+
 def test_cli_sample_dry_run(capsys):
     rc = main(["--json", "sample", "--dry-run"])
     assert rc == 0

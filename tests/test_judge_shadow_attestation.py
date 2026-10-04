@@ -60,6 +60,7 @@ def test_load_atoms_entry_coerces_apply_flag(monkeypatch) -> None:
 
         got = init._load_atoms_entry()
         assert got.judge_apply_verdict is expected, f"raw={raw!r}"
+        assert got.task_scope_enabled is False, f"raw={raw!r}"
 
 
 def test_shadow_sets_applied_false_and_would_subtract(tmp_path) -> None:

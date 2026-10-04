@@ -5,14 +5,16 @@ Author:  Landen Stecker
 Date:    2026-07-13
 Version: 1.0.0
 Summary: Typed audit spine for the bounded judge. Every evaluation cycle
-         appends one record. A model-call block without a model identity
-         cannot be constructed. Dollars are recomputable from raw tokens
-         and the pinned price table (source + 2026-08-31 expiry recorded).
+         appends one hash-chained record. A model-call block without a
+         model identity cannot be constructed. Dollars are recomputable
+         from raw tokens and the pinned price table (source + 2026-08-31
+         expiry recorded). Rewriting an older line fails verify.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 import uuid
@@ -23,6 +25,8 @@ from typing import Any, Literal
 
 AUDIT_RECORD_TYPE = "judge_cycle_audit"
 DEFAULT_AUDIT_REL = Path("logs") / "judge-audit.jsonl"
+GENESIS_HASH = "0" * 64
+_HASH_FIELDS = frozenset({"prev_hash", "this_hash"})
 
 VerdictLiteral = Literal[
     "concur",
@@ -183,22 +187,77 @@ def utc_now_iso() -> str:
 # ---------------------------------------------------------------------------
 
 
+def _canonical_record(payload: dict[str, Any]) -> dict[str, Any]:
+    return {k: v for k, v in payload.items() if k not in _HASH_FIELDS}
+
+
+def _chain_hash(prev_hash: str, payload: dict[str, Any]) -> str:
+    material = json.dumps(
+        {"prev_hash": prev_hash, "record": _canonical_record(payload)},
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(material.encode("utf-8")).hexdigest()
+
+
 class AuditStore:
-    """Append-only JSONL. Never rewrite prior lines."""
+    """Hash-chained append-only JSONL. Never rewrite prior lines."""
 
     def __init__(self, path: Path | str) -> None:
         self.path = Path(path)
 
+    def _tail_hash(self) -> str:
+        if not self.path.is_file():
+            return GENESIS_HASH
+        last: str | None = None
+        with self.path.open(encoding="utf-8") as fh:
+            for raw in fh:
+                line = raw.strip()
+                if line:
+                    last = line
+        if last is None:
+            return GENESIS_HASH
+        row = json.loads(last)
+        this = row.get("this_hash")
+        if isinstance(this, str) and this:
+            return this
+        return _chain_hash(GENESIS_HASH, row)
+
     def append(self, record: CycleAuditRecord) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        line = json.dumps(record.to_dict(), ensure_ascii=False, sort_keys=True)
+        payload = record.to_dict()
+        prev_hash = self._tail_hash()
+        payload["prev_hash"] = prev_hash
+        payload["this_hash"] = _chain_hash(prev_hash, payload)
+        line = json.dumps(payload, ensure_ascii=False, sort_keys=True)
         with self.path.open("a", encoding="utf-8") as fh:
             fh.write(line + "\n")
             fh.flush()
 
+    def verify(self) -> None:
+        """Refuse a rewritten older line. Missing hashes fail the same way."""
+        if not self.path.is_file():
+            return
+        prev = GENESIS_HASH
+        with self.path.open(encoding="utf-8") as fh:
+            for lineno, raw in enumerate(fh, start=1):
+                line = raw.strip()
+                if not line:
+                    continue
+                row = json.loads(line)
+                expected = _chain_hash(prev, row)
+                if row.get("prev_hash") != prev or row.get("this_hash") != expected:
+                    raise ValueError(
+                        f"audit hash chain broken at line {lineno}: "
+                        "rewrite or missing previous hash"
+                    )
+                prev = expected
+
     def read_all(self) -> list[dict[str, Any]]:
         if not self.path.is_file():
             return []
+        self.verify()
         out: list[dict[str, Any]] = []
         with self.path.open(encoding="utf-8") as fh:
             for line in fh:

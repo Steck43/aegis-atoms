@@ -1181,9 +1181,12 @@ def evaluate_tool_call(
         )
         firings.append(rec)
 
-        if effect in ("block", "human_review") and enforced:
+        # Monitor is on the lattice so it can win when nothing stronger
+        # fired. The older (block, human_review) guard already kept a later
+        # monitor from clearing a block; that is not what this pins.
+        if enforced and effect in EFFECT_RANK:
             rank = EFFECT_RANK[effect]
-            if best_effect is None or rank >= EFFECT_RANK[best_effect]:
+            if best_effect is None or rank >= EFFECT_RANK.get(best_effect, 0):
                 best_effect = effect
                 best_reason = reason
                 best_atom_id = atom.atom_id
