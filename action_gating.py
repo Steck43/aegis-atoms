@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import re
+import string
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -251,11 +252,53 @@ _SHELL_STRUCTURE = re.compile(
 )
 
 
+# A freeform command string runs under a shell, so a list of known shell
+# constructs is never complete: it missed a trailing "&", a newline, an env
+# prefix, brace expansion and heredocs. The string branch is an allowlist
+# instead. A plain command carries letters, digits, these few characters,
+# spaces, and quoted runs that hold the same plain characters. Anything else
+# is structure the argv schema does not permit.
+_PLAIN_CHARS = frozenset(string.ascii_letters + string.digits + "_./:,@%+=-")
+_QUOTE_CHARS = frozenset("'\"")
+_NAMED_CONSTRUCTS = ("<(", ">(", "$(", "<<", ">>", "&&", "||")
+_ENV_PREFIX = re.compile(r"[A-Za-z_][A-Za-z0-9_]*=")
+
+
+def _construct_at(command: str, i: int) -> str:
+    for name in _NAMED_CONSTRUCTS:
+        if command.startswith(name, i):
+            return name
+    return command[i]
+
+
+def _first_disallowed(command: str) -> str | None:
+    """Name the first construct outside the plain set, or None if plain."""
+    quote = None
+    for i, c in enumerate(command):
+        if quote is not None:
+            if c == quote:
+                quote = None
+            elif c != " " and c not in _PLAIN_CHARS:
+                return _construct_at(command, i)
+        elif c in _QUOTE_CHARS:
+            quote = c
+        elif c != " " and c not in _PLAIN_CHARS:
+            return _construct_at(command, i)
+    if quote is not None:
+        return f"unbalanced {quote}"
+    first = command.strip().split(" ", 1)[0]
+    m = _ENV_PREFIX.match(first)
+    if m:
+        return f"env_prefix:{m.group(0)}"
+    return None
+
+
 def inspect_call_structure(call: str | dict[str, Any]) -> dict[str, Any]:
     """Inspect whether a call carries shell-executable structure.
 
     Permitted schema: {"argv": [binary, *args]} with plain string tokens.
-    A freeform command string that contains shell grammar is structure the
+    A freeform command string is permitted only when every character is on
+    the plain list (see _first_disallowed); anything else is structure the
     schema does not permit.
     """
     if isinstance(call, dict):
@@ -278,9 +321,9 @@ def inspect_call_structure(call: str | dict[str, Any]) -> dict[str, Any]:
     if "\x00" in call:
         raise ValueError("NUL in command")
 
-    m = _SHELL_STRUCTURE.search(call)
-    if m:
-        return {"structure": m.group(0), "permitted": False, "command": call}
+    found = _first_disallowed(call)
+    if found is not None:
+        return {"structure": found, "permitted": False, "command": call}
     return {"structure": None, "permitted": True, "command": call}
 
 
