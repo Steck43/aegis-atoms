@@ -49,7 +49,7 @@ def test_argv_denies_flag_escapes_and_off_list_binaries(argv: list[str]) -> None
         ["cat", "/allowed/readme.md"],
         ["ls", "-la"],
         ["python3", "-m", "pytest", "-q"],
-        ["tar", "-tzf", "archive.tar.gz"],
+        ["tar", "-t", "-f", "archive.tar.gz"],
         ["ssh", "-p", "22", "host"],
     ],
 )
