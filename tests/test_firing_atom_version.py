@@ -3,6 +3,7 @@
 Author:  Landen Stecker
 Date:    2026-09-30
 """
+
 from __future__ import annotations
 
 import ast
@@ -38,7 +39,9 @@ def test_irreversible_firing_matches_definition(tmp_path: Path):
 
 
 def test_engine_does_not_literal_stamp_atom_version():
-    src = (Path(__file__).resolve().parents[1] / "engine.py").read_text(encoding="utf-8")
+    src = (Path(__file__).resolve().parents[1] / "engine.py").read_text(
+        encoding="utf-8"
+    )
     tree = ast.parse(src)
     literals: list[str] = []
     for node in ast.walk(tree):

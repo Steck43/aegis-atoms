@@ -973,9 +973,7 @@ def evaluate_tool_call(
                 Firing(
                     firing_id=af.firing_id,
                     atom_id=af.atom_id,
-                    atom_version=defined_atom_version(
-                        ACTION_GATING_ATOMS, af.atom_id
-                    ),
+                    atom_version=defined_atom_version(ACTION_GATING_ATOMS, af.atom_id),
                     fired=True,
                     effect=effect,
                     enforcement_mode="monitor",
