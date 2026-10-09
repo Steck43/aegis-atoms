@@ -508,7 +508,19 @@ def evaluate_tool_call(
     active_task_id: str | None = None,
     control_surface_enabled: bool = False,
     control_surfaces_path: str | None = None,
+    gate_decision: Any | None = None,
 ) -> EvaluationResult:
+    # A gate deny must block here. A gate allow never clears an atoms block.
+    if gate_decision is not None:
+        verdict = getattr(gate_decision, "verdict", None)
+        value = getattr(verdict, "value", verdict)
+        if str(value).lower() == "deny":
+            reason = getattr(gate_decision, "reason", "denied by capability-gate")
+            return EvaluationResult(
+                block_message=f"[aegis-atoms] Blocked by gate: {reason}",
+                firings=[],
+                winning_effect="block",
+            )
     paths = [_normalize_path(p, env) for p in _extract_paths(tool_name, args)]
     evaluation_id = ":".join(x for x in (session_id, tool_call_id) if x) or "unknown"
     lane_hint = ""

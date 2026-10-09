@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `evaluate_tool_call` takes `gate_decision`. A gate deny blocks in atoms; a gate allow never clears an atoms block. `tests/test_gate_decision_param.py` pins both sides.
+
 ### Fixed
 
 - C2 argv lists use a per-binary flag allowlist instead of joining tokens and scanning for shell punctuation. Joining missed `tar --checkpoint-action`, `ssh -oProxyCommand`, and nested interpreters (`bash -c`, `python -c`, `sh -c`). The binary must be a bare basename on the map; a path-form binary (`/tmp/evil`, `./tool`) denies. Every flag token must be listed for that binary. Shell punctuation inside a token still denies. `tests/test_argv_flag_allowlist.py` pins the deny and allow cases.
