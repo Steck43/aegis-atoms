@@ -232,24 +232,62 @@ def evaluate_path_outside_root(
         return True, coords
 
 
-_SHELL_STRUCTURE = re.compile(
-    r"""
-    (?:
-        <\(             |   # process substitution
-        >\(             |   # process substitution
-        \$\(            |   # command substitution $(
-        `               |   # backtick command substitution
-        (?<!\|)\|(?!\|) |   # pipe (not ||)
-        >>              |   # redirect >>
-        >               |   # redirect >
-        (?<!<)<(?![<(]) |   # redirect < (not << or <()
-        ;               |   # chain
-        &&              |   # chain
-        \|\|                # chain
-    )
-    """,
-    re.VERBOSE,
-)
+# Argv is a closed per-binary schema, not a joined-string denylist. Joining
+# tokens and scanning for shell punctuation missed flag-shaped escapes
+# (tar --checkpoint-action, ssh -oProxyCommand) and nested interpreters
+# (bash -c). The binary must be a bare basename on this map; each flag token
+# (anything starting with '-') must be listed for that binary. Unknown binary
+# or unknown flag means deny. Path-form binaries (/tmp/evil, ./tool) deny.
+_ARGV_FLAG_ALLOWLIST: dict[str, frozenset[str]] = {
+    "cat": frozenset({"-n", "-v", "-b", "-s", "-E", "-T", "-A"}),
+    "ls": frozenset({"-l", "-a", "-la", "-al", "-h", "-1", "-R"}),
+    "git": frozenset(
+        {
+            "-5",
+            "-n",
+            "-q",
+            "-v",
+            "--oneline",
+            "--stat",
+            "--name-only",
+            "--format=%h",
+            "--no-pager",
+        }
+    ),
+    "echo": frozenset({"-n", "-e"}),
+    "grep": frozenset({"-n", "-r", "-rn", "-i", "-l", "-c", "-E", "-F", "-v"}),
+    "cp": frozenset({"-r", "-R", "-a", "-p", "-v", "-n"}),
+    "curl": frozenset({"-I", "-L", "-f", "-s", "-S", "-o", "-O", "-A", "-H"}),
+    "sleep": frozenset(),
+    "tar": frozenset(
+        {
+            "-x",
+            "-c",
+            "-t",
+            "-v",
+            "-f",
+            "-z",
+            "-j",
+            "-J",
+            "-a",
+            "-C",
+            "-tf",
+            "-tvf",
+            "-xf",
+            "-xvf",
+            "-czf",
+            "-xzf",
+            "--list",
+        }
+    ),
+    "ssh": frozenset({"-p", "-i", "-l", "-F", "-v", "-4", "-6", "-n", "-T"}),
+    # Interpreters: no -c / -lc. Module and quiet flags only.
+    "python": frozenset({"-m", "-q", "-u", "-V", "--version"}),
+    "python3": frozenset({"-m", "-q", "-u", "-V", "--version"}),
+    "bash": frozenset(),
+    "sh": frozenset(),
+}
+_ARGV_TOKEN_STRUCTURE = re.compile(r"[;|&`$<>()\n\r]")
 
 
 # A freeform command string runs under a shell, so a list of known shell
@@ -293,13 +331,51 @@ def _first_disallowed(command: str) -> str | None:
     return None
 
 
+def _inspect_argv(argv: list[str]) -> dict[str, Any]:
+    """Permit argv only when the binary and every flag are on the allowlist."""
+    binary = argv[0]
+    if "/" in binary or "\\" in binary:
+        return {
+            "structure": "argv_path_binary",
+            "permitted": False,
+            "argv": list(argv),
+            "binary": binary,
+        }
+    allowed_flags = _ARGV_FLAG_ALLOWLIST.get(binary)
+    if allowed_flags is None:
+        return {
+            "structure": "argv_unknown_binary",
+            "permitted": False,
+            "argv": list(argv),
+            "binary": binary,
+        }
+    for token in argv[1:]:
+        if _ARGV_TOKEN_STRUCTURE.search(token):
+            return {
+                "structure": "argv_token_structure",
+                "permitted": False,
+                "argv": list(argv),
+                "token": token,
+            }
+        if token.startswith("-") and token not in allowed_flags:
+            return {
+                "structure": "argv_unknown_flag",
+                "permitted": False,
+                "argv": list(argv),
+                "binary": binary,
+                "flag": token,
+            }
+    return {"structure": None, "permitted": True, "argv": list(argv)}
+
+
 def inspect_call_structure(call: str | dict[str, Any]) -> dict[str, Any]:
     """Inspect whether a call carries shell-executable structure.
 
-    Permitted schema: {"argv": [binary, *args]} with plain string tokens.
-    A freeform command string is permitted only when every character is on
-    the plain list (see _first_disallowed); anything else is structure the
-    schema does not permit.
+    Permitted argv schema: {"argv": [binary, *args]} where binary is a bare
+    basename on the per-binary flag allowlist and every flag token is listed
+    for that binary. A freeform command string is permitted only when every
+    character is on the plain list (see _first_disallowed); anything else is
+    structure the schema does not permit.
     """
     if isinstance(call, dict):
         if "argv" in call:
@@ -308,10 +384,7 @@ def inspect_call_structure(call: str | dict[str, Any]) -> dict[str, Any]:
                 raise ValueError("argv must be a non-empty list")
             if not all(isinstance(t, str) for t in argv):
                 raise ValueError("argv tokens must be strings")
-            joined = " ".join(argv)
-            if _SHELL_STRUCTURE.search(joined):
-                return {"structure": "shell_grammar_in_argv", "permitted": False}
-            return {"structure": None, "permitted": True, "argv": list(argv)}
+            return _inspect_argv(argv)
         if "command" in call:
             return inspect_call_structure(str(call["command"]))
         raise ValueError("call dict must carry argv or command")
