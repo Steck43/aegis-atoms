@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `evaluate_tool_call` fails closed on any `gate_decision` that is not a canonical allow (exact string `"allow"` after `Enum.value`). ASK escalates to `human_review`; DENY, THROWN, malformed, missing, wrong-type, and plain-dict verdicts block. Previously only the literal deny string blocked and every other shape fell through. `engine.classify_gate_verdict` owns the map; `tests/test_t_comp_01_verdict_matrix.py` and `receipts/raw/t-comp-01-expected-matrix.json` pin the full shape set (T-COMP-01 / ATOMS-FAILCLOSED).
+
 ### Added
 
-- evaluate_tool_call records decision_digest from the gate decision it read and issues a unique ox_ticket when the call is not blocked.
+- evaluate_tool_call records decision_digest from the gate decision it read and issues a unique box_ticket when the call is not blocked.
 
 ### Added
 
