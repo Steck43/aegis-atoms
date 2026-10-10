@@ -1,0 +1,26 @@
+{
+  "schema": "T-COMP-01-verdict-matrix-v1",
+  "canonical_allow": "string equality to \"allow\" after reading Enum.value when present (Verdict.ALLOW works; \"Allow\" does not)",
+  "shapes": [
+    {"id": "allow_str", "verdict_kind": "str", "verdict": "allow", "atoms_path": "benign", "expect_effect": null, "expect_gate_block": false, "notes": "canonical allow; atoms decide"},
+    {"id": "allow_str_soul", "verdict_kind": "str", "verdict": "allow", "atoms_path": "soul", "expect_effect": "block", "expect_gate_block": false, "notes": "allow never clears atoms block"},
+    {"id": "deny_str", "verdict_kind": "str", "verdict": "deny", "atoms_path": "benign", "expect_effect": "block", "expect_gate_block": true},
+    {"id": "ask_str", "verdict_kind": "str", "verdict": "ask", "atoms_path": "benign", "expect_effect": "human_review", "expect_gate_block": true},
+    {"id": "ASK_str", "verdict_kind": "str", "verdict": "ASK", "atoms_path": "benign", "expect_effect": "human_review", "expect_gate_block": true},
+    {"id": "Deny_str", "verdict_kind": "str", "verdict": "Deny", "atoms_path": "benign", "expect_effect": "block", "expect_gate_block": true},
+    {"id": "deny_leading_space", "verdict_kind": "str", "verdict": " deny", "atoms_path": "benign", "expect_effect": "block", "expect_gate_block": true},
+    {"id": "thrown_str", "verdict_kind": "str", "verdict": "thrown", "atoms_path": "benign", "expect_effect": "block", "expect_gate_block": true},
+    {"id": "THROWN_str", "verdict_kind": "str", "verdict": "THROWN", "atoms_path": "benign", "expect_effect": "block", "expect_gate_block": true},
+    {"id": "thrown_enum", "verdict_kind": "enum_thrown", "verdict": "thrown", "atoms_path": "benign", "expect_effect": "block", "expect_gate_block": true},
+    {"id": "empty_str", "verdict_kind": "str", "verdict": "", "atoms_path": "benign", "expect_effect": "block", "expect_gate_block": true},
+    {"id": "none_verdict", "verdict_kind": "none", "verdict": null, "atoms_path": "benign", "expect_effect": "block", "expect_gate_block": true},
+    {"id": "int_1", "verdict_kind": "int", "verdict": 1, "atoms_path": "benign", "expect_effect": "block", "expect_gate_block": true},
+    {"id": "unknown_str", "verdict_kind": "str", "verdict": "maybe", "atoms_path": "benign", "expect_effect": "block", "expect_gate_block": true},
+    {"id": "no_verdict_attr", "verdict_kind": "missing_attr", "verdict": null, "atoms_path": "benign", "expect_effect": "block", "expect_gate_block": true},
+    {"id": "plain_dict", "verdict_kind": "plain_dict", "verdict": null, "atoms_path": "benign", "expect_effect": "block", "expect_gate_block": true},
+    {"id": "deny_str_soul", "verdict_kind": "str", "verdict": "deny", "atoms_path": "soul", "expect_effect": "block", "expect_gate_block": true},
+    {"id": "ask_str_soul", "verdict_kind": "str", "verdict": "ask", "atoms_path": "soul", "expect_effect": "human_review", "expect_gate_block": true, "notes": "ASK escalate before atoms; does not fall through to SOUL block"},
+    {"id": "thrown_str_soul", "verdict_kind": "str", "verdict": "thrown", "atoms_path": "soul", "expect_effect": "block", "expect_gate_block": true},
+    {"id": "unknown_str_soul", "verdict_kind": "str", "verdict": "maybe", "atoms_path": "soul", "expect_effect": "block", "expect_gate_block": true}
+  ]
+}
