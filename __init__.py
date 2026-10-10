@@ -553,12 +553,16 @@ def _bound_prove_on_aegisbox(
     tool_call_id: str,
     gate_decision_sha256: str,
     atoms_result_sha256: str,
-) -> str | None:
-    """Run isolation-manager prove on aegisbox. Returns an error message or None."""
+) -> tuple[dict[str, Any] | None, int, str | None]:
+    """Run bound prove and return parsed evidence, exit code, and any error."""
     if not tool_call_id or not gate_decision_sha256 or not atoms_result_sha256:
         return (
-            "[aegis-atoms] bound prove refused: missing tool_call_id or "
-            "gate_decision_sha256 / atoms_result_sha256"
+            None,
+            2,
+            (
+                "[aegis-atoms] bound prove refused: missing tool_call_id or "
+                "gate_decision_sha256 / atoms_result_sha256"
+            ),
         )
     default = Path(
         "/mnt/c/Users/lande/Engineering_and_Development/hermes-agent-estate/"
@@ -566,7 +570,7 @@ def _bound_prove_on_aegisbox(
     )
     script = Path(os.environ.get("AEGISBOX_BOUND_PROVE", str(default)))
     if not script.is_file():
-        return f"[aegis-atoms] bound prove script missing: {script}"
+        return None, 2, f"[aegis-atoms] bound prove script missing: {script}"
     proc = subprocess.run(
         [
             sys.executable,
@@ -584,8 +588,29 @@ def _bound_prove_on_aegisbox(
     )
     if proc.returncode != 0:
         tail = ((proc.stdout or "") + (proc.stderr or ""))[-800:]
-        return f"[aegis-atoms] isolation-manager prove failed: {tail}"
-    return None
+        return (
+            None,
+            proc.returncode,
+            f"[aegis-atoms] isolation-manager prove failed: {tail}",
+        )
+    try:
+        prove = json.loads((proc.stdout or "").splitlines()[-1])
+    except (IndexError, json.JSONDecodeError) as exc:
+        return (
+            None,
+            3,
+            f"[aegis-atoms] bound prove returned no parsed JSON: {exc}",
+        )
+    expected = {
+        "tool_call_id": tool_call_id,
+        "gate_decision_sha256": gate_decision_sha256,
+        "atoms_result_sha256": atoms_result_sha256,
+    }
+    if not isinstance(prove, dict) or any(
+        prove.get(key) != value for key, value in expected.items()
+    ):
+        return None, 3, "[aegis-atoms] bound prove JSON does not match this call"
+    return prove, 0, None
 
 
 def pre_tool_call(
@@ -695,11 +720,23 @@ def pre_tool_call(
         # Step 11: optional bound prove on aegisbox under the Hermes tool_call_id.
         # Off unless AEGISBOX_PROVE=1. Does not call box_entry.run.
         if os.environ.get("AEGISBOX_PROVE") == "1":
-            prove_err = _bound_prove_on_aegisbox(
+            gate_sha = str(result.decision_digest or "")
+            atoms_sha = _atoms_result_sha256(result)
+            if isinstance(pre_tool_context, dict):
+                pre_tool_context.update(
+                    atoms_profile_mode=mode,
+                    gate_decision_sha256=gate_sha,
+                    atoms_result_sha256=atoms_sha,
+                )
+            prove, prove_exit, prove_err = _bound_prove_on_aegisbox(
                 tool_call_id=tool_call_id,
-                gate_decision_sha256=str(result.decision_digest or ""),
-                atoms_result_sha256=_atoms_result_sha256(result),
+                gate_decision_sha256=gate_sha,
+                atoms_result_sha256=atoms_sha,
             )
+            if isinstance(pre_tool_context, dict):
+                pre_tool_context["bound_prove_exit"] = prove_exit
+                if prove is not None:
+                    pre_tool_context["bound_prove"] = prove
             if prove_err:
                 if mode == "enforce":
                     return {"action": "block", "message": prove_err}
