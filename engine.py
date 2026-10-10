@@ -1361,6 +1361,58 @@ def evaluate_tool_call(
     return sealed
 
 
+class JudgeLogWriteError(OSError):
+    """G6 / decision-log write failed — must fail closed, never silent."""
+
+
+def append_judge_log_row(audit_path: str | Path | None, row: dict[str, Any]) -> None:
+    """Append one JSONL row. Raises JudgeLogWriteError on failure."""
+    if audit_path is None:
+        return
+    try:
+        audit_file = Path(audit_path)
+        audit_file.parent.mkdir(parents=True, exist_ok=True)
+        with audit_file.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+    except OSError as exc:
+        raise JudgeLogWriteError(f"judge log write failed: {exc!r}") from exc
+
+
+def _fail_closed_judge_result(
+    result: EvaluationResult,
+    *,
+    reason: str,
+    judge_apply_verdict: bool,
+    latency_ms: float,
+    model: str | None,
+    prompt_sha: str | None,
+) -> EvaluationResult:
+    """Deny/escalate shape when the judge phase cannot complete safely."""
+    result.judge_enabled = True
+    result.judge_consumed = True
+    result.judge_escalated = True
+    result.judge_recommendation = None
+    result.judge_verdict = "escalate"
+    result.judge_would_subtract = False
+    result.judge_applied = False
+    result.judge_subtracted = False
+    result.judge_latency_ms = float(latency_ms)
+    result.judge_model = model
+    result.judge_prompt_sha256 = prompt_sha
+    result.judge_error = reason
+    result.judge_cost_usd = 0.0
+    # Prefer escalate (HITL) under apply; always leave a non-allow effect.
+    if result.winning_effect is None:
+        result.winning_effect = "human_review"
+        result.block_message = f"[aegis-atoms] judge fail-closed: {reason}"
+    elif result.block_message is None:
+        result.block_message = f"[aegis-atoms] judge fail-closed: {reason}"
+        if result.winning_effect not in ("block", "human_review"):
+            result.winning_effect = "human_review"
+    _ = judge_apply_verdict  # apply never widens on fail-closed
+    return result
+
+
 def apply_judge_phase(
     result: EvaluationResult,
     *,
@@ -1377,17 +1429,22 @@ def apply_judge_phase(
 
     Subtract-only. Never widens. Fail-closed cage outcomes escalate to HITL.
     Writes G6-shaped fields onto the result and the decision-log JSONL.
+    Never raises into Hermes (invoke_hook swallows exceptions → fail-open).
     """
     import time as _time
+    from concurrent.futures import ThreadPoolExecutor
+    from concurrent.futures import TimeoutError as FuturesTimeout
 
     try:
         from .bounded_judge import (
+            JudgeOutcome,
             apply_judge,
             judge_slot_stub,
             set_audit_path,
         )
     except ImportError:
         from bounded_judge import (
+            JudgeOutcome,
             apply_judge,
             judge_slot_stub,
             set_audit_path,
@@ -1401,130 +1458,171 @@ def apply_judge_phase(
     except ImportError:
         from judge_consumer import apply_judge_subtract
     try:
-        from .judge_slot_sonnet import JUDGE_PROMPT_SHA256, MODEL_ID
+        from .judge_slot_sonnet import (
+            JUDGE_PHASE_DEADLINE_S,
+            JUDGE_PROMPT_SHA256,
+            JUDGE_REQUEST_TIMEOUT_S,
+            MODEL_ID,
+            JudgeUnavailable,
+        )
     except ImportError:
         try:
-            from judge_slot_sonnet import JUDGE_PROMPT_SHA256, MODEL_ID
+            from judge_slot_sonnet import (
+                JUDGE_PHASE_DEADLINE_S,
+                JUDGE_PROMPT_SHA256,
+                JUDGE_REQUEST_TIMEOUT_S,
+                MODEL_ID,
+                JudgeUnavailable,
+            )
         except ImportError:
             JUDGE_PROMPT_SHA256 = None  # type: ignore[assignment]
             MODEL_ID = "unknown"
+            JUDGE_PHASE_DEADLINE_S = 10.0
+            JUDGE_REQUEST_TIMEOUT_S = 8.0
 
-    if judge_audit_path:
-        set_audit_path(judge_audit_path)
+            class JudgeUnavailable(Exception):  # type: ignore[no-redef]
+                pass
 
-    best_effect = result.winning_effect
-    block_message = result.block_message
-    firings = result.firings
-    effect_map = {
-        None: JudgeEffect.ALLOW,
-        "monitor": JudgeEffect.MONITOR,
-        "human_review": JudgeEffect.ESCALATE,
-        "block": JudgeEffect.BLOCK,
-    }
-    floor_verdict = effect_map.get(best_effect, JudgeEffect.ALLOW)
-    locked = [f.atom_id for f in firings if f.fired]
-    ambiguous = any(f.ambiguity == "conflicting" for f in firings)
-    if not firings and best_effect is None:
-        ambiguous = False
-    case = {
-        "ambiguous": ambiguous,
-        "rollup_status": "conflicting"
-        if ambiguous
-        else ("contradicted" if best_effect == "block" else "supported"),
-        "locked_atoms": locked,
-        "candidate_atoms": list(locked),
-        "evaluation_id": evaluation_id,
-        "security_relevant": bool(best_effect in ("block", "human_review")),
-        "tool_name": tool_name,
-        # Empty injection first (SETTLE2 A / AEG-16): no content_for_judge.
-    }
-    if judge_force_consult:
-        case["ambiguous"] = True
-        case["rollup_status"] = "conflicting"
-    elif judge_consult_tools and tool_name in judge_consult_tools:
-        case["ambiguous"] = True
-        case["rollup_status"] = "conflicting"
-        case["security_relevant"] = True
-
-    slot = judge_slot if judge_slot is not None else judge_slot_stub
-    threshold = 0.85 if judge_threshold is None else float(judge_threshold)
+    t0 = _time.monotonic()
     try:
-        from .judge_slot_sonnet import JUDGE_REQUEST_TIMEOUT_S
-    except ImportError:
-        try:
-            from judge_slot_sonnet import JUDGE_REQUEST_TIMEOUT_S
-        except ImportError:
-            JUDGE_REQUEST_TIMEOUT_S = 30.0
+        if judge_audit_path:
+            set_audit_path(judge_audit_path)
 
-    def _slot_with_deadline(slot_case: dict[str, Any], floor: Any) -> Any:
-        """Hard wall-clock deadline around the model slot (fail closed)."""
-        from concurrent.futures import ThreadPoolExecutor
-        from concurrent.futures import TimeoutError as FuturesTimeout
+        # Evidence before the paid call so a kill still leaves a G6 row.
+        append_judge_log_row(
+            judge_audit_path,
+            {
+                "record_type": "judge_started",
+                "evaluation_id": evaluation_id,
+                "tool_name": tool_name,
+                "judge_apply_verdict": bool(judge_apply_verdict),
+                "phase_deadline_s": float(JUDGE_PHASE_DEADLINE_S),
+            },
+        )
 
-        try:
-            from .judge_slot_sonnet import JudgeUnavailable
-        except ImportError:
-            from judge_slot_sonnet import JudgeUnavailable
+        best_effect = result.winning_effect
+        block_message = result.block_message
+        firings = result.firings
+        effect_map = {
+            None: JudgeEffect.ALLOW,
+            "monitor": JudgeEffect.MONITOR,
+            "human_review": JudgeEffect.ESCALATE,
+            "block": JudgeEffect.BLOCK,
+        }
+        floor_verdict = effect_map.get(best_effect, JudgeEffect.ALLOW)
+        locked = [f.atom_id for f in firings if f.fired]
+        ambiguous = any(f.ambiguity == "conflicting" for f in firings)
+        if not firings and best_effect is None:
+            ambiguous = False
+        case = {
+            "ambiguous": ambiguous,
+            "rollup_status": "conflicting"
+            if ambiguous
+            else ("contradicted" if best_effect == "block" else "supported"),
+            "locked_atoms": locked,
+            "candidate_atoms": list(locked),
+            "evaluation_id": evaluation_id,
+            "security_relevant": bool(best_effect in ("block", "human_review")),
+            "tool_name": tool_name,
+        }
+        if judge_force_consult:
+            case["ambiguous"] = True
+            case["rollup_status"] = "conflicting"
+        elif judge_consult_tools and tool_name in judge_consult_tools:
+            case["ambiguous"] = True
+            case["rollup_status"] = "conflicting"
+            case["security_relevant"] = True
 
-        with ThreadPoolExecutor(max_workers=1) as pool:
+        slot = judge_slot if judge_slot is not None else judge_slot_stub
+        threshold = 0.85 if judge_threshold is None else float(judge_threshold)
+
+        def _slot_with_request_deadline(slot_case: dict[str, Any], floor: Any) -> Any:
+            """Per-slot request ceiling; phase deadline wraps the whole cage."""
+            pool = ThreadPoolExecutor(max_workers=1)
             fut = pool.submit(slot, slot_case, floor)
             try:
                 return fut.result(timeout=float(JUDGE_REQUEST_TIMEOUT_S))
             except FuturesTimeout as exc:
                 raise JudgeUnavailable(
-                    f"timeout:deadline_s={JUDGE_REQUEST_TIMEOUT_S}"
+                    f"timeout:request_deadline_s={JUDGE_REQUEST_TIMEOUT_S}"
                 ) from exc
+            finally:
+                # Do not join the worker — a hung slot must not block the hook.
+                pool.shutdown(wait=False, cancel_futures=True)
 
-    t0 = _time.monotonic()
-    outcome = apply_judge(
-        floor_verdict, case, _slot_with_deadline, threshold=threshold, cap=3
-    )
-    latency_ms = (_time.monotonic() - t0) * 1000.0
+        def _run_cage() -> Any:
+            return apply_judge(
+                floor_verdict,
+                case,
+                _slot_with_request_deadline,
+                threshold=threshold,
+                cap=3,
+            )
 
-    new_effect, new_block, subtracted = apply_judge_subtract(
-        best_effect, block_message, outcome
-    )
-    would_subtract = bool(subtracted)
-    if judge_apply_verdict:
-        best_effect = new_effect
-        block_message = new_block
-
-    rec = None
-    if outcome.opinion is not None:
-        rec = outcome.opinion.recommendation.value
-    judge_verdict = rec
-    judge_error = None
-    if outcome.escalated:
-        judge_verdict = "escalate"
-        judge_error = outcome.escalation_reason
-
-    # Cost / model: prefer attributes the slot may stash; else defaults.
-    cost = getattr(slot, "last_cost_usd", None)
-    model = getattr(slot, "last_model_id", None) or MODEL_ID
-    if cost is None:
-        cost = 0.0
-
-    result.block_message = block_message
-    result.winning_effect = best_effect
-    result.judge_enabled = True
-    result.judge_consumed = True
-    result.judge_escalated = bool(outcome.escalated)
-    result.judge_recommendation = rec
-    result.judge_verdict = judge_verdict
-    result.judge_would_subtract = would_subtract
-    result.judge_applied = bool(judge_apply_verdict)
-    result.judge_subtracted = bool(would_subtract and judge_apply_verdict)
-    result.judge_latency_ms = float(latency_ms)
-    result.judge_model = str(model) if model is not None else None
-    result.judge_prompt_sha256 = JUDGE_PROMPT_SHA256
-    result.judge_error = judge_error
-    result.judge_cost_usd = float(cost) if cost is not None else None
-
-    if judge_audit_path:
+        phase_pool = ThreadPoolExecutor(max_workers=1)
+        phase_fut = phase_pool.submit(_run_cage)
         try:
-            audit_file = Path(judge_audit_path)
-            audit_file.parent.mkdir(parents=True, exist_ok=True)
-            decision = {
+            outcome = phase_fut.result(timeout=float(JUDGE_PHASE_DEADLINE_S))
+        except FuturesTimeout:
+            outcome = JudgeOutcome(
+                floor_verdict=floor_verdict,
+                opinion=None,
+                escalated=True,
+                escalation_reason=(
+                    f"timeout:phase_deadline_s={JUDGE_PHASE_DEADLINE_S}"
+                ),
+                retries_used=0,
+                locked_atoms=list(locked),
+            )
+        finally:
+            phase_pool.shutdown(wait=False, cancel_futures=True)
+
+        latency_ms = (_time.monotonic() - t0) * 1000.0
+
+        new_effect, new_block, subtracted = apply_judge_subtract(
+            best_effect, block_message, outcome
+        )
+        would_subtract = bool(subtracted)
+        # Cage escalation / timeout / slot fault always reaches the door
+        # (Hermes swallows exceptions → silent allow). Apply flag only gates
+        # successful subtract of non-escalated opinions.
+        if outcome.escalated or judge_apply_verdict:
+            best_effect = new_effect
+            block_message = new_block
+
+        rec = None
+        if outcome.opinion is not None:
+            rec = outcome.opinion.recommendation.value
+        judge_verdict = rec
+        judge_error = None
+        if outcome.escalated:
+            judge_verdict = "escalate"
+            judge_error = outcome.escalation_reason
+
+        cost = getattr(slot, "last_cost_usd", None)
+        model = getattr(slot, "last_model_id", None) or MODEL_ID
+        if cost is None:
+            cost = 0.0
+
+        result.block_message = block_message
+        result.winning_effect = best_effect
+        result.judge_enabled = True
+        result.judge_consumed = True
+        result.judge_escalated = bool(outcome.escalated)
+        result.judge_recommendation = rec
+        result.judge_verdict = judge_verdict
+        result.judge_would_subtract = would_subtract
+        result.judge_applied = bool(judge_apply_verdict)
+        result.judge_subtracted = bool(would_subtract and judge_apply_verdict)
+        result.judge_latency_ms = float(latency_ms)
+        result.judge_model = str(model) if model is not None else None
+        result.judge_prompt_sha256 = JUDGE_PROMPT_SHA256
+        result.judge_error = judge_error
+        result.judge_cost_usd = float(cost) if cost is not None else None
+
+        append_judge_log_row(
+            judge_audit_path,
+            {
                 "record_type": "judge_apply_decision",
                 "evaluation_id": evaluation_id,
                 "judge_enabled": True,
@@ -1540,12 +1638,39 @@ def apply_judge_phase(
                 "would_subtract": would_subtract,
                 "shadow_effect": new_effect,
                 "winning_effect": best_effect,
-            }
-            with audit_file.open("a", encoding="utf-8") as fh:
-                fh.write(json.dumps(decision, ensure_ascii=False) + "\n")
-        except OSError:
+            },
+        )
+        return result
+    except Exception as exc:  # noqa: BLE001 — must not escape into Hermes swallow
+        latency_ms = (_time.monotonic() - t0) * 1000.0
+        reason = f"{type(exc).__name__}:{exc}"
+        closed = _fail_closed_judge_result(
+            result,
+            reason=reason,
+            judge_apply_verdict=judge_apply_verdict,
+            latency_ms=latency_ms,
+            model=MODEL_ID if "MODEL_ID" in dir() else "unknown",
+            prompt_sha=JUDGE_PROMPT_SHA256 if "JUDGE_PROMPT_SHA256" in dir() else None,
+        )
+        try:
+            append_judge_log_row(
+                judge_audit_path,
+                {
+                    "record_type": "judge_apply_decision",
+                    "evaluation_id": evaluation_id,
+                    "judge_enabled": True,
+                    "judge_apply_verdict": bool(judge_apply_verdict),
+                    "judge_verdict": "escalate",
+                    "judge_error": reason,
+                    "judge_latency_ms": latency_ms,
+                    "winning_effect": closed.winning_effect,
+                    "applied": False,
+                },
+            )
+        except JudgeLogWriteError:
+            # Already fail-closed on the result; log itself is dead.
             pass
-    return result
+        return closed
 
 
 def append_firings(log_path: Path, firings: list[Firing], catalog: Catalog) -> None:

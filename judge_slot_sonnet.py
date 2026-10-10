@@ -55,8 +55,11 @@ except ImportError:  # standalone / sys.path test import
 MODEL_ID = "claude-sonnet-5"
 EFFORT_FLOOR = "low"  # lowest selectable; adaptive thinking stays on (pack pin)
 MAX_OUTPUT_TOKENS = 2000
-# Hard request timeout for the Messages API call (fail closed on exceed).
-JUDGE_REQUEST_TIMEOUT_S = 30.0
+# Whole judge phase wall-clock (Hermes hook margin under CG_CC_DEADLINE_S≈14).
+JUDGE_PHASE_DEADLINE_S = 10.0
+# Per-request client timeout — must stay ≤ phase deadline; retries are zero.
+JUDGE_REQUEST_TIMEOUT_S = 8.0
+ANTHROPIC_MAX_RETRIES = 0
 # Byte cap on the parsed structured-output payload (oversized → malformed).
 MAX_OUTPUT_BYTES = 32_000
 JUDGE_SCHEMA_NAME = "aegis_judge_opinion"
@@ -378,8 +381,13 @@ def _call_anthropic(
     if client is None:
         import anthropic
 
-        # Hard timeout: oversized / hung transport fails closed at the cage.
-        client = anthropic.Anthropic(api_key=api_key, timeout=float(timeout_s))
+        # Hard timeout + zero retries: SDK default retries (2) can stretch
+        # a hung call into minutes and outrun the Hermes hook.
+        client = anthropic.Anthropic(
+            api_key=api_key,
+            timeout=float(timeout_s),
+            max_retries=int(ANTHROPIC_MAX_RETRIES),
+        )
     # Cache stable system prefix (byte-identical every call).
     # Timeout is on the client (above). Do not also pass timeout= here —
     # SDK versions differ on per-request timeout kwargs.

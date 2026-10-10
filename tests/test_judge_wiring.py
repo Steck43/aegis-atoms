@@ -62,7 +62,7 @@ def test_register_refuses_apply_on_live_profile(monkeypatch, tmp_path) -> None:
         lambda: atoms.AtomsEntryConfig(judge_apply_verdict=True),
     )
     monkeypatch.setattr(atoms, "_assert_live_plugin_path", lambda: tmp_path)
-    with pytest.raises(RuntimeError, match="step11-test"):
+    with pytest.raises(RuntimeError, match="profile_not_step11_test"):
         atoms.register(SimpleNamespace(register_hook=lambda *a, **k: None))
 
 
@@ -71,8 +71,12 @@ def test_register_allows_apply_on_step11_test(monkeypatch, tmp_path) -> None:
 
     profile = tmp_path / "step11-test"
     profile.mkdir()
+    marker = profile / ".aegis" / "profile_id"
+    marker.parent.mkdir(parents=True)
+    marker.write_text("step11-test\n", encoding="utf-8")
     monkeypatch.setenv("HERMES_HOME", str(profile))
     monkeypatch.setenv("AEGIS_JUDGE_APPLY_GO", "1")
+    monkeypatch.setenv("AEGIS_PROFILE_ID", "step11-test")
     monkeypatch.setattr(
         atoms,
         "_load_atoms_entry",
