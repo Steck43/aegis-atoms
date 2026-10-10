@@ -146,6 +146,7 @@ def test_engine_wire_consumes_flag(tmp_path):
         env=env,
         plugin_mode="enforce",
         judge_enabled=True,
+        judge_apply_verdict=True,
         judge_slot=flag_slot,
         judge_threshold=0.0,
         session_id="j4",
