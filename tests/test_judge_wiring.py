@@ -13,7 +13,7 @@ from types import SimpleNamespace
 import pytest
 
 from bounded_judge import JudgeOpinion, JudgeRecommendation
-from engine import EvaluationResult, apply_judge_phase, evaluate_tool_call, load_catalog
+from engine import apply_judge_phase, evaluate_tool_call, load_catalog
 from judge_consumer import apply_judge_subtract
 from triad_types import EffectRank
 
