@@ -3,6 +3,20 @@
 Hermes runtime pin: `ccd8deaa6705bd6ca1890584d8f4055fe61227b5`.
 Atoms tip dest-read: `5e92ae10` (merge #60).
 
+**Hermes pin dirty tree (must disclose):** WSL `~/.hermes/hermes-agent` at that
+commit has **7 modified files**; `git diff | sha256sum` =
+`2d9918fde4199c8740a08ba3f082cd0e8318811ddb92f67830babbb29d0e6a70`.
+
+| File | Per-file `git diff` sha256 |
+|---|---|
+| `agent/agent_init.py` | `527e488ed2381647d0119094af6c20a31b3684b6267febb7fdb77db16b57b455` |
+| `agent/agent_runtime_helpers.py` | `340ad5323d3e8041c8148cb8fe496be353e557cb46e3fd67e9d0fd185e8b3f53` |
+| `agent/tool_executor.py` | `9761ee158a979f84dee6627534df3d27dff0befeaf714ec34471640064ffaf6b` |
+| `hermes_cli/config.py` | `cf4c4f1adfc668c0f15ae16994386ba5802dd44504fb93a112e4f63581a8a6f2` |
+| `hermes_cli/middleware.py` | `e8df69da311efe8b7d124aabd4de7352e033ee742f797b14f6af6566eec760d5` |
+| `hermes_cli/plugins.py` | `033127470fc6d30b7cd7c931be5dc082fa995ed28202bd10c88dfd38b9503ff8` |
+| `model_tools.py` | `8ba200b5c471d19c7c41a8081bec2befa549f0005fc965a63c145fe83a2bf95f` |
+
 ## Claim
 
 Every production and harness call site that reaches `engine.evaluate_tool_call`
