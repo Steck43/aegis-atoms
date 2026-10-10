@@ -226,6 +226,14 @@ class EvaluationResult:
     judge_subtracted: bool = False
     judge_would_subtract: bool = False
     judge_applied: bool = False
+    # G6 / decision-log judge fields (Part 0.2). Null when the judge did not run.
+    judge_enabled: bool = False
+    judge_verdict: str | None = None
+    judge_latency_ms: float | None = None
+    judge_model: str | None = None
+    judge_prompt_sha256: str | None = None
+    judge_error: str | None = None
+    judge_cost_usd: float | None = None
     # Step 8 receipt fields: digest of the gate decision read; per-call box ticket.
     decision_digest: str | None = None
     box_ticket: str | None = None
@@ -1330,118 +1338,214 @@ def evaluate_tool_call(
                 "(human_review — Landen must approve this turn or apply via CEP/ACP before retry.)"
             )
 
-    # Bounded judge cage + J4 subtract-only consumer. Default off (judge_enabled=False).
-    if judge_enabled:
-        try:
-            from .bounded_judge import (
-                apply_judge,
-                judge_slot_stub,
-                set_audit_path,
-            )
-        except ImportError:
-            from bounded_judge import (
-                apply_judge,
-                judge_slot_stub,
-                set_audit_path,
-            )
-        try:
-            from .triad_types import EffectRank as JudgeEffect
-        except ImportError:
-            from triad_types import EffectRank as JudgeEffect
-
-        if judge_audit_path:
-            set_audit_path(judge_audit_path)
-        effect_map = {
-            None: JudgeEffect.ALLOW,
-            "monitor": JudgeEffect.MONITOR,
-            "human_review": JudgeEffect.ESCALATE,
-            "block": JudgeEffect.BLOCK,
-        }
-        floor_verdict = effect_map.get(best_effect, JudgeEffect.ALLOW)
-        locked = [f.atom_id for f in firings if f.fired]
-        ambiguous = any(f.ambiguity == "conflicting" for f in firings)
-        if not firings and best_effect is None:
-            # Zero-atom / MISSING on a call the host marked security-relevant is
-            # not inferred here; without firings the cage abstains unless ambiguous.
-            ambiguous = False
-        case = {
-            "ambiguous": ambiguous,
-            "rollup_status": "conflicting"
-            if ambiguous
-            else ("contradicted" if best_effect == "block" else "supported"),
-            "locked_atoms": locked,
-            "candidate_atoms": list(locked),
-            "evaluation_id": evaluation_id,
-            "security_relevant": bool(best_effect in ("block", "human_review")),
-            "tool_name": tool_name,
-            # Empty injection first (SETTLE2 A / AEG-16): no content_for_judge.
-        }
-        # Consult policy: harnesses force consult; paid observe mounts pass a
-        # risky-tool set so every read does not burn Sonnet spend.
-        if judge_enabled:
-            if judge_force_consult:
-                case["ambiguous"] = True
-                case["rollup_status"] = "conflicting"
-            elif judge_consult_tools and tool_name in judge_consult_tools:
-                case["ambiguous"] = True
-                case["rollup_status"] = "conflicting"
-                case["security_relevant"] = True
-        slot = judge_slot if judge_slot is not None else judge_slot_stub
-        threshold = 0.85 if judge_threshold is None else float(judge_threshold)
-        try:
-            from .judge_consumer import apply_judge_subtract
-        except ImportError:
-            from judge_consumer import apply_judge_subtract
-
-        outcome = apply_judge(floor_verdict, case, slot, threshold=threshold, cap=3)
-        new_effect, new_block, subtracted = apply_judge_subtract(
-            best_effect, block_message, outcome
-        )
-        would_subtract = bool(subtracted)
-        # Observe / tune mount: consult + telemetry without mutating floor deny.
-        if judge_apply_verdict:
-            best_effect = new_effect
-            block_message = new_block
-        rec = None
-        if outcome.opinion is not None:
-            rec = outcome.opinion.recommendation.value
-        if judge_audit_path:
-            try:
-                audit_file = Path(judge_audit_path)
-                audit_file.parent.mkdir(parents=True, exist_ok=True)
-                decision = {
-                    "record_type": "judge_apply_decision",
-                    "evaluation_id": evaluation_id,
-                    "applied": bool(judge_apply_verdict),
-                    "would_subtract": would_subtract,
-                    "shadow_effect": new_effect,
-                    "winning_effect": best_effect,
-                }
-                with audit_file.open("a", encoding="utf-8") as fh:
-                    fh.write(json.dumps(decision, ensure_ascii=False) + "\n")
-            except OSError:
-                pass
-        return _seal_receipt_fields(
-            EvaluationResult(
-                block_message=block_message,
-                firings=firings,
-                winning_effect=best_effect,
-                judge_consumed=True,
-                judge_escalated=bool(outcome.escalated),
-                judge_recommendation=rec,
-                judge_would_subtract=would_subtract,
-                judge_applied=bool(judge_apply_verdict),
-                judge_subtracted=bool(would_subtract and judge_apply_verdict),
-            ),
-            gate_decision,
-        )
-
-    return _seal_receipt_fields(
+    sealed = _seal_receipt_fields(
         EvaluationResult(
             block_message=block_message, firings=firings, winning_effect=best_effect
         ),
         gate_decision,
     )
+    # Unit / fuzzer path: judge inside evaluate. Live Hermes mount calls
+    # apply_judge_phase after the box so order is gate → atoms → box → judge.
+    if judge_enabled:
+        return apply_judge_phase(
+            sealed,
+            tool_name=tool_name,
+            evaluation_id=evaluation_id,
+            judge_apply_verdict=judge_apply_verdict,
+            judge_force_consult=judge_force_consult,
+            judge_consult_tools=judge_consult_tools,
+            judge_slot=judge_slot,
+            judge_threshold=judge_threshold,
+            judge_audit_path=judge_audit_path,
+        )
+    return sealed
+
+
+def apply_judge_phase(
+    result: EvaluationResult,
+    *,
+    tool_name: str,
+    evaluation_id: str | None = None,
+    judge_apply_verdict: bool = False,
+    judge_force_consult: bool = True,
+    judge_consult_tools: frozenset[str] | set[str] | None = None,
+    judge_slot: Any | None = None,
+    judge_threshold: float | None = None,
+    judge_audit_path: str | None = None,
+) -> EvaluationResult:
+    """Bounded judge after the floor (and box, when the host ran it) is final.
+
+    Subtract-only. Never widens. Fail-closed cage outcomes escalate to HITL.
+    Writes G6-shaped fields onto the result and the decision-log JSONL.
+    """
+    import time as _time
+
+    try:
+        from .bounded_judge import (
+            apply_judge,
+            judge_slot_stub,
+            set_audit_path,
+        )
+    except ImportError:
+        from bounded_judge import (
+            apply_judge,
+            judge_slot_stub,
+            set_audit_path,
+        )
+    try:
+        from .triad_types import EffectRank as JudgeEffect
+    except ImportError:
+        from triad_types import EffectRank as JudgeEffect
+    try:
+        from .judge_consumer import apply_judge_subtract
+    except ImportError:
+        from judge_consumer import apply_judge_subtract
+    try:
+        from .judge_slot_sonnet import JUDGE_PROMPT_SHA256, MODEL_ID
+    except ImportError:
+        try:
+            from judge_slot_sonnet import JUDGE_PROMPT_SHA256, MODEL_ID
+        except ImportError:
+            JUDGE_PROMPT_SHA256 = None  # type: ignore[assignment]
+            MODEL_ID = "unknown"
+
+    if judge_audit_path:
+        set_audit_path(judge_audit_path)
+
+    best_effect = result.winning_effect
+    block_message = result.block_message
+    firings = result.firings
+    effect_map = {
+        None: JudgeEffect.ALLOW,
+        "monitor": JudgeEffect.MONITOR,
+        "human_review": JudgeEffect.ESCALATE,
+        "block": JudgeEffect.BLOCK,
+    }
+    floor_verdict = effect_map.get(best_effect, JudgeEffect.ALLOW)
+    locked = [f.atom_id for f in firings if f.fired]
+    ambiguous = any(f.ambiguity == "conflicting" for f in firings)
+    if not firings and best_effect is None:
+        ambiguous = False
+    case = {
+        "ambiguous": ambiguous,
+        "rollup_status": "conflicting"
+        if ambiguous
+        else ("contradicted" if best_effect == "block" else "supported"),
+        "locked_atoms": locked,
+        "candidate_atoms": list(locked),
+        "evaluation_id": evaluation_id,
+        "security_relevant": bool(best_effect in ("block", "human_review")),
+        "tool_name": tool_name,
+        # Empty injection first (SETTLE2 A / AEG-16): no content_for_judge.
+    }
+    if judge_force_consult:
+        case["ambiguous"] = True
+        case["rollup_status"] = "conflicting"
+    elif judge_consult_tools and tool_name in judge_consult_tools:
+        case["ambiguous"] = True
+        case["rollup_status"] = "conflicting"
+        case["security_relevant"] = True
+
+    slot = judge_slot if judge_slot is not None else judge_slot_stub
+    threshold = 0.85 if judge_threshold is None else float(judge_threshold)
+    try:
+        from .judge_slot_sonnet import JUDGE_REQUEST_TIMEOUT_S
+    except ImportError:
+        try:
+            from judge_slot_sonnet import JUDGE_REQUEST_TIMEOUT_S
+        except ImportError:
+            JUDGE_REQUEST_TIMEOUT_S = 30.0
+
+    def _slot_with_deadline(slot_case: dict[str, Any], floor: Any) -> Any:
+        """Hard wall-clock deadline around the model slot (fail closed)."""
+        from concurrent.futures import ThreadPoolExecutor
+        from concurrent.futures import TimeoutError as FuturesTimeout
+
+        try:
+            from .judge_slot_sonnet import JudgeUnavailable
+        except ImportError:
+            from judge_slot_sonnet import JudgeUnavailable
+
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            fut = pool.submit(slot, slot_case, floor)
+            try:
+                return fut.result(timeout=float(JUDGE_REQUEST_TIMEOUT_S))
+            except FuturesTimeout as exc:
+                raise JudgeUnavailable(
+                    f"timeout:deadline_s={JUDGE_REQUEST_TIMEOUT_S}"
+                ) from exc
+
+    t0 = _time.monotonic()
+    outcome = apply_judge(
+        floor_verdict, case, _slot_with_deadline, threshold=threshold, cap=3
+    )
+    latency_ms = (_time.monotonic() - t0) * 1000.0
+
+    new_effect, new_block, subtracted = apply_judge_subtract(
+        best_effect, block_message, outcome
+    )
+    would_subtract = bool(subtracted)
+    if judge_apply_verdict:
+        best_effect = new_effect
+        block_message = new_block
+
+    rec = None
+    if outcome.opinion is not None:
+        rec = outcome.opinion.recommendation.value
+    judge_verdict = rec
+    judge_error = None
+    if outcome.escalated:
+        judge_verdict = "escalate"
+        judge_error = outcome.escalation_reason
+
+    # Cost / model: prefer attributes the slot may stash; else defaults.
+    cost = getattr(slot, "last_cost_usd", None)
+    model = getattr(slot, "last_model_id", None) or MODEL_ID
+    if cost is None:
+        cost = 0.0
+
+    result.block_message = block_message
+    result.winning_effect = best_effect
+    result.judge_enabled = True
+    result.judge_consumed = True
+    result.judge_escalated = bool(outcome.escalated)
+    result.judge_recommendation = rec
+    result.judge_verdict = judge_verdict
+    result.judge_would_subtract = would_subtract
+    result.judge_applied = bool(judge_apply_verdict)
+    result.judge_subtracted = bool(would_subtract and judge_apply_verdict)
+    result.judge_latency_ms = float(latency_ms)
+    result.judge_model = str(model) if model is not None else None
+    result.judge_prompt_sha256 = JUDGE_PROMPT_SHA256
+    result.judge_error = judge_error
+    result.judge_cost_usd = float(cost) if cost is not None else None
+
+    if judge_audit_path:
+        try:
+            audit_file = Path(judge_audit_path)
+            audit_file.parent.mkdir(parents=True, exist_ok=True)
+            decision = {
+                "record_type": "judge_apply_decision",
+                "evaluation_id": evaluation_id,
+                "judge_enabled": True,
+                "judge_apply_verdict": bool(judge_apply_verdict),
+                "judge_verdict": judge_verdict,
+                "judge_subtracted": result.judge_subtracted,
+                "judge_latency_ms": result.judge_latency_ms,
+                "judge_model": result.judge_model,
+                "judge_prompt_sha256": result.judge_prompt_sha256,
+                "judge_error": judge_error,
+                "judge_cost_usd": result.judge_cost_usd,
+                "applied": bool(judge_apply_verdict),
+                "would_subtract": would_subtract,
+                "shadow_effect": new_effect,
+                "winning_effect": best_effect,
+            }
+            with audit_file.open("a", encoding="utf-8") as fh:
+                fh.write(json.dumps(decision, ensure_ascii=False) + "\n")
+        except OSError:
+            pass
+    return result
 
 
 def append_firings(log_path: Path, firings: list[Firing], catalog: Catalog) -> None:

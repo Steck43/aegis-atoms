@@ -663,6 +663,8 @@ def pre_tool_call(
         gate_decision = None
         if isinstance(pre_tool_context, dict):
             gate_decision = pre_tool_context.get("gate_decision")
+        # Order: gate (already in gate_decision) → atoms → box → judge → human.
+        # Judge is deferred to apply_judge_phase so the box result is final first.
         result = eng.evaluate_tool_call(
             catalog,
             tool_name,
@@ -689,37 +691,14 @@ def pre_tool_call(
             active_task_id=_active_task_id_for_scope(task_id),
             control_surface_enabled=entry.control_surface_enabled,
             control_surfaces_path=str(plugin_root / "control_surfaces.yaml"),
-            judge_enabled=judge_enabled,
-            judge_apply_verdict=entry.judge_apply_verdict,
-            judge_force_consult=not using_paid,
-            judge_consult_tools=_JUDGE_CONSULT_TOOLS if using_paid else None,
-            judge_slot=judge_slot,
-            judge_audit_path=judge_audit,
+            judge_enabled=False,
             gate_decision=gate_decision,
         )
         eng.append_firings(log_path, result.firings, catalog)
-        if result.judge_consumed:
-            global _JUDGE_SITTING_USED
-            _JUDGE_SITTING_USED += 1
-        if result.judge_consumed and (
-            result.judge_would_subtract
-            or result.judge_subtracted
-            or result.judge_escalated
-        ):
-            logger.info(
-                "aegis-atoms judge telemetry tool=%s would_subtract=%s "
-                "applied=%s escalated=%s recommendation=%s",
-                tool_name,
-                result.judge_would_subtract,
-                result.judge_applied,
-                result.judge_escalated,
-                result.judge_recommendation,
-            )
-        if result.block_message:
-            return {"action": "block", "message": result.block_message}
         # Step 11: optional bound prove on aegisbox under the Hermes tool_call_id.
         # Off unless AEGISBOX_PROVE=1. Does not call box_entry.run.
-        if os.environ.get("AEGISBOX_PROVE") == "1":
+        # Runs after atoms and before the judge (when the box is invoked).
+        if os.environ.get("AEGISBOX_PROVE") == "1" and result.block_message is None:
             gate_sha = str(result.decision_digest or "")
             atoms_sha = _atoms_result_sha256(result)
             if isinstance(pre_tool_context, dict):
@@ -739,8 +718,43 @@ def pre_tool_call(
                     pre_tool_context["bound_prove"] = prove
             if prove_err:
                 if mode == "enforce":
-                    return {"action": "block", "message": prove_err}
-                logger.warning("aegis-atoms bound prove (observe): %s", prove_err)
+                    result.block_message = prove_err
+                    result.winning_effect = "block"
+                else:
+                    logger.warning("aegis-atoms bound prove (observe): %s", prove_err)
+        if judge_enabled:
+            evaluation_id = ":".join(
+                x for x in (session_id, tool_call_id) if x
+            ) or "unknown"
+            result = eng.apply_judge_phase(
+                result,
+                tool_name=tool_name,
+                evaluation_id=evaluation_id,
+                judge_apply_verdict=entry.judge_apply_verdict,
+                judge_force_consult=not using_paid,
+                judge_consult_tools=_JUDGE_CONSULT_TOOLS if using_paid else None,
+                judge_slot=judge_slot,
+                judge_audit_path=judge_audit,
+            )
+            global _JUDGE_SITTING_USED
+            _JUDGE_SITTING_USED += 1
+            if (
+                result.judge_would_subtract
+                or result.judge_subtracted
+                or result.judge_escalated
+            ):
+                logger.info(
+                    "aegis-atoms judge telemetry tool=%s would_subtract=%s "
+                    "applied=%s escalated=%s recommendation=%s",
+                    tool_name,
+                    result.judge_would_subtract,
+                    result.judge_applied,
+                    result.judge_escalated,
+                    result.judge_recommendation,
+                )
+        # Human ask / block only after the judge (when enabled) has finished.
+        if result.block_message:
+            return {"action": "block", "message": result.block_message}
     except Exception as exc:
         logger.exception("aegis-atoms pre_tool_call failed")
         if mode == "enforce":
@@ -751,17 +765,37 @@ def pre_tool_call(
     return None
 
 
+# Apply is allowed only on the dedicated enforce test profile (Part 0.3).
+_JUDGE_APPLY_ALLOWED_PROFILES = frozenset({"step11-test"})
+
+
+def _profile_allows_judge_apply() -> bool:
+    """True when HERMES_HOME basename is the dedicated step11-test profile."""
+    home = os.environ.get("HERMES_HOME") or ""
+    if not home:
+        return False
+    return Path(home).name in _JUDGE_APPLY_ALLOWED_PROFILES
+
+
 def register(ctx) -> None:
     root = _assert_live_plugin_path()
     # Startup assertion: apply stays off unless Landen sets AEGIS_JUDGE_APPLY_GO=1
-    # after an explicit GO. Rollback: unset AEGIS_JUDGE_APPLY_GO and set
+    # on the step11-test profile only. Live and every other profile refuse apply.
+    # Rollback: unset AEGIS_JUDGE_APPLY_GO and set
     # plugins.entries.aegis-atoms.judge_apply_verdict false, then restart Hermes.
     entry = _load_atoms_entry()
-    if entry.judge_apply_verdict and os.environ.get("AEGIS_JUDGE_APPLY_GO") != "1":
-        raise RuntimeError(
-            "aegis-atoms refusing to register with judge_apply_verdict=true "
-            "without AEGIS_JUDGE_APPLY_GO=1 (Landen GO required)"
-        )
+    if entry.judge_apply_verdict:
+        if os.environ.get("AEGIS_JUDGE_APPLY_GO") != "1":
+            raise RuntimeError(
+                "aegis-atoms refusing to register with judge_apply_verdict=true "
+                "without AEGIS_JUDGE_APPLY_GO=1 (Landen GO required)"
+            )
+        if not _profile_allows_judge_apply():
+            raise RuntimeError(
+                "aegis-atoms refusing to register with judge_apply_verdict=true "
+                "outside the step11-test profile "
+                f"(HERMES_HOME basename must be one of {sorted(_JUDGE_APPLY_ALLOWED_PROFILES)})"
+            )
     _write_load_heartbeat(root)
     logger.info("aegis-atoms registered from %s", root)
     ctx.register_hook("pre_llm_call", pre_llm_call)

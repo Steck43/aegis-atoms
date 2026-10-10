@@ -22,12 +22,15 @@ def test_register_refuses_apply_without_go(monkeypatch) -> None:
 
 
 def test_register_allows_apply_with_go(monkeypatch, tmp_path) -> None:
+    profile = tmp_path / "step11-test"
+    profile.mkdir()
     monkeypatch.setattr(
         atoms,
         "_load_atoms_entry",
         lambda: atoms.AtomsEntryConfig(judge_apply_verdict=True),
     )
     monkeypatch.setenv("AEGIS_JUDGE_APPLY_GO", "1")
+    monkeypatch.setenv("HERMES_HOME", str(profile))
     monkeypatch.setattr(atoms, "_assert_live_plugin_path", lambda: tmp_path)
     monkeypatch.setattr(atoms, "_write_load_heartbeat", lambda root: None)
     hooks: list[str] = []
