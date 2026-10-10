@@ -10,6 +10,7 @@ Summary: The bounded judge, the cage. This is where a model is allowed into the 
 from __future__ import annotations
 
 import json
+import threading
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
@@ -28,6 +29,38 @@ AUDIT_RECORD_TYPE = "judge_audit"
 _DEFAULT_THRESHOLD = 0.85
 
 _audit_path: Path | None = None
+
+# Per-phase bind: abandoned timeout threads must not write into a later call's
+# G6 file via the module-level path. Each judge phase captures its own path and
+# cancel flag; after cancel, cage G6 audit writes are skipped. Completed provider
+# calls are still metered (Forseti r3).
+_phase_local = threading.local()
+
+
+class JudgeUnavailable(Exception):
+    """Loud cage escalate. Name matches the slot module for _classify_slot_failure."""
+
+
+def bind_judge_phase(
+    *,
+    audit_path: Path | str | None,
+    cancel: threading.Event | None,
+) -> None:
+    """Bind this thread's cage audit path + cancel flag for one judge phase."""
+    _phase_local.audit_path = None if audit_path is None else Path(audit_path)
+    _phase_local.cancel = cancel
+
+
+def clear_judge_phase() -> None:
+    """Drop this thread's phase bind (call from worker finally)."""
+    _phase_local.audit_path = None
+    _phase_local.cancel = None
+
+
+def is_judge_phase_cancelled() -> bool:
+    """True when this phase's deadline fired and the worker was abandoned."""
+    cancel = getattr(_phase_local, "cancel", None)
+    return cancel is not None and cancel.is_set()
 
 
 class JudgeRecommendation(Enum):
@@ -166,7 +199,13 @@ def _emit_audit(
     retries_used: int,
     locked_atoms: list[str],
 ) -> None:
-    path = _audit_path
+    # Abandoned after phase deadline: drop the write. Do not fall through to a
+    # later call's module-level path (Forseti r2 cross-call G6 pollution).
+    if is_judge_phase_cancelled():
+        return
+    path = getattr(_phase_local, "audit_path", None)
+    if path is None:
+        path = _audit_path
     if path is None:
         return
     rec = {
@@ -249,6 +288,9 @@ def apply_judge(
 
     try:
         while retries_used < cap:
+            # Abandoned phase: do not start another paid re-ask (Forseti r3).
+            if is_judge_phase_cancelled():
+                raise JudgeUnavailable("cancelled:phase_deadline")
             retries_used += 1
             try:
                 raw = judge_slot(slot_case, floor_verdict)

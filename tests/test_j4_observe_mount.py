@@ -89,6 +89,12 @@ def test_pre_tool_observe_mount_applies_subtract(tmp_path, monkeypatch):
 
     monkeypatch.setenv("HERMES_HOME", str(tmp_path))
     monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(tmp_path / "vault"))
+    # Apply arms only with GO + profile marker (Forseti #60-2), not config alone.
+    monkeypatch.setenv("AEGIS_JUDGE_APPLY_GO", "1")
+    monkeypatch.setenv("AEGIS_PROFILE_ID", "step11-test")
+    marker = tmp_path / ".aegis" / "profile_id"
+    marker.parent.mkdir(parents=True)
+    marker.write_text("step11-test\n", encoding="utf-8")
     monkeypatch.setattr(
         init,
         "_load_atoms_entry",
@@ -108,14 +114,15 @@ def test_pre_tool_observe_mount_applies_subtract(tmp_path, monkeypatch):
             advisory=True,
         )
 
-    real_eval = init.eng.evaluate_tool_call
+    monkeypatch.setattr(init, "_observe_judge_slot", lambda _env: (flag_slot, False))
+    real_judge = init.eng.apply_judge_phase
 
-    def eval_with_flag(*args, **kwargs):
-        kwargs["judge_slot"] = flag_slot
+    def judge_with_threshold(result, **kwargs):
         kwargs["judge_threshold"] = 0.0
-        return real_eval(*args, **kwargs)
+        kwargs["judge_slot"] = flag_slot
+        return real_judge(result, **kwargs)
 
-    monkeypatch.setattr(init.eng, "evaluate_tool_call", eval_with_flag)
+    monkeypatch.setattr(init.eng, "apply_judge_phase", judge_with_threshold)
 
     out = init.pre_tool_call(
         "read_file",
@@ -148,22 +155,31 @@ def test_pre_tool_enforce_keeps_judge_on(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(init, "_resolve_vault", lambda: tmp_path / "vault")
 
-    seen = {}
+    seen = {"judge_phase": False}
 
     real_eval = init.eng.evaluate_tool_call
 
-    def capture(*args, **kwargs):
-        seen["judge_enabled"] = kwargs.get("judge_enabled")
-        seen["judge_apply_verdict"] = kwargs.get("judge_apply_verdict")
+    def capture_eval(*args, **kwargs):
+        # Live mount defers the judge until after the box.
+        seen["eval_judge_enabled"] = kwargs.get("judge_enabled")
         return real_eval(*args, **kwargs)
 
-    monkeypatch.setattr(init.eng, "evaluate_tool_call", capture)
+    real_judge = init.eng.apply_judge_phase
+
+    def capture_judge(result, **kwargs):
+        seen["judge_phase"] = True
+        seen["judge_apply_verdict"] = kwargs.get("judge_apply_verdict")
+        return real_judge(result, **kwargs)
+
+    monkeypatch.setattr(init.eng, "evaluate_tool_call", capture_eval)
+    monkeypatch.setattr(init.eng, "apply_judge_phase", capture_judge)
     init.pre_tool_call(
         "read_file",
         {"path": str(tmp_path / "vault" / "note.md")},
         task_id="t1",
         session_id="s1",
     )
-    assert seen["judge_enabled"] is True
+    assert seen["eval_judge_enabled"] is False
+    assert seen["judge_phase"] is True
     # Tune-before-deploy default: consult + audit, do not mutate floor.
     assert seen["judge_apply_verdict"] is False

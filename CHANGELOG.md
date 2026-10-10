@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Part 0 judge wiring: Hermes `pre_tool_call` runs gate → atoms → box (when invoked) → judge → human. `engine.apply_judge_phase` owns the deferred judge; live mount passes `judge_enabled=False` into evaluate then applies after bound prove. Phase wall-clock `JUDGE_PHASE_DEADLINE_S` (10s) with pool `shutdown(wait=False, cancel_futures=True)`, Anthropic `max_retries=0`, and a `judge_started` G6 row before the call. Per-call apply re-check requires `AEGIS_JUDGE_APPLY_GO=1`, `AEGIS_PROFILE_ID=step11-test`, and `$HERMES_HOME/.aegis/profile_id`. Cage escalation always reaches the door; G6 write failures fail closed; quota skips write `judge_skipped`. Engine default `judge_apply_verdict` stays False. Receipts: `JUDGE-INVENTORY-2026-10-10.md`, `JUDGE-WIRING-2026-10-10.md`, `FORSETI-FIXFIRST-RESPONSE-2026-10-10.md`.
+
 ### Fixed
 
+- Abandoned judge threads after a phase deadline no longer append cage audit rows into a later call's G6 file. Each phase binds its own audit path and cancel flag; cancelled workers skip G6 audit writes only. Completed provider calls are still metered, cancel is checked before each API call and retry, and a cancelled phase starts no new re-ask (`tests/test_judge_abandoned_thread.py`, Forseti r2/r3).
 - `evaluate_tool_call` defaults `judge_apply_verdict` to False (was True). Omitting the kwarg no longer applies the judge. `register` refuses a True mount config without `AEGIS_JUDGE_APPLY_GO=1`. Apply-path fuzzer still passes True explicitly. Receipts: `JUDGE-APPLY-DEFAULT-2026-10-09.md`, `JUDGE-CALL-SITES-2026-10-09.md`.
 - `evaluate_tool_call` fails closed on any `gate_decision` that is not a canonical allow (exact string `"allow"` after `Enum.value`). ASK escalates to `human_review`; DENY, THROWN, malformed, missing, wrong-type, and plain-dict verdicts block. Previously only the literal deny string blocked and every other shape fell through. `engine.classify_gate_verdict` owns the map; `tests/test_t_comp_01_verdict_matrix.py` and `receipts/raw/t-comp-01-expected-matrix.json` pin the full shape set (T-COMP-01 / ATOMS-FAILCLOSED).
 

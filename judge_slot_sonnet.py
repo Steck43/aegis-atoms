@@ -12,6 +12,7 @@ Summary: Real Anthropic Messages API call returning JudgeOpinion via structured
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import time
@@ -20,9 +21,17 @@ from datetime import date
 from typing import Any, Callable
 
 try:
-    from .bounded_judge import JudgeOpinion, JudgeRecommendation
+    from .bounded_judge import (
+        JudgeOpinion,
+        JudgeRecommendation,
+        is_judge_phase_cancelled,
+    )
 except ImportError:  # standalone / sys.path test import
-    from bounded_judge import JudgeOpinion, JudgeRecommendation
+    from bounded_judge import (
+        JudgeOpinion,
+        JudgeRecommendation,
+        is_judge_phase_cancelled,
+    )
 try:
     from .judge_audit import (
         SONNET5_PRICE_TABLE,
@@ -54,6 +63,13 @@ except ImportError:  # standalone / sys.path test import
 MODEL_ID = "claude-sonnet-5"
 EFFORT_FLOOR = "low"  # lowest selectable; adaptive thinking stays on (pack pin)
 MAX_OUTPUT_TOKENS = 2000
+# Whole judge phase wall-clock (Hermes hook margin under CG_CC_DEADLINE_S≈14).
+JUDGE_PHASE_DEADLINE_S = 10.0
+# Per-request client timeout — must stay ≤ phase deadline; retries are zero.
+JUDGE_REQUEST_TIMEOUT_S = 8.0
+ANTHROPIC_MAX_RETRIES = 0
+# Byte cap on the parsed structured-output payload (oversized → malformed).
+MAX_OUTPUT_BYTES = 32_000
 JUDGE_SCHEMA_NAME = "aegis_judge_opinion"
 
 SYSTEM_POLICY = """You are the Aegis bounded judge. You are advisory only.
@@ -64,6 +80,8 @@ You may return exactly one recommendation:
 You must NEVER return allow, block, deny, or any other verdict.
 The floor verdict is authoritative and immutable. You cannot widen what the floor allows.
 Respond only through the structured schema."""
+
+JUDGE_PROMPT_SHA256 = hashlib.sha256(SYSTEM_POLICY.encode("utf-8")).hexdigest()
 
 
 class JudgeUnavailable(Exception):
@@ -155,6 +173,7 @@ def make_sonnet_judge_slot(
     config: SonnetJudgeConfig | None = None,
     client: Any | None = None,
     as_of: date | None = None,
+    timeout_s: float | None = None,
 ) -> Callable[[dict[str, Any], EffectRank], JudgeOpinion]:
     """Return a JudgeSlot. Cage types unchanged.
 
@@ -167,8 +186,11 @@ def make_sonnet_judge_slot(
         or os.environ.get("ANTHROPIC_API_KEY")
         or os.environ.get("ANTHROPIC_API_KEY".lower())
     )
+    request_timeout = JUDGE_REQUEST_TIMEOUT_S if timeout_s is None else float(timeout_s)
 
     def slot(case: dict[str, Any], floor_verdict: EffectRank) -> JudgeOpinion:
+        slot.last_cost_usd = 0.0  # type: ignore[attr-defined]
+        slot.last_model_id = MODEL_ID  # type: ignore[attr-defined]
         user_blob = json.dumps(
             {
                 "floor_verdict": floor_verdict.name,
@@ -193,6 +215,11 @@ def make_sonnet_judge_slot(
         )
         budget.authorize(estimate)  # may raise BudgetExhausted — before issue
 
+        # Cancel before any paid issue. An abandoned phase must not start a
+        # new provider call (Forseti r3 — $50 cap under-count hole).
+        if is_judge_phase_cancelled():
+            raise JudgeUnavailable("cancelled:phase_deadline")
+
         if cfg.dry_run:
             usage = ModelCallUsage(
                 model_identity=MODEL_ID + "#dry-run",
@@ -205,6 +232,8 @@ def make_sonnet_judge_slot(
                 stop_reason="dry_run",
                 dry_run=True,
             )
+            slot.last_cost_usd = 0.0  # type: ignore[attr-defined]
+            slot.last_model_id = MODEL_ID + "#dry-run"  # type: ignore[attr-defined]
             # Dry-run does not spend, but records the would-be cost on the audit.
             _maybe_audit(
                 cfg,
@@ -233,6 +262,7 @@ def make_sonnet_judge_slot(
                 user_blob=user_blob,
                 effort=cfg.effort,
                 max_tokens=cfg.max_tokens,
+                timeout_s=request_timeout,
             )
         except JudgeRefusal:
             raise
@@ -241,7 +271,10 @@ def make_sonnet_judge_slot(
         except Exception as exc:
             raise JudgeUnavailable(f"transport:{type(exc).__name__}:{exc}") from exc
         latency_ms = (time.monotonic() - t0) * 1000.0
-
+        if latency_ms > (request_timeout * 1000.0) + 1.0:
+            raise JudgeUnavailable(
+                f"timeout:elapsed_ms={latency_ms:.0f}>limit_ms={request_timeout * 1000.0:.0f}"
+            )
         stop_reason = getattr(resp, "stop_reason", None) or (
             resp.get("stop_reason") if isinstance(resp, dict) else None
         )
@@ -276,8 +309,15 @@ def make_sonnet_judge_slot(
             cache_creation_tokens=cache_create,
             dry_run=False,
         )
-        # Every issued response meters — including refusal (paid decline).
+        # Always meter a completed provider call — even after phase cancel.
+        # Skipping spend here under-counts the $50 cap (Forseti r3). G6 cage
+        # audit writes are skipped separately via is_judge_phase_cancelled.
         budget.record_issue(actual, estimate)
+        slot.last_cost_usd = float(actual)  # type: ignore[attr-defined]
+        slot.last_model_id = str(model_identity)  # type: ignore[attr-defined]
+
+        if is_judge_phase_cancelled():
+            raise JudgeUnavailable("cancelled:phase_deadline")
 
         if stop_reason == "refusal":
             _maybe_audit(
@@ -354,12 +394,22 @@ def _call_anthropic(
     user_blob: str,
     effort: str,
     max_tokens: int,
+    timeout_s: float = JUDGE_REQUEST_TIMEOUT_S,
 ) -> Any:
     if client is None:
         import anthropic
 
-        client = anthropic.Anthropic(api_key=api_key)
+        # Hard timeout + zero retries: SDK default retries (2) can stretch
+        # a hung call into minutes and outrun the Hermes hook.
+        client = anthropic.Anthropic(
+            api_key=api_key,
+            timeout=float(timeout_s),
+            max_retries=int(ANTHROPIC_MAX_RETRIES),
+        )
     # Cache stable system prefix (byte-identical every call).
+    # Timeout is on the client (above). Do not also pass timeout= here —
+    # SDK versions differ on per-request timeout kwargs.
+    _ = timeout_s
     return client.messages.create(
         model=MODEL_ID,
         max_tokens=max_tokens,
@@ -446,10 +496,17 @@ def _parse_response_opinion(resp: Any) -> JudgeOpinion:
                 block.get("json") if isinstance(block, dict) else None
             )
             if isinstance(data, dict):
+                encoded = json.dumps(data, ensure_ascii=False)
+                if len(encoded.encode("utf-8")) > MAX_OUTPUT_BYTES:
+                    raise MalformedJudgeOutput(
+                        f"oversized structured output: >{MAX_OUTPUT_BYTES} bytes"
+                    )
                 return _opinion_from_structured(data)
     blob = "".join(text_parts).strip()
     if not blob:
         raise MalformedJudgeOutput("empty response content")
+    if len(blob.encode("utf-8")) > MAX_OUTPUT_BYTES:
+        raise MalformedJudgeOutput(f"oversized output: >{MAX_OUTPUT_BYTES} bytes")
     try:
         data = json.loads(blob)
     except json.JSONDecodeError as exc:

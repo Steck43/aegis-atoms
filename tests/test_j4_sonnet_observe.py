@@ -133,21 +133,26 @@ def test_pre_tool_wires_sonnet_when_key_present(tmp_path, monkeypatch):
     monkeypatch.setattr(init, "_observe_judge_slot", lambda env: (slot, True))
 
     seen: dict = {}
-    real = init.eng.evaluate_tool_call
+    real_eval = init.eng.evaluate_tool_call
+    real_judge = init.eng.apply_judge_phase
 
-    def capture(*args, **kwargs):
+    def capture_eval(*args, **kwargs):
+        seen["eval_judge_enabled"] = kwargs.get("judge_enabled")
+        return real_eval(*args, **kwargs)
+
+    def capture_judge(result, **kwargs):
         seen.update(
             {
-                "judge_enabled": kwargs.get("judge_enabled"),
                 "judge_apply_verdict": kwargs.get("judge_apply_verdict"),
                 "judge_force_consult": kwargs.get("judge_force_consult"),
                 "judge_consult_tools": kwargs.get("judge_consult_tools"),
                 "has_slot": kwargs.get("judge_slot") is not None,
             }
         )
-        return real(*args, **kwargs)
+        return real_judge(result, **kwargs)
 
-    monkeypatch.setattr(init.eng, "evaluate_tool_call", capture)
+    monkeypatch.setattr(init.eng, "evaluate_tool_call", capture_eval)
+    monkeypatch.setattr(init.eng, "apply_judge_phase", capture_judge)
 
     out = init.pre_tool_call(
         "write_file",
@@ -157,7 +162,7 @@ def test_pre_tool_wires_sonnet_when_key_present(tmp_path, monkeypatch):
         tool_call_id="w1",
     )
     assert out is None
-    assert seen["judge_enabled"] is True
+    assert seen["eval_judge_enabled"] is False
     assert seen["judge_apply_verdict"] is False
     assert seen["judge_force_consult"] is False
     assert seen["has_slot"] is True
