@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Step 11 bound-prove results now return parsed JSON evidence to the shared Hermes call context. The context records the atoms profile mode, both Hermes-side digests, prove exit code, and exact prove object; enforce still blocks when prove fails, while observe records the failure without earning a live-evidence stamp.
 - evaluate_tool_call records decision_digest from the gate decision it read and issues a unique box_ticket when the call is not blocked.
 
 ### Added
