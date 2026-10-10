@@ -1484,11 +1484,13 @@ def apply_judge_phase(
                 pass
 
     t0 = _time.monotonic()
+    clear_audit = set_audit_path
     try:
         if judge_audit_path:
-            set_audit_path(judge_audit_path)
+            clear_audit(judge_audit_path)
 
         # Evidence before the paid call so a kill still leaves a G6 row.
+        # Uses append_judge_log_row (fail-closed), not the cage audit path alone.
         append_judge_log_row(
             judge_audit_path,
             {
@@ -1583,10 +1585,17 @@ def apply_judge_phase(
             best_effect, block_message, outcome
         )
         would_subtract = bool(subtracted)
-        # Cage escalation / timeout / slot fault always reaches the door
-        # (Hermes swallows exceptions → silent allow). Apply flag only gates
-        # successful subtract of non-escalated opinions.
-        if outcome.escalated or judge_apply_verdict:
+        # Apply flag gates subtract of opinions. Infrastructure deadlines and
+        # log faults still reach the door when apply is off (Hermes swallows
+        # exceptions → silent allow). Ordinary cage escalate (malformed /
+        # refusal) stays shadow-only until apply is armed.
+        reason = outcome.escalation_reason or ""
+        infra_fail = outcome.escalated and (
+            reason.startswith("timeout:")
+            or "log write" in reason.lower()
+            or reason.startswith("JudgeLogWriteError")
+        )
+        if judge_apply_verdict or infra_fail:
             best_effect = new_effect
             block_message = new_block
 
@@ -1671,6 +1680,9 @@ def apply_judge_phase(
             # Already fail-closed on the result; log itself is dead.
             pass
         return closed
+    finally:
+        # Never leave a sticky cage audit path for later tests / calls.
+        clear_audit(None)
 
 
 def append_firings(log_path: Path, firings: list[Firing], catalog: Catalog) -> None:

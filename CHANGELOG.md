@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Part 0 judge wiring: Hermes `pre_tool_call` runs gate → atoms → box (when invoked) → judge → human. `engine.apply_judge_phase` owns the deferred judge; live mount passes `judge_enabled=False` into evaluate then applies after bound prove. Hard `JUDGE_REQUEST_TIMEOUT_S` (30s) on the Anthropic client plus a wall-clock deadline around the slot. G6-shaped fields on `EvaluationResult` and `judge_apply_decision` JSONL (`judge_enabled`, `judge_apply_verdict`, `judge_verdict`, `judge_subtracted`, `judge_latency_ms`, `judge_model`, `judge_prompt_sha256`, `judge_error`, `judge_cost_usd`). `register` refuses apply outside `step11-test` even with `AEGIS_JUDGE_APPLY_GO=1`. Engine default `judge_apply_verdict` stays False. Receipts: `JUDGE-INVENTORY-2026-10-10.md`, `JUDGE-WIRING-2026-10-10.md`.
+- Part 0 judge wiring: Hermes `pre_tool_call` runs gate → atoms → box (when invoked) → judge → human. `engine.apply_judge_phase` owns the deferred judge; live mount passes `judge_enabled=False` into evaluate then applies after bound prove. Phase wall-clock `JUDGE_PHASE_DEADLINE_S` (10s) with pool `shutdown(wait=False, cancel_futures=True)`, Anthropic `max_retries=0`, and a `judge_started` G6 row before the call. Per-call apply re-check requires `AEGIS_JUDGE_APPLY_GO=1`, `AEGIS_PROFILE_ID=step11-test`, and `$HERMES_HOME/.aegis/profile_id`. Cage escalation always reaches the door; G6 write failures fail closed; quota skips write `judge_skipped`. Engine default `judge_apply_verdict` stays False. Receipts: `JUDGE-INVENTORY-2026-10-10.md`, `JUDGE-WIRING-2026-10-10.md`, `FORSETI-FIXFIRST-RESPONSE-2026-10-10.md`.
 
 ### Fixed
 

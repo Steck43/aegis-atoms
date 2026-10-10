@@ -5,9 +5,6 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
-from types import SimpleNamespace
-
-import pytest
 
 from bounded_judge import JudgeOpinion, JudgeRecommendation
 from engine import apply_judge_phase, evaluate_tool_call, load_catalog
@@ -144,8 +141,7 @@ def test_judge_started_row_exists_when_phase_times_out(monkeypatch, tmp_path) ->
     assert "judge_started" in types
     # Outcome row after timeout (deny/escalate evidence).
     assert any(
-        row.get("record_type") == "judge_apply_decision"
-        and row.get("judge_error")
+        row.get("record_type") == "judge_apply_decision" and row.get("judge_error")
         for row in lines
     )
 
@@ -166,13 +162,14 @@ def test_exception_in_pre_tool_never_escapes_to_hermes(monkeypatch, tmp_path) ->
         ),
     )
     monkeypatch.setattr(atoms, "_judge_quota_ok", lambda: True)
+    monkeypatch.setattr(atoms, "_observe_judge_slot", lambda _env: (None, False))
 
-    def boom_slot(case, floor):
-        raise RuntimeError("injected slot boom")
+    def boom_phase(*_a, **_k):
+        raise RuntimeError("injected phase boom")
 
-    monkeypatch.setattr(atoms, "_observe_judge_slot", lambda _env: (boom_slot, False))
+    monkeypatch.setattr(atoms.eng, "apply_judge_phase", boom_phase)
 
-    # Slot boom must become a block dict — never raise into Hermes swallow.
+    # Escaped phase error must become a block dict — never raise into Hermes.
     out = atoms.pre_tool_call(
         "read_file",
         {"path": str(tmp_path / "vault" / "note.md")},
