@@ -48,6 +48,36 @@ def decision_digest(gate_decision: Any) -> str:
     return hashlib.sha256(body.encode("utf-8")).hexdigest()
 
 
+def classify_gate_verdict(gate_decision: Any) -> str:
+    """Map a gate Decision into allow | deny | ask | block.
+
+    Canonical allow is the exact string ``allow`` after reading Enum.value when
+    present (capability-gate ``Verdict.ALLOW`` qualifies; ``Allow`` does not).
+    ``deny`` / ``ask`` match case-insensitively on a bare string. Everything
+    else — THROWN, whitespace-padded deny, missing verdict, wrong type, plain
+    dict — is ``block``. Callers pass ``None`` when there is no gate input;
+    this helper is only for a present ``gate_decision``.
+    """
+    if isinstance(gate_decision, dict):
+        return "block"
+    if not hasattr(gate_decision, "verdict"):
+        return "block"
+    verdict = getattr(gate_decision, "verdict", None)
+    if verdict is None:
+        return "block"
+    value = getattr(verdict, "value", verdict)
+    if not isinstance(value, str):
+        return "block"
+    if value == "allow":
+        return "allow"
+    lowered = value.lower()
+    if lowered == "deny":
+        return "deny"
+    if lowered == "ask":
+        return "ask"
+    return "block"
+
+
 def _seal_receipt_fields(
     result: EvaluationResult, gate_decision: Any | None
 ) -> EvaluationResult:
@@ -540,17 +570,27 @@ def evaluate_tool_call(
     control_surfaces_path: str | None = None,
     gate_decision: Any | None = None,
 ) -> EvaluationResult:
-    # A gate deny must block here. A gate allow never clears an atoms block.
+    # Gate composition: only a canonical allow falls through to atoms.
+    # ASK escalates; deny / thrown / malformed / missing block. A gate allow
+    # never clears an atoms block (atoms still run after allow).
     if gate_decision is not None:
-        verdict = getattr(gate_decision, "verdict", None)
-        value = getattr(verdict, "value", verdict)
-        if str(value).lower() == "deny":
-            reason = getattr(gate_decision, "reason", "denied by capability-gate")
+        gate_class = classify_gate_verdict(gate_decision)
+        reason = getattr(gate_decision, "reason", None) or "capability-gate"
+        if gate_class == "deny" or gate_class == "block":
             return _seal_receipt_fields(
                 EvaluationResult(
                     block_message=f"[aegis-atoms] Blocked by gate: {reason}",
                     firings=[],
                     winning_effect="block",
+                ),
+                gate_decision,
+            )
+        if gate_class == "ask":
+            return _seal_receipt_fields(
+                EvaluationResult(
+                    block_message=(f"[aegis-atoms] Gate ask (escalate): {reason}"),
+                    firings=[],
+                    winning_effect="human_review",
                 ),
                 gate_decision,
             )
