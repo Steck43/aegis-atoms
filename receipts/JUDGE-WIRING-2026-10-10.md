@@ -52,6 +52,9 @@ Judge-enabled profiles and terminal/shell surface (gate cannot see shell writes)
 
 **Disclose:** three live profiles enable the judge and also configure a Hermes `terminal` backend. Writing `.aegis/profile_id` can only arm apply (tightens); it cannot grant shell. Explicit CG deny for `.env` / `.aegis` path segments lands on capability-gate branch `paper/protected-path-deny-2026-10-10` (not this PR). Estate apply-default mirror: **merged** (`c745fae` / estate #4).
 
+**Claim-scope blocker (Forseti, parallel to #60):** terminal on `aegis`/`tester`/`watch` is Docker, not isolation-layer. Probe receipt:
+`hermes-agent-estate/wsl/receipts/TERMINAL-JAIL-CLAIM-SCOPE-2026-10-10.md` — **(a) FAIL**. Until remediation, every gate/judge claim for those profiles is **non-terminal tools only**; the jail (mount set), not the gate, bounds the shell. Prefer `step11-test` for composition claims.
+
 ## NOT claimed
 
 - JUDGE-COMPARE filled tables (scaffold only — produce once #60 lands)
