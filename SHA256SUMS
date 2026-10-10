@@ -63,8 +63,8 @@ f04223433d816c69138f86c87a3bbe21b15411eb2a6e1a2c089c2bfa291c3944  plugin.yaml
 a2cb52d041c44b74a106ec9b3d14cc921d0eb1ace909976f02b8423d231f909a  pytest.ini
 4455eabe4c1ecb666a6dfca2a07c43ef49d84f0a700dcbaf4602f59efb4d01ac  receipts/ATOMS-FAILCLOSED-2026-10-09.md
 39167bc9361ad5904ef864f61712d6087190a9a1bcdebc8d6cf1906bb3a7421a  receipts/JUDGE-CALL-SITES-2026-10-09.md
-20a5a3b4fdf55f5c97a8c3c3fa48a41c198a25cae8bfffd6c137b3c47e2d270a  receipts/STEP-6-2026-10-09.md
-4f16fce9b4e07d990b98f643f8acb144a07deb37ae8809dd65daac25cc0d5a90  receipts/STEP-8-2026-10-09.md
+52362e262e6c1473dfda90f1bc5b25f820f7bca925ed26c56a21273eddd12916  receipts/STEP-6-2026-10-09.md
+611ef786bc7ff8ffab1a5b6e29eb73b02a15eb10b2b2d63138f53c4d05d2cbc3  receipts/STEP-8-2026-10-09.md
 00f2181adaa49ad8d5af65e440950543c4982c25a23bb0973a1ebab8a10b57e5  receipts/T-COMP-01-VERDICT-MATRIX-2026-10-09.md
 cfbee51e10ed418fb0c41eab3af9c84a3e3c6782c92ff30b9566eaa5b20ac1ac  receipts/raw/t-comp-01-expected-matrix.json
 ecd4dbbeba734b72b3e23f2a74bcef62e208876a2d1f5f22ee67779b15a7e05a  requirements-dev.txt
