@@ -21,9 +21,17 @@ from datetime import date
 from typing import Any, Callable
 
 try:
-    from .bounded_judge import JudgeOpinion, JudgeRecommendation
+    from .bounded_judge import (
+        JudgeOpinion,
+        JudgeRecommendation,
+        is_judge_phase_cancelled,
+    )
 except ImportError:  # standalone / sys.path test import
-    from bounded_judge import JudgeOpinion, JudgeRecommendation
+    from bounded_judge import (
+        JudgeOpinion,
+        JudgeRecommendation,
+        is_judge_phase_cancelled,
+    )
 try:
     from .judge_audit import (
         SONNET5_PRICE_TABLE,
@@ -296,6 +304,10 @@ def make_sonnet_judge_slot(
             cache_creation_tokens=cache_create,
             dry_run=False,
         )
+        # Abandoned after phase deadline: do not meter or audit into a later call.
+        if is_judge_phase_cancelled():
+            raise JudgeUnavailable("cancelled:phase_deadline")
+
         # Every issued response meters — including refusal (paid decline).
         budget.record_issue(actual, estimate)
         slot.last_cost_usd = float(actual)  # type: ignore[attr-defined]

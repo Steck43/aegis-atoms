@@ -8,7 +8,9 @@ Forseti Packet A: FIX-FIRST on deadline + per-call apply (this tip).
 
 1. **Order.** Live `pre_tool_call` evaluates atoms with `judge_enabled=False`, runs bound prove when `AEGISBOX_PROVE=1` and the atoms floor has not already blocked, then `engine.apply_judge_phase`, then returns the human block/ask. Required order: gate → atoms → box → judge → human.
 2. **Timeout (Forseti FIX-FIRST).** Whole phase capped at `JUDGE_PHASE_DEADLINE_S = 10`. Pool uses `shutdown(wait=False, cancel_futures=True)` (no worker join). Anthropic `max_retries=0`, request timeout 8 s. Timeout / slot fault → escalate on the door even when apply is false. `judge_started` G6 row is written before the call.
+   **Disclose (live + lab):** with the judge enabled, a phase stall at the 10 s ceiling **blocks/escalates** the tool call (infra_fail path reaches the door even when apply is off). A G6 **log write failure** likewise fail-closes (escalate / block) — it does not fail open.
 3. **Log fields.** `EvaluationResult` and `judge_apply_decision` JSONL carry `judge_enabled`, `judge_apply_verdict`, `judge_verdict`, `judge_subtracted`, `judge_latency_ms`, `judge_model`, `judge_prompt_sha256`, `judge_error`, `judge_cost_usd`. Failed G6 writes fail closed. Quota skips write `judge_skipped` with reason.
+3b. **Abandoned thread (Forseti r2).** Each judge phase binds its own audit path + cancel flag. After phase timeout, late cage audit writes and spend metering are skipped so an abandoned worker cannot append into a later call's G6 file. Test: `tests/test_judge_abandoned_thread.py`.
 4. **Apply scope (Forseti FIX-FIRST).** Per-call re-check of `AEGIS_JUDGE_APPLY_GO` + `AEGIS_PROFILE_ID=step11-test` + `$HERMES_HOME/.aegis/profile_id` marker. Config flip alone cannot arm apply. Engine default stays False. `register` refuses armed apply without the same triple.
 5. **Subtract-only unchanged.** Parser still rejects allow/block/deny; consumer never lowers the lattice; no deny→escalate widening of a hard block.
 6. **Hermes swallow.** Dest-read of `invoke_hook` at `ccd8deaa67`: exceptions are logged and dropped unless `require_mount`. Atoms never re-raises from `pre_tool_call` or `apply_judge_phase`.
@@ -34,15 +36,29 @@ Compare scaffold: `receipts/JUDGE-COMPARE-PRE-G6-REGRADE-2026-10-10.md`.
 | Host | Result |
 |---|---|
 | WSL Hermes | `ccd8deaa67` — swallow confirmed; no hook deadline |
-| aegisbox | NOT REACHED this sitting (SSH timeout / paths absent in WSL) |
+| aegisbox | REACHED via Tailscale `landen@100.72.168.92` — `~/aegis-atoms-public` on `master` at `d14295d1` (clean; not yet on #60 tip) |
+
+## Live WSL profile allowlist (2026-10-10 dest-read)
+
+Judge-enabled profiles and terminal/shell surface (gate cannot see shell writes):
+
+| Profile | `judge_enabled` | `judge_apply_verdict` | Terminal / shell |
+|---|---|---|---|
+| `aegis` | **true** | false | `toolsets: [hermes-cli]` + `terminal:` docker backend |
+| `tester` | **true** | false | `terminal:` docker backend |
+| `watch` | **true** | false | `terminal:` docker backend |
+| `step11-test` | false (armed only by prepare script) | false | no terminal block |
+| `optio` | false / unset | unset | no terminal block |
+
+**Disclose:** three live profiles enable the judge and also configure a Hermes `terminal` backend. Writing `.aegis/profile_id` can only arm apply (tightens); it cannot grant shell. Explicit CG deny for `.env` / `.aegis` path segments lands on capability-gate branch `paper/protected-path-deny-2026-10-10` (not this PR). Estate apply-default mirror: **merged** (`c745fae` / estate #4).
 
 ## NOT claimed
 
-- JUDGE-COMPARE filled tables (scaffold only)
-- Forseti re-review PASS (awaiting)
+- JUDGE-COMPARE filled tables (scaffold only — produce once #60 lands)
+- Forseti re-review PASS (awaiting r2 check of abandoned-thread test)
 - Paper claim that the judge applies in production
 - `always_invoked` (stays false)
 
 ## Outcome
 
-FIX-FIRST implemented on branch; **#60 held for Forseti re-review**. Do not merge until Forseti clears.
+FIX-FIRST + r2 abandoned-thread isolation on branch; **#60 held for Forseti re-review of the new test**. Do not merge until Forseti clears.

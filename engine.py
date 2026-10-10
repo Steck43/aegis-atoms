@@ -1439,6 +1439,8 @@ def apply_judge_phase(
         from .bounded_judge import (
             JudgeOutcome,
             apply_judge,
+            bind_judge_phase,
+            clear_judge_phase,
             judge_slot_stub,
             set_audit_path,
         )
@@ -1446,6 +1448,8 @@ def apply_judge_phase(
         from bounded_judge import (
             JudgeOutcome,
             apply_judge,
+            bind_judge_phase,
+            clear_judge_phase,
             judge_slot_stub,
             set_audit_path,
         )
@@ -1483,8 +1487,14 @@ def apply_judge_phase(
             class JudgeUnavailable(Exception):  # type: ignore[no-redef]
                 pass
 
+    import threading as _threading
+
     t0 = _time.monotonic()
     clear_audit = set_audit_path
+    # Capture path + cancel for this phase only. Abandoned workers must not
+    # write via a later call's module-level set_audit_path (Forseti r2).
+    phase_cancel = _threading.Event()
+    phase_audit = Path(judge_audit_path) if judge_audit_path else None
     try:
         if judge_audit_path:
             clear_audit(judge_audit_path)
@@ -1541,7 +1551,15 @@ def apply_judge_phase(
         def _slot_with_request_deadline(slot_case: dict[str, Any], floor: Any) -> Any:
             """Per-slot request ceiling; phase deadline wraps the whole cage."""
             pool = ThreadPoolExecutor(max_workers=1)
-            fut = pool.submit(slot, slot_case, floor)
+
+            def _slot_worker() -> Any:
+                bind_judge_phase(audit_path=phase_audit, cancel=phase_cancel)
+                try:
+                    return slot(slot_case, floor)
+                finally:
+                    clear_judge_phase()
+
+            fut = pool.submit(_slot_worker)
             try:
                 return fut.result(timeout=float(JUDGE_REQUEST_TIMEOUT_S))
             except FuturesTimeout as exc:
@@ -1553,19 +1571,25 @@ def apply_judge_phase(
                 pool.shutdown(wait=False, cancel_futures=True)
 
         def _run_cage() -> Any:
-            return apply_judge(
-                floor_verdict,
-                case,
-                _slot_with_request_deadline,
-                threshold=threshold,
-                cap=3,
-            )
+            bind_judge_phase(audit_path=phase_audit, cancel=phase_cancel)
+            try:
+                return apply_judge(
+                    floor_verdict,
+                    case,
+                    _slot_with_request_deadline,
+                    threshold=threshold,
+                    cap=3,
+                )
+            finally:
+                clear_judge_phase()
 
         phase_pool = ThreadPoolExecutor(max_workers=1)
         phase_fut = phase_pool.submit(_run_cage)
         try:
             outcome = phase_fut.result(timeout=float(JUDGE_PHASE_DEADLINE_S))
         except FuturesTimeout:
+            # Stop late audit writes + spend metering on the abandoned worker.
+            phase_cancel.set()
             outcome = JudgeOutcome(
                 floor_verdict=floor_verdict,
                 opinion=None,
@@ -1652,7 +1676,7 @@ def apply_judge_phase(
         return result
     except Exception as exc:  # noqa: BLE001 — must not escape into Hermes swallow
         latency_ms = (_time.monotonic() - t0) * 1000.0
-        reason = f"{type(exc).__name__}:{exc}"
+        reason = f"{type(exc).__name__}:{exc!r}"
         closed = _fail_closed_judge_result(
             result,
             reason=reason,
