@@ -17,9 +17,9 @@ from bounded_judge import JudgeOpinion, JudgeRecommendation
 from engine import evaluate_tool_call, load_catalog
 
 
-def test_omit_flag_defaults_true() -> None:
+def test_omit_flag_defaults_false() -> None:
     param = inspect.signature(evaluate_tool_call).parameters["judge_apply_verdict"]
-    assert param.default is True
+    assert param.default is False
 
 
 def test_load_atoms_entry_coerces_apply_flag(monkeypatch) -> None:
