@@ -63,31 +63,46 @@ class _UnknownDecision:
 
 
 @TEN_THOUSAND
-@given(st.one_of(st.none(), st.integers(), st.binary(), st.text().filter(lambda x: x != "allow")))
+@given(
+    st.one_of(
+        st.none(), st.integers(), st.binary(), st.text().filter(lambda x: x != "allow")
+    )
+)
 def test_t_prop_01_unknown_verdicts_fail_closed(verdict: object) -> None:
     """T-PROP-01: only exact canonical allow escapes the block class."""
     result = classify_gate_verdict(_UnknownDecision(verdict))
     assert result != "allow"
 
 
-@pytest.mark.xfail(strict=True, reason="T-PROP-02 belongs to capability-gate argument parsing")
+@pytest.mark.xfail(
+    strict=True, reason="T-PROP-02 belongs to capability-gate argument parsing"
+)
 def test_t_prop_02_gate_argument_fuzzer_remainder() -> None:
     pytest.fail("port the one-hour gate parser campaign and minimized crashes")
 
 
-@pytest.mark.xfail(strict=True, reason="T-PROP-03 needs isolation-layer receipt parsers and cargo-fuzz")
+@pytest.mark.xfail(
+    strict=True, reason="T-PROP-03 needs isolation-layer receipt parsers and cargo-fuzz"
+)
 def test_t_prop_03_receipt_parser_fuzzer_remainder() -> None:
     pytest.fail("run Hypothesis and cargo-fuzz against the owning receipt parsers")
 
 
-@pytest.mark.xfail(strict=True, reason="T-PROP-04 requires a mutation campaign over gate and atoms")
+@pytest.mark.xfail(
+    strict=True, reason="T-PROP-04 requires a mutation campaign over gate and atoms"
+)
 def test_t_prop_04_mutation_score_remainder() -> None:
     pytest.fail("reach 80% mutation score and disposition surviving deny mutants")
 
 
-@pytest.mark.xfail(strict=True, reason="T-REP-02 needs capability-gate log replay and chain verification")
+@pytest.mark.xfail(
+    strict=True,
+    reason="T-REP-02 needs capability-gate log replay and chain verification",
+)
 def test_t_rep_02_decision_log_replay_remainder() -> None:
-    pytest.fail("replay 1,000 rows including THROWN and compare verdict bytes and chain hash")
+    pytest.fail(
+        "replay 1,000 rows including THROWN and compare verdict bytes and chain hash"
+    )
 
 
 @pytest.mark.parametrize(
@@ -99,6 +114,8 @@ def test_t_rep_02_decision_log_replay_remainder() -> None:
         ("T-P2-04", "pin known_hosts or disclose accept-new in hermes-agent-estate"),
     ],
 )
-@pytest.mark.xfail(strict=True, reason="P2 contract is owned by another roof or live host")
+@pytest.mark.xfail(
+    strict=True, reason="P2 contract is owned by another roof or live host"
+)
 def test_t_p2_cross_roof_remainder(test_id: str, remainder: str) -> None:
     pytest.fail(f"{test_id}: {remainder}")
