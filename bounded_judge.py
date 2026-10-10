@@ -63,6 +63,11 @@ def is_judge_phase_cancelled() -> bool:
     return cancel is not None and cancel.is_set()
 
 
+def phase_audit_path() -> Path | None:
+    """This thread's bound cage audit path (None if unbound)."""
+    return getattr(_phase_local, "audit_path", None)
+
+
 class JudgeRecommendation(Enum):
     """Advisory shapes only. allow/block are unrepresentable here."""
 
