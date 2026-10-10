@@ -32,8 +32,13 @@ _audit_path: Path | None = None
 
 # Per-phase bind: abandoned timeout threads must not write into a later call's
 # G6 file via the module-level path. Each judge phase captures its own path and
-# cancel flag; after cancel, audit writes and spend metering are skipped.
+# cancel flag; after cancel, cage G6 audit writes are skipped. Completed provider
+# calls are still metered (Forseti r3).
 _phase_local = threading.local()
+
+
+class JudgeUnavailable(Exception):
+    """Loud cage escalate. Name matches the slot module for _classify_slot_failure."""
 
 
 def bind_judge_phase(
@@ -283,6 +288,9 @@ def apply_judge(
 
     try:
         while retries_used < cap:
+            # Abandoned phase: do not start another paid re-ask (Forseti r3).
+            if is_judge_phase_cancelled():
+                raise JudgeUnavailable("cancelled:phase_deadline")
             retries_used += 1
             try:
                 raw = judge_slot(slot_case, floor_verdict)

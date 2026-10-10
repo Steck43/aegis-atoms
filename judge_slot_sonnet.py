@@ -215,6 +215,11 @@ def make_sonnet_judge_slot(
         )
         budget.authorize(estimate)  # may raise BudgetExhausted — before issue
 
+        # Cancel before any paid issue. An abandoned phase must not start a
+        # new provider call (Forseti r3 — $50 cap under-count hole).
+        if is_judge_phase_cancelled():
+            raise JudgeUnavailable("cancelled:phase_deadline")
+
         if cfg.dry_run:
             usage = ModelCallUsage(
                 model_identity=MODEL_ID + "#dry-run",
@@ -304,14 +309,15 @@ def make_sonnet_judge_slot(
             cache_creation_tokens=cache_create,
             dry_run=False,
         )
-        # Abandoned after phase deadline: do not meter or audit into a later call.
-        if is_judge_phase_cancelled():
-            raise JudgeUnavailable("cancelled:phase_deadline")
-
-        # Every issued response meters — including refusal (paid decline).
+        # Always meter a completed provider call — even after phase cancel.
+        # Skipping spend here under-counts the $50 cap (Forseti r3). G6 cage
+        # audit writes are skipped separately via is_judge_phase_cancelled.
         budget.record_issue(actual, estimate)
         slot.last_cost_usd = float(actual)  # type: ignore[attr-defined]
         slot.last_model_id = str(model_identity)  # type: ignore[attr-defined]
+
+        if is_judge_phase_cancelled():
+            raise JudgeUnavailable("cancelled:phase_deadline")
 
         if stop_reason == "refusal":
             _maybe_audit(
