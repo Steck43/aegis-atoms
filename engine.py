@@ -554,7 +554,7 @@ def evaluate_tool_call(
     tool_metadata: dict[str, Any] | None = None,
     approved_tools_path: str | None = None,
     judge_enabled: bool = False,
-    judge_apply_verdict: bool = True,
+    judge_apply_verdict: bool = False,
     judge_force_consult: bool = True,
     judge_consult_tools: frozenset[str] | set[str] | None = None,
     judge_slot: Any | None = None,
