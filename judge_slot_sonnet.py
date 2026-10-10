@@ -25,12 +25,14 @@ try:
         JudgeOpinion,
         JudgeRecommendation,
         is_judge_phase_cancelled,
+        phase_audit_path,
     )
 except ImportError:  # standalone / sys.path test import
     from bounded_judge import (
         JudgeOpinion,
         JudgeRecommendation,
         is_judge_phase_cancelled,
+        phase_audit_path,
     )
 try:
     from .judge_audit import (
@@ -317,6 +319,13 @@ def make_sonnet_judge_slot(
         slot.last_model_id = str(model_identity)  # type: ignore[attr-defined]
 
         if is_judge_phase_cancelled():
+            # Cost row must survive cancel so sum(cost rows) == provider spend.
+            _write_cancelled_cost_row(
+                case=case,
+                cost_usd=float(actual),
+                model_id=str(model_identity),
+                usage=mc,
+            )
             raise JudgeUnavailable("cancelled:phase_deadline")
 
         if stop_reason == "refusal":
@@ -385,6 +394,32 @@ def _maybe_audit(
         notes={"effort": cfg.effort, "max_tokens": cfg.max_tokens},
     )
     cfg.audit_store.append(rec)
+
+
+def _write_cancelled_cost_row(
+    *,
+    case: dict[str, Any],
+    cost_usd: float,
+    model_id: str,
+    usage: ModelCallUsage,
+) -> None:
+    """Append a spend row even when cage audit is skipped after phase cancel."""
+    path = phase_audit_path()
+    if path is None:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    row = {
+        "record_type": "judge_cost",
+        "ts": utc_now_iso(),
+        "evaluation_id": case.get("evaluation_id"),
+        "cancelled": True,
+        "judge_cost_usd": float(cost_usd),
+        "judge_model": model_id,
+        "tokens_in": int(usage.tokens_in),
+        "tokens_out": int(usage.tokens_out),
+    }
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
 def _call_anthropic(

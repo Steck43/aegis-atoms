@@ -201,6 +201,44 @@ class _FakeClient:
         self.messages = _FakeMessages(responses)
 
 
+def test_cancelled_phase_writes_cost_row_with_marker(tmp_path: Path) -> None:
+    """Forseti nit: cancelled:true cost row after a completed provider call."""
+    budget = BudgetGuard(ceiling_usd=2.0, stage_name="r3-cost-row")
+    client = _FakeClient([])
+    audit = tmp_path / "judge.jsonl"
+    slot = make_sonnet_judge_slot(
+        budget, config=SonnetJudgeConfig(api_key="k"), client=client
+    )
+    cancel = threading.Event()
+    bind_judge_phase(audit_path=audit, cancel=cancel)
+    try:
+        from judge_slot_sonnet import JudgeUnavailable as SlotUnavailable
+
+        def _create(**kwargs):
+            client.messages.calls.append(kwargs)
+            cancel.set()
+            return _ok_resp()
+
+        client.messages.create = _create  # type: ignore[method-assign]
+        with pytest.raises(SlotUnavailable, match="cancelled"):
+            slot(_amb_case("cost-row"), EffectRank.ALLOW)
+        assert budget.calls_issued == 1
+        rows = [
+            json.loads(line)
+            for line in audit.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        cost_rows = [
+            r
+            for r in rows
+            if r.get("record_type") == "judge_cost" and r.get("cancelled") is True
+        ]
+        assert len(cost_rows) == 1, rows
+        assert float(cost_rows[0]["judge_cost_usd"]) > 0.0
+    finally:
+        clear_judge_phase()
+
+
 def test_completed_call_after_cancel_is_still_metered() -> None:
     """Forseti r3: provider already charged — budget must count it."""
     budget = BudgetGuard(ceiling_usd=2.0, stage_name="r3-meter")
