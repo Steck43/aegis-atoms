@@ -51,7 +51,9 @@ def _base(tmp_path: Path, call_id: str):
     )
 
 
-def test_abandoned_thread_cannot_write_into_later_call_g6(monkeypatch, tmp_path) -> None:
+def test_abandoned_thread_cannot_write_into_later_call_g6(
+    monkeypatch, tmp_path
+) -> None:
     """Call A times out with its cage thread alive; while B holds the audit
     path, A finishes late. B's G6 must contain no A rows."""
     import judge_slot_sonnet as slot_mod
