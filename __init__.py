@@ -13,8 +13,12 @@ Composes with capability-gate (path allowlist) and constitution-guard (persona).
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import os
+import subprocess
+import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -534,6 +538,56 @@ def pre_llm_call(
     return None
 
 
+def _atoms_result_sha256(result: Any) -> str:
+    body = [
+        getattr(result, "block_message", None),
+        getattr(result, "winning_effect", None),
+        getattr(result, "decision_digest", None),
+        getattr(result, "box_ticket", None),
+    ]
+    return hashlib.sha256(json.dumps(body).encode("utf-8")).hexdigest()
+
+
+def _bound_prove_on_aegisbox(
+    *,
+    tool_call_id: str,
+    gate_decision_sha256: str,
+    atoms_result_sha256: str,
+) -> str | None:
+    """Run isolation-manager prove on aegisbox. Returns an error message or None."""
+    if not tool_call_id or not gate_decision_sha256 or not atoms_result_sha256:
+        return (
+            "[aegis-atoms] bound prove refused: missing tool_call_id or "
+            "gate_decision_sha256 / atoms_result_sha256"
+        )
+    default = Path(
+        "/mnt/c/Users/lande/Engineering_and_Development/hermes-agent-estate/"
+        "wsl/scripts/aegisbox_bound_prove.py"
+    )
+    script = Path(os.environ.get("AEGISBOX_BOUND_PROVE", str(default)))
+    if not script.is_file():
+        return f"[aegis-atoms] bound prove script missing: {script}"
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "--tool-call-id",
+            tool_call_id,
+            "--gate-decision-sha256",
+            gate_decision_sha256,
+            "--atoms-result-sha256",
+            atoms_result_sha256,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        tail = ((proc.stdout or "") + (proc.stderr or ""))[-800:]
+        return f"[aegis-atoms] isolation-manager prove failed: {tail}"
+    return None
+
+
 def pre_tool_call(
     tool_name: str,
     args: dict,
@@ -578,6 +632,12 @@ def pre_tool_call(
             judge_slot, using_paid = _observe_judge_slot(env)
 
         plugin_root = Path(__file__).resolve().parent
+        # Step 11: consume the Decision capability-gate stashed on the shared
+        # pre_tool_context under this Hermes tool_call_id.
+        pre_tool_context = kwargs.get("pre_tool_context")
+        gate_decision = None
+        if isinstance(pre_tool_context, dict):
+            gate_decision = pre_tool_context.get("gate_decision")
         result = eng.evaluate_tool_call(
             catalog,
             tool_name,
@@ -610,6 +670,7 @@ def pre_tool_call(
             judge_consult_tools=_JUDGE_CONSULT_TOOLS if using_paid else None,
             judge_slot=judge_slot,
             judge_audit_path=judge_audit,
+            gate_decision=gate_decision,
         )
         eng.append_firings(log_path, result.firings, catalog)
         if result.judge_consumed:
@@ -631,6 +692,18 @@ def pre_tool_call(
             )
         if result.block_message:
             return {"action": "block", "message": result.block_message}
+        # Step 11: optional bound prove on aegisbox under the Hermes tool_call_id.
+        # Off unless AEGISBOX_PROVE=1. Does not call box_entry.run.
+        if os.environ.get("AEGISBOX_PROVE") == "1":
+            prove_err = _bound_prove_on_aegisbox(
+                tool_call_id=tool_call_id,
+                gate_decision_sha256=str(result.decision_digest or ""),
+                atoms_result_sha256=_atoms_result_sha256(result),
+            )
+            if prove_err:
+                if mode == "enforce":
+                    return {"action": "block", "message": prove_err}
+                logger.warning("aegis-atoms bound prove (observe): %s", prove_err)
     except Exception as exc:
         logger.exception("aegis-atoms pre_tool_call failed")
         if mode == "enforce":
