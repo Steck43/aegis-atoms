@@ -753,6 +753,15 @@ def pre_tool_call(
 
 def register(ctx) -> None:
     root = _assert_live_plugin_path()
+    # Startup assertion: apply stays off unless Landen sets AEGIS_JUDGE_APPLY_GO=1
+    # after an explicit GO. Rollback: unset AEGIS_JUDGE_APPLY_GO and set
+    # plugins.entries.aegis-atoms.judge_apply_verdict false, then restart Hermes.
+    entry = _load_atoms_entry()
+    if entry.judge_apply_verdict and os.environ.get("AEGIS_JUDGE_APPLY_GO") != "1":
+        raise RuntimeError(
+            "aegis-atoms refusing to register with judge_apply_verdict=true "
+            "without AEGIS_JUDGE_APPLY_GO=1 (Landen GO required)"
+        )
     _write_load_heartbeat(root)
     logger.info("aegis-atoms registered from %s", root)
     ctx.register_hook("pre_llm_call", pre_llm_call)
