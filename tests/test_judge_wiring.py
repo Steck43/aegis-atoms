@@ -178,7 +178,12 @@ def test_judge_log_fields_on_decision_jsonl(tmp_path) -> None:
     assert result.judge_model
     assert result.judge_cost_usd is not None
     assert result.judge_error is None
-    assert result.judge_verdict in ("concur", "escalate", "flag_for_review", "add_nuance")
+    assert result.judge_verdict in (
+        "concur",
+        "escalate",
+        "flag_for_review",
+        "add_nuance",
+    )
     lines = [
         json.loads(line)
         for line in audit.read_text(encoding="utf-8").strip().splitlines()

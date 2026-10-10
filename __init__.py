@@ -723,9 +723,9 @@ def pre_tool_call(
                 else:
                     logger.warning("aegis-atoms bound prove (observe): %s", prove_err)
         if judge_enabled:
-            evaluation_id = ":".join(
-                x for x in (session_id, tool_call_id) if x
-            ) or "unknown"
+            evaluation_id = (
+                ":".join(x for x in (session_id, tool_call_id) if x) or "unknown"
+            )
             result = eng.apply_judge_phase(
                 result,
                 tool_name=tool_name,

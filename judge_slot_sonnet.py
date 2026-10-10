@@ -175,9 +175,7 @@ def make_sonnet_judge_slot(
         or os.environ.get("ANTHROPIC_API_KEY")
         or os.environ.get("ANTHROPIC_API_KEY".lower())
     )
-    request_timeout = (
-        JUDGE_REQUEST_TIMEOUT_S if timeout_s is None else float(timeout_s)
-    )
+    request_timeout = JUDGE_REQUEST_TIMEOUT_S if timeout_s is None else float(timeout_s)
 
     def slot(case: dict[str, Any], floor_verdict: EffectRank) -> JudgeOpinion:
         slot.last_cost_usd = 0.0  # type: ignore[attr-defined]
