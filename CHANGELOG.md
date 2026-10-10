@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- evaluate_tool_call records decision_digest from the gate decision it read and issues a unique ox_ticket when the call is not blocked.
+
+### Added
+
 - `evaluate_tool_call` takes `gate_decision`. A gate deny blocks in atoms; a gate allow never clears an atoms block. `tests/test_gate_decision_param.py` pins both sides.
 
 ### Fixed

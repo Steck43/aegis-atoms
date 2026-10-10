@@ -9,6 +9,7 @@ Summary: The decision point. A tool call is evaluated against the catalog, the a
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import uuid
@@ -29,6 +30,32 @@ PATH_ARG = {
 }
 
 EFFECT_RANK = {"monitor": 1, "human_review": 2, "block": 3}
+
+
+def decision_digest(gate_decision: Any) -> str:
+    """Sha256 of the gate decision fields atoms actually read."""
+    verdict = getattr(gate_decision, "verdict", None)
+    value = getattr(verdict, "value", verdict)
+    body = json.dumps(
+        [
+            value,
+            getattr(gate_decision, "skill", None),
+            getattr(gate_decision, "tool", None),
+            list(getattr(gate_decision, "paths", []) or []),
+            getattr(gate_decision, "reason", None),
+        ]
+    )
+    return hashlib.sha256(body.encode("utf-8")).hexdigest()
+
+
+def _seal_receipt_fields(
+    result: EvaluationResult, gate_decision: Any | None
+) -> EvaluationResult:
+    if gate_decision is not None:
+        result.decision_digest = decision_digest(gate_decision)
+    if result.block_message is None:
+        result.box_ticket = uuid.uuid4().hex
+    return result
 
 
 def defined_atom_version(atoms: list[Any], atom_id: str) -> str:
@@ -169,6 +196,9 @@ class EvaluationResult:
     judge_subtracted: bool = False
     judge_would_subtract: bool = False
     judge_applied: bool = False
+    # Step 8 receipt fields: digest of the gate decision read; per-call box ticket.
+    decision_digest: str | None = None
+    box_ticket: str | None = None
 
 
 def _expand(text: str, env: dict[str, str]) -> str:
@@ -516,10 +546,13 @@ def evaluate_tool_call(
         value = getattr(verdict, "value", verdict)
         if str(value).lower() == "deny":
             reason = getattr(gate_decision, "reason", "denied by capability-gate")
-            return EvaluationResult(
-                block_message=f"[aegis-atoms] Blocked by gate: {reason}",
-                firings=[],
-                winning_effect="block",
+            return _seal_receipt_fields(
+                EvaluationResult(
+                    block_message=f"[aegis-atoms] Blocked by gate: {reason}",
+                    firings=[],
+                    winning_effect="block",
+                ),
+                gate_decision,
             )
     paths = [_normalize_path(p, env) for p in _extract_paths(tool_name, args)]
     evaluation_id = ":".join(x for x in (session_id, tool_call_id) if x) or "unknown"
@@ -1348,20 +1381,26 @@ def evaluate_tool_call(
                     fh.write(json.dumps(decision, ensure_ascii=False) + "\n")
             except OSError:
                 pass
-        return EvaluationResult(
-            block_message=block_message,
-            firings=firings,
-            winning_effect=best_effect,
-            judge_consumed=True,
-            judge_escalated=bool(outcome.escalated),
-            judge_recommendation=rec,
-            judge_would_subtract=would_subtract,
-            judge_applied=bool(judge_apply_verdict),
-            judge_subtracted=bool(would_subtract and judge_apply_verdict),
+        return _seal_receipt_fields(
+            EvaluationResult(
+                block_message=block_message,
+                firings=firings,
+                winning_effect=best_effect,
+                judge_consumed=True,
+                judge_escalated=bool(outcome.escalated),
+                judge_recommendation=rec,
+                judge_would_subtract=would_subtract,
+                judge_applied=bool(judge_apply_verdict),
+                judge_subtracted=bool(would_subtract and judge_apply_verdict),
+            ),
+            gate_decision,
         )
 
-    return EvaluationResult(
-        block_message=block_message, firings=firings, winning_effect=best_effect
+    return _seal_receipt_fields(
+        EvaluationResult(
+            block_message=block_message, firings=firings, winning_effect=best_effect
+        ),
+        gate_decision,
     )
 
 
