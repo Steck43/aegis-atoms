@@ -588,9 +588,7 @@ def evaluate_tool_call(
         if gate_class == "ask":
             return _seal_receipt_fields(
                 EvaluationResult(
-                    block_message=(
-                        f"[aegis-atoms] Gate ask (escalate): {reason}"
-                    ),
+                    block_message=(f"[aegis-atoms] Gate ask (escalate): {reason}"),
                     firings=[],
                     winning_effect="human_review",
                 ),

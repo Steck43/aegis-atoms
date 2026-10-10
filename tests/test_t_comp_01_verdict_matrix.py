@@ -39,9 +39,7 @@ def _env(tmp_path: Path) -> dict[str, str]:
 
 
 def _catalog(tmp_path: Path):
-    return engine.load_catalog(
-        ROOT / "catalog" / "Aegis-Atoms-v0.yaml", _env(tmp_path)
-    )
+    return engine.load_catalog(ROOT / "catalog" / "Aegis-Atoms-v0.yaml", _env(tmp_path))
 
 
 def _load_expected() -> list[dict]:
@@ -108,13 +106,16 @@ def test_verdict_matrix_row(tmp_path: Path, shape: dict) -> None:
                 result.block_message or ""
             )
         if expect_effect == "human_review":
-            assert "gate" in (result.block_message or "").lower() or "ask" in (
-                result.block_message or ""
-            ).lower()
+            assert (
+                "gate" in (result.block_message or "").lower()
+                or "ask" in (result.block_message or "").lower()
+            )
 
 
 def test_canonical_allow_is_exact_allow_string() -> None:
     """Receipt contract: allow means the string 'allow' after Enum.value."""
     body = json.loads(EXPECTED_PATH.read_text(encoding="utf-8"))
     assert "allow" in body["canonical_allow"]
-    assert 'Verdict.ALLOW' in body["canonical_allow"] or "ALLOW" in body["canonical_allow"]
+    assert (
+        "Verdict.ALLOW" in body["canonical_allow"] or "ALLOW" in body["canonical_allow"]
+    )
