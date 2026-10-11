@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Ruff development and CI range resolves to `>=0.16.9,<0.17`, replacing the closed Dependabot proposal with a branch that runs the protected floor. Receipt: `RUFF-0.16.9-2026-10-11.md`.
+
 ### Added
 
 - Default pytest collection now carries `T-OS-01` and `T-SG-04` as strict expected failures, so implementing either contract without removing its marker and landing evidence fails the suite. `T-OS-02a..d` remains blocked on missing executable fixture definitions rather than being represented by empty tests. Receipt: `OS-SG-XFAIL-SUITE-2026-10-11.md`.
