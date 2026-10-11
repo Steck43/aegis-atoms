@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Spec seven catalog-tip guard: tests workflow uses `fetch-depth: 0`, and `catalog_tip_commit` refuses a HEAD-collapsed tip when HEAD did not touch the catalog (shallow CI was comparing the merge/HEAD sha to `RUBRIC_ATOMS_COMMIT_PIN`).
 - Compare runner no longer hardcodes `judge_force_consult=True` on every pilot row (that produced 500/500 `flag_for_review`). Normal and honest_mistake abstain; attack and ambiguous consult. `tests/test_judge_compare_consult_policy.py`. `verify_derived.sh` now prints the `gen_manifest.sh` remediation when `SHA256SUMS` lags.
 - Abandoned judge threads after a phase deadline no longer append cage audit rows into a later call's G6 file. Each phase binds its own audit path and cancel flag; cancelled workers skip G6 audit writes only. Completed provider calls are still metered, cancel is checked before each API call and retry, and a cancelled phase starts no new re-ask (`tests/test_judge_abandoned_thread.py`, Forseti r2/r3).
 - When a provider call completes and the phase cancel fires, write a per-call `judge_cost` G6 row with `cancelled: true` and the metered `judge_cost_usd` so spend rows reconcile under the $50 cap (Forseti nit; `test_cancelled_phase_writes_cost_row_with_marker`).

@@ -134,6 +134,34 @@ def catalog_tip_commit(*, catalog_path: Path, repo_root: Path | None = None) -> 
     tip = (proc.stdout or "").strip()
     if proc.returncode != 0 or not tip:
         raise AssertionError(f"cannot resolve catalog tip for {rel}: {proc.stderr}")
+    # Shallow clones often return HEAD for every path. Refuse that as a tip
+    # unless HEAD itself modified the catalog (real single-commit change).
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    head_sha = (head.stdout or "").strip()
+    if tip == head_sha:
+        touched = subprocess.run(
+            ["git", "diff-tree", "--no-commit-id", "--name-only", "-r", head_sha],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        names = {
+            line.strip().replace("\\", "/")
+            for line in (touched.stdout or "").splitlines()
+            if line.strip()
+        }
+        if rel not in names:
+            raise AssertionError(
+                f"catalog tip collapsed to HEAD ({head_sha[:12]}) without a "
+                f"catalog diff — deepen the git fetch (fetch-depth: 0)"
+            )
     return tip
 
 

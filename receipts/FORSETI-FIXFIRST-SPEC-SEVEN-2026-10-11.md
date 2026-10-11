@@ -16,3 +16,8 @@ RUBRIC_ATOMS_COMMIT_PIN set to the live catalog tip 5cf0b6ccf066b633dd1e0390f0ec
 ## Proof
 
 python -m pytest -q tests/test_judge_spec_forseti_seven.py → 10 passed.
+
+## CI follow-up (same sitting)
+
+Shallow PR checkouts made `git log -1 -- catalog/...` return HEAD/merge (`cbf71ae6…` on CI). Tests job now sets `fetch-depth: 0`; `catalog_tip_commit` fails closed if the tip collapses to HEAD without a catalog diff.
+
