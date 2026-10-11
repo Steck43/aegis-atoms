@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Judge false-deny REOPENED (Mimir): post-#65 normal 0% would_subtract is non-consult; consulted residual 75/75 still flags. Receipts `JUDGE-SPEC-FALSE-DENY-REOPEN-2026-10-11.md` and updated `JUDGE-COMPARE-PRE-G6-REGRADE-2026-10-10.md`. Apply stays False. No paper claim.
+### Changed
+
+- False-deny reopen receipt refreshed: lead with 50/50 known-benign; cite e808cf53 as of 744e2b7 and 6cd866f5 current; 0.2 note EFF50EDE; superseded (not withdrawn). `JUDGE-SPEC-FALSE-DENY-REOPEN-2026-10-11.md`.
+- Raise `zizmorcore/zizmor-action` from 0.6.2 to 0.6.4 (`cc914d7f…`), recreating closed Dependabot #28 on a fresh branch.
+- Ruff development and CI range resolves to `>=0.16.9,<0.17`, replacing the closed Dependabot proposal with a branch that runs the protected floor. Receipt: `RUFF-0.16.9-2026-10-11.md`.
 
 ### Added
 
