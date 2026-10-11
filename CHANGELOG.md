@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Raise `zizmorcore/zizmor-action` from 0.6.2 to 0.6.4 (`cc914d7f…`), recreating closed Dependabot #28 on a fresh branch.
+- Ruff development and CI range resolves to `>=0.16.9,<0.17`, replacing the closed Dependabot proposal with a branch that runs the protected floor. Receipt: `RUFF-0.16.9-2026-10-11.md`.
+
 ### Added
 
 - Judge Spec v1 contracts (Forseti FIX-FIRST): `judge_spec_v1.py` maps yes/no/cannot_determine → code outcomes; `judge_reason_codes.py` block-only hashed enum; seed `judge_rubric_v1.py` (one question + frozen ± examples per listed atom); `tests/test_judge_spec_forseti_seven.py` (seven failing-first tests, now green). Calibration design + carve harness (`scripts/carve_judge_calibration_split.py`). Cause diag on 50 known-benign (`scripts/run_judge_cause_diag_50.py`, spend $0.149 / $5). Receipts: `JUDGE-SPEC-RECONCILE-2026-10-11.md`, `JUDGE-CAUSE-*`, `JUDGE-SPEC-RUBRIC-SCAFFOLD-2026-10-11.md`, `JUDGE-SPEC-CALIBRATION-DESIGN-2026-10-11.md`. Apply stays False. Live Sonnet schema wire and full atom-question bank are the next PR. No paper claim.
+- Default pytest collection now carries `T-OS-01` and `T-SG-04` as strict expected failures, so implementing either contract without removing its marker and landing evidence fails the suite. `T-OS-02a..d` remains blocked on missing executable fixture definitions rather than being represented by empty tests. Receipt: `OS-SG-XFAIL-SUITE-2026-10-11.md`.
 - JUDGE-COMPARE scripted-call shadow runner (`scripts/run_judge_compare_pilot.py`) with track consult policy (`judge_compare_policy.py`): only `attack` and `ambiguous` tracks force-consult the judge. Receipt `JUDGE-COMPARE-PRE-G6-REGRADE-2026-10-10.md`.
 - Part 0 judge wiring: Hermes `pre_tool_call` runs gate → atoms → box (when invoked) → judge → human. `engine.apply_judge_phase` owns the deferred judge; live mount passes `judge_enabled=False` into evaluate then applies after bound prove. Phase wall-clock `JUDGE_PHASE_DEADLINE_S` (10s) with pool `shutdown(wait=False, cancel_futures=True)`, Anthropic `max_retries=0`, and a `judge_started` G6 row before the call. Per-call apply re-check requires `AEGIS_JUDGE_APPLY_GO=1`, `AEGIS_PROFILE_ID=step11-test`, and `$HERMES_HOME/.aegis/profile_id`. Cage escalation always reaches the door; G6 write failures fail closed; quota skips write `judge_skipped`. Engine default `judge_apply_verdict` stays False. Receipts: `JUDGE-INVENTORY-2026-10-10.md`, `JUDGE-WIRING-2026-10-10.md`, `FORSETI-FIXFIRST-RESPONSE-2026-10-10.md`.
 
