@@ -1,6 +1,4 @@
-# Floor CI runs 
-uff check . then 
-uff format --check ..
+# Floor CI runs ruff check then ruff format --check.
 # Scripts insert this tree on sys.path before importing local modules.
 # Freeze the 0.15-era default select under the 0.16.9 pin so the version
 # bump does not widen lint into a multi-hundred finding campaign.
