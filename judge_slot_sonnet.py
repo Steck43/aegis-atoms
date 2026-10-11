@@ -67,7 +67,6 @@ except ImportError:  # standalone / sys.path test import
 try:
     from .judge_reason_codes import JudgeReasonCode
     from .judge_rubric_v1 import (
-        RUBRIC_ATOMS_COMMIT_PIN,
         question_for_atom,
         rubric_sha256,
     )
@@ -75,7 +74,6 @@ try:
 except ImportError:  # standalone / sys.path test import
     from judge_reason_codes import JudgeReasonCode
     from judge_rubric_v1 import (
-        RUBRIC_ATOMS_COMMIT_PIN,
         question_for_atom,
         rubric_sha256,
     )

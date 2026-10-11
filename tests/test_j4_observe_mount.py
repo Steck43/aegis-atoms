@@ -89,12 +89,15 @@ def test_pre_tool_observe_mount_applies_subtract(tmp_path, monkeypatch):
 
     monkeypatch.setenv("HERMES_HOME", str(tmp_path))
     monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(tmp_path / "vault"))
-    # Apply arms only with GO + profile marker (Forseti #60-2), not config alone.
+    # Apply arms only with GO + profile marker + calibration (Spec v1 arm).
     monkeypatch.setenv("AEGIS_JUDGE_APPLY_GO", "1")
     monkeypatch.setenv("AEGIS_PROFILE_ID", "step11-test")
     marker = tmp_path / ".aegis" / "profile_id"
     marker.parent.mkdir(parents=True)
     marker.write_text("step11-test\n", encoding="utf-8")
+    monkeypatch.setattr(
+        init, "_effective_judge_apply", lambda configured: (True, None)
+    )
     monkeypatch.setattr(
         init,
         "_load_atoms_entry",
