@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from bounded_judge import JudgeOpinion, JudgeRecommendation
 from engine import evaluate_tool_call, load_catalog
 from judge_compare_policy import force_consult_for_track
@@ -160,7 +161,9 @@ def test_eval_one_unknown_track_force_consult_reaches_evaluate(monkeypatch, tmp_
     from types import SimpleNamespace
 
     harness = ROOT / "scripts" / "run_judge_compare_pilot.py"
-    spec = importlib.util.spec_from_file_location("run_judge_compare_pilot_j014", harness)
+    spec = importlib.util.spec_from_file_location(
+        "run_judge_compare_pilot_j014", harness
+    )
     assert spec and spec.loader
     mod = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = mod
