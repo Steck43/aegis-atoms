@@ -4,6 +4,7 @@
   "escalate_on": 0,
   "false_deny_off": 0,
   "false_deny_on": 0,
+  "false_deny_on_note": "zero by construction (apply False); not a measured false-deny rate on consulted benign",
   "g6": {
     "off": "receipts\\raw\\judge-compare-pre-g6-a3\\judge-compare-w1nil1at\\g6-off.jsonl",
     "off_sha256": null,
