@@ -82,6 +82,9 @@ def test_register_allows_apply_on_step11_test(monkeypatch, tmp_path) -> None:
         "_load_atoms_entry",
         lambda: atoms.AtomsEntryConfig(judge_apply_verdict=True),
     )
+    monkeypatch.setattr(
+        atoms, "_effective_judge_apply", lambda configured: (True, None)
+    )
     monkeypatch.setattr(atoms, "_assert_live_plugin_path", lambda: tmp_path)
     monkeypatch.setattr(atoms, "_write_load_heartbeat", lambda root: None)
     hooks: list[str] = []

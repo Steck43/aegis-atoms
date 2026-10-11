@@ -36,6 +36,7 @@ def _amb_case(eid: str = "j1-case", **extra):
         "candidate_atoms": ["atoms.locked.one", "atoms.open.two"],
         "evaluation_id": eid,
         "security_relevant": True,
+        "user_ask": "please list the workspace files",
     }
     c.update(extra)
     return c
@@ -63,7 +64,7 @@ class FakeClient:
 
 def _ok_resp(
     *,
-    recommendation="concur",
+    answer="no",
     model=MODEL_ID,
     stop_reason="end_turn",
     tokens_in=800,
@@ -72,11 +73,7 @@ def _ok_resp(
     cache_read=0,
     cache_create=200,
 ):
-    body = {
-        "recommendation": recommendation,
-        "confidence": 0.95,
-        "reason": "floor stands",
-    }
+    body = {"answer": answer}
     return SimpleNamespace(
         model=model,
         stop_reason=stop_reason,
@@ -97,7 +94,7 @@ def test_effort_floor_is_low_and_max_tokens_capped():
 
 
 def test_structured_verdict_only_permitted_set(tmp_path):
-    client = FakeClient([_ok_resp(recommendation="flag_for_review")])
+    client = FakeClient([_ok_resp(answer="yes")])
     budget = BudgetGuard(ceiling_usd=2.0, stage_name="j1")
     store = AuditStore(tmp_path / "a.jsonl")
     slot = make_sonnet_judge_slot(
@@ -108,6 +105,7 @@ def test_structured_verdict_only_permitted_set(tmp_path):
     op = slot(_amb_case(), EffectRank.BLOCK)
     assert op.recommendation is JudgeRecommendation.FLAG_FOR_REVIEW
     assert op.advisory is True
+    assert op.reason == "violation_confirmed"
     kwargs = client.messages.calls[0]
     assert kwargs["model"] == MODEL_ID
     assert kwargs["max_tokens"] == 2000
@@ -115,20 +113,65 @@ def test_structured_verdict_only_permitted_set(tmp_path):
     assert "thinking" in kwargs
     # No prefill — messages must not start with assistant.
     assert kwargs["messages"][0]["role"] == "user"
+    user_blob = json.loads(kwargs["messages"][0]["content"])
+    assert user_blob["user_ask"] == "please list the workspace files"
+    schema = kwargs["output_config"]["format"]["schema"]
+    assert schema["properties"]["answer"]["enum"] == [
+        "yes",
+        "no",
+        "cannot_determine",
+    ]
 
 
 def test_allow_block_are_malformed_not_defaulted():
     client = FakeClient(
         [
-            _ok_resp(recommendation="allow"),
+            _ok_resp(answer="allow"),
         ]
     )
     budget = BudgetGuard(ceiling_usd=2.0, stage_name="j1")
     slot = make_sonnet_judge_slot(
         budget, config=SonnetJudgeConfig(api_key="k"), client=client
     )
-    with pytest.raises(MalformedJudgeOutput, match="forbidden"):
+    with pytest.raises(MalformedJudgeOutput, match="escalate"):
         slot(_amb_case(), EffectRank.ALLOW)
+
+
+def test_legacy_recommendation_schema_is_malformed():
+    body = {
+        "recommendation": "concur",
+        "confidence": 0.95,
+        "reason": "floor stands",
+    }
+    resp = SimpleNamespace(
+        model=MODEL_ID,
+        stop_reason="end_turn",
+        usage=SimpleNamespace(
+            input_tokens=10,
+            output_tokens=20,
+            thinking_tokens=0,
+            cache_read_input_tokens=0,
+            cache_creation_input_tokens=0,
+        ),
+        content=[SimpleNamespace(type="text", text=json.dumps(body))],
+    )
+    client = FakeClient([resp])
+    budget = BudgetGuard(ceiling_usd=2.0, stage_name="j1")
+    slot = make_sonnet_judge_slot(
+        budget, config=SonnetJudgeConfig(api_key="k"), client=client
+    )
+    with pytest.raises(MalformedJudgeOutput, match="legacy"):
+        slot(_amb_case("legacy"), EffectRank.ALLOW)
+
+
+def test_cannot_determine_escalates_not_flag():
+    client = FakeClient([_ok_resp(answer="cannot_determine")])
+    budget = BudgetGuard(ceiling_usd=2.0, stage_name="j1")
+    slot = make_sonnet_judge_slot(
+        budget, config=SonnetJudgeConfig(api_key="k"), client=client
+    )
+    with pytest.raises(JudgeUnavailable, match="cannot_determine"):
+        slot(_amb_case("cd"), EffectRank.ALLOW)
 
 
 def test_budget_exhaustion_never_issues_call():
@@ -196,33 +239,6 @@ def test_refusal_is_own_class_not_malformed_success():
     assert outcome.escalated is True
     assert "refusal" in (outcome.escalation_reason or "")
     assert outcome.floor_verdict is EffectRank.ALLOW
-
-
-def test_confidence_out_of_range_is_malformed_not_clamped():
-    body = {
-        "recommendation": "concur",
-        "confidence": 1.5,
-        "reason": "too sure",
-    }
-    resp = SimpleNamespace(
-        model=MODEL_ID,
-        stop_reason="end_turn",
-        usage=SimpleNamespace(
-            input_tokens=10,
-            output_tokens=20,
-            thinking_tokens=0,
-            cache_read_input_tokens=0,
-            cache_creation_input_tokens=0,
-        ),
-        content=[SimpleNamespace(type="text", text=json.dumps(body))],
-    )
-    client = FakeClient([resp])
-    budget = BudgetGuard(ceiling_usd=2.0, stage_name="j1")
-    slot = make_sonnet_judge_slot(
-        budget, config=SonnetJudgeConfig(api_key="k"), client=client
-    )
-    with pytest.raises(MalformedJudgeOutput, match="confidence out of range"):
-        slot(_amb_case("conf"), EffectRank.ALLOW)
 
 
 def test_dry_run_does_not_call_and_reports_estimate():
