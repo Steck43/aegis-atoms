@@ -1,0 +1,37 @@
+{
+  "model": "claude-sonnet-5",
+  "results": [
+    {
+      "label": "temp_and_top_p",
+      "status": "reject",
+      "returned_model": null,
+      "usage": null,
+      "error": "BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': '`temperature` is deprecated for this model.'}, 'request_id': 'req_011CfvyKmDtzpCWtHpwBrVYj'}"
+    },
+    {
+      "label": "temp_only",
+      "status": "reject",
+      "returned_model": null,
+      "usage": null,
+      "error": "BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': '`temperature` is deprecated for this model.'}, 'request_id': 'req_011CfvyKn7ycWBLY8WrNNHBo'}"
+    },
+    {
+      "label": "top_p_only",
+      "status": "reject",
+      "returned_model": null,
+      "usage": null,
+      "error": "BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': '`top_p` is deprecated for this model.'}, 'request_id': 'req_011CfvyKnts1cV7uaJBRW1ZM'}"
+    },
+    {
+      "label": "plain_no_sampling",
+      "status": "accept",
+      "returned_model": "claude-sonnet-5",
+      "usage": {
+        "in": 16,
+        "out": 4
+      },
+      "error": null
+    }
+  ],
+  "note": "SDK 1.5.0 omits temperature/top_p kwargs; used extra_body. Model rejects temperature as deprecated."
+}

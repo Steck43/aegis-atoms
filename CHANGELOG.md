@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Judge model extract script (J-7): requested vs returned model ids; MEASURED-GAP when returned field absent. Receipt hub JUDGE-MODEL-RESOLUTION-2026-10-11.md.
 - Raise `zizmorcore/zizmor-action` from 0.6.2 to 0.6.4 (`cc914d7f…`), recreating closed Dependabot #28 on a fresh branch.
 - Ruff development and CI range resolves to `>=0.16.9,<0.17`, replacing the closed Dependabot proposal with a branch that runs the protected floor. Receipt: `RUFF-0.16.9-2026-10-11.md`.
 
