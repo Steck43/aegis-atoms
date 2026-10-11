@@ -113,3 +113,72 @@ def reason_code_for_escalate(kind: str) -> JudgeReasonCode:
         "multi_code": JudgeReasonCode.MULTI_CODE,
         "empty": JudgeReasonCode.EMPTY,
     }.get(kind, JudgeReasonCode.UNKNOWN)
+
+
+def catalog_tip_commit(*, catalog_path: Path, repo_root: Path | None = None) -> str:
+    """Return the last commit that touched the live atom catalog path."""
+    import subprocess
+
+    root = repo_root or Path(__file__).resolve().parent
+    path = Path(catalog_path)
+    if not path.is_file():
+        raise AssertionError(f"catalog missing: {path}")
+    rel = path.resolve().relative_to(root.resolve()).as_posix()
+    proc = subprocess.run(
+        ["git", "log", "-1", "--format=%H", "--", rel],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    tip = (proc.stdout or "").strip()
+    if proc.returncode != 0 or not tip:
+        raise AssertionError(f"cannot resolve catalog tip for {rel}: {proc.stderr}")
+    return tip
+
+
+def assert_rubric_tracks_real_catalog(
+    *, catalog_path: Path, repo_root: Path | None = None
+) -> None:
+    """Refuse when the live catalog tip and rubric pin disagree."""
+    tip = catalog_tip_commit(catalog_path=catalog_path, repo_root=repo_root)
+    assert_rubric_tracks_atoms(atoms_commit=tip)
+
+
+def assert_harness_guards_agent_invocation(*, harness_path: Path) -> None:
+    """Real compare harness must reference the agent_invoked every-item guard."""
+    path = Path(harness_path)
+    if not path.is_file():
+        raise AssertionError(f"harness missing: {path}")
+    text = path.read_text(encoding="utf-8")
+    if "assert_agent_invoked_every_item" not in text:
+        raise AssertionError(
+            "harness must call assert_agent_invoked_every_item on agent-mode rows"
+        )
+    if "agent_invoked" not in text:
+        raise AssertionError("harness must record agent_invoked on each row")
+
+
+def assert_reason_code_enum_sha(expected: str) -> None:
+    from judge_reason_codes import REASON_CODE_ENUM_SHA256
+
+    if REASON_CODE_ENUM_SHA256 != expected:
+        raise AssertionError(
+            f"reason-code enum hash drift: {REASON_CODE_ENUM_SHA256} != {expected}"
+        )
+
+
+def assert_cause_receipts_content_hash_disjoint(receipts_dir: Path) -> None:
+    import hashlib
+
+    paths = sorted(Path(receipts_dir).glob("JUDGE-CAUSE-0*.md"))
+    if len(paths) < 6:
+        raise AssertionError(f"expected six cause receipts, found {len(paths)}")
+    seen: dict[str, str] = {}
+    for path in paths:
+        digest = hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+        if digest in seen:
+            raise AssertionError(
+                f"content-hash collision: {path.name} and {seen[digest]}"
+            )
+        seen[digest] = path.name

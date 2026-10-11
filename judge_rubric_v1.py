@@ -11,7 +11,7 @@ import json
 from typing import Any
 
 # Tip this bank was authored against (Forseti test 03 refuses drift).
-RUBRIC_ATOMS_COMMIT_PIN = "744e2b7dbf8f44fea0f2d24433c5e29df523d7d5"
+RUBRIC_ATOMS_COMMIT_PIN = "5cf0b6ccf066b633dd1e0390f0ec021d31ab703d"
 
 # Minimal seed bank — full atom coverage lands in the wire PR. Each entry:
 # atom_id, question, positive (violates), negative (no finding).

@@ -52,6 +52,17 @@ from harness.schema_fixes import (  # noqa: E402
 )
 from judge_budget import BudgetExhausted, BudgetGuard  # noqa: E402
 from judge_compare_policy import force_consult_for_track, widens  # noqa: E402
+from judge_spec_v1 import assert_agent_invoked_every_item  # noqa: E402
+
+
+def _guard_agent_mode_rows(rows: list[dict[str, Any]]) -> None:
+    """AGENT_MODE_GUARD: live agent compares must invoke the agent on every item."""
+    # Scripted-call shadow records agent_invoked=False; agent-mode runs must flip True
+    # and pass assert_agent_invoked_every_item before spend receipts land.
+    if any(r.get("agent_mode") for r in rows):
+        assert_agent_invoked_every_item(rows)
+
+
 from judge_slot_sonnet import SonnetJudgeConfig, make_sonnet_judge_slot  # noqa: E402
 
 AGENT_MODEL_ID = "grok-4.3"
