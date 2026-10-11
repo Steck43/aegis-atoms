@@ -1,0 +1,36 @@
+{
+  "files": [
+    {
+      "call_count": 0,
+      "calls": [],
+      "file": "receipts\\raw\\judge-cause-diag-50\\JUDGE-CAUSE-DIAG-50.json",
+      "gap": "MEASURED-GAP",
+      "missing_returned_model_count": 1,
+      "sha256_name": "JUDGE-CAUSE-DIAG-50.json"
+    },
+    {
+      "call_count": 1,
+      "calls": [
+        {
+          "path": "models.judge",
+          "requested_id": "claude-sonnet-5",
+          "returned_model": null,
+          "source": "summary"
+        }
+      ],
+      "file": "receipts\\raw\\judge-compare-pre-g6\\JUDGE-COMPARE-PRE-G6-REGRADE.json",
+      "gap": "MEASURED-GAP",
+      "missing_returned_model_count": 1,
+      "sha256_name": "JUDGE-COMPARE-PRE-G6-REGRADE.json"
+    },
+    {
+      "call_count": 0,
+      "calls": [],
+      "file": "receipts\\raw\\t-comp-01-expected-matrix.json",
+      "gap": "MEASURED-GAP",
+      "missing_returned_model_count": 1,
+      "sha256_name": "t-comp-01-expected-matrix.json"
+    }
+  ],
+  "n_files": 3
+}
