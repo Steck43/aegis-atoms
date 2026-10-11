@@ -95,9 +95,7 @@ def test_pre_tool_observe_mount_applies_subtract(tmp_path, monkeypatch):
     marker = tmp_path / ".aegis" / "profile_id"
     marker.parent.mkdir(parents=True)
     marker.write_text("step11-test\n", encoding="utf-8")
-    monkeypatch.setattr(
-        init, "_effective_judge_apply", lambda configured: (True, None)
-    )
+    monkeypatch.setattr(init, "_effective_judge_apply", lambda configured: (True, None))
     monkeypatch.setattr(
         init,
         "_load_atoms_entry",
