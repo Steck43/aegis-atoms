@@ -2,7 +2,9 @@
 
 Source: CURSOR-JUDGE-SPEC.md sha256
 82463E91CB5AA27A7BF1C6F8AF932B631702052CC6D00B176DAEF324C33DE1BA.
-These tests encode the contract. They must fail until §1–2 land.
+These tests encode the contract. They must fail until section 1-2 land.
+Forseti FIX-FIRST 2026-10-11: tests 3 and 6 guard the real catalog/harness;
+enum hash pinned; cause-receipt content hashes pairwise disjoint.
 """
 
 from __future__ import annotations
@@ -12,6 +14,11 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
+
+# Frozen pin for JudgeReasonCode values (bump only with Spec/rubric change).
+PINNED_REASON_CODE_ENUM_SHA256 = (
+    "56e226421381cf52b5f72223747822f4bdb9677ee44a21ca111b9b6c2d7ccf1a"
+)
 
 
 def test_01_bad_or_unknown_judge_outputs_escalate():
@@ -38,16 +45,13 @@ def test_02_no_reason_code_on_allow_path_static():
         ROOT / "engine.py",
         ROOT / "__init__.py",
     ]
-    # Prefer engine evaluate allow fall-through modules present in this roof.
     scanned = 0
     for path in allow_paths:
         if not path.is_file():
             continue
         scanned += 1
         text = path.read_text(encoding="utf-8")
-        # Reason-code enum name must not be referenced on allow-return sites.
         assert "JudgeReasonCode" not in text
-        # Stronger: dedicated module must exist and declare allow-path ban.
     ban = ROOT / "judge_reason_codes.py"
     assert ban.is_file(), "judge_reason_codes.py must exist"
     mod = ban.read_text(encoding="utf-8")
@@ -56,15 +60,18 @@ def test_02_no_reason_code_on_allow_path_static():
 
 
 def test_03_atom_change_without_rubric_bump_fails_ci():
-    """CI helper: atom catalog change without rubric hash bump is refused."""
+    """CI helper: real catalog tip without rubric pin bump is refused."""
     from judge_spec_v1 import assert_rubric_tracks_atoms
+    from judge_spec_v1 import assert_rubric_tracks_real_catalog
 
-    # Simulate atom change with stale rubric pin.
     with pytest.raises(AssertionError):
         assert_rubric_tracks_atoms(
             atoms_commit="deadbeef",
             rubric_atoms_commit_pin="cafebabe",
         )
+    assert_rubric_tracks_real_catalog(
+        catalog_path=ROOT / "catalog" / "Aegis-Atoms-v0.yaml"
+    )
 
 
 def test_04_missing_pinned_hash_fails():
@@ -72,12 +79,7 @@ def test_04_missing_pinned_hash_fails():
     from judge_spec_v1 import require_g6_pins
 
     with pytest.raises(ValueError):
-        require_g6_pins(
-            {
-                "model_snapshot": "x",
-                # missing rubric_sha, prompt_sha, atoms_commit, sampling, effort, sdk
-            }
-        )
+        require_g6_pins({"model_snapshot": "x"})
 
 
 def test_05_slice_overlapping_heldout_refused():
@@ -90,8 +92,9 @@ def test_05_slice_overlapping_heldout_refused():
 
 
 def test_06_agent_invoked_on_every_item_regression():
-    """Regression: live agent compare must invoke the agent on every item."""
+    """Regression: live agent compare harness must guard agent_invoked."""
     from judge_spec_v1 import assert_agent_invoked_every_item
+    from judge_spec_v1 import assert_harness_guards_agent_invocation
 
     rows = [
         {"id": "1", "agent_invoked": True},
@@ -99,6 +102,9 @@ def test_06_agent_invoked_on_every_item_regression():
     ]
     with pytest.raises(AssertionError):
         assert_agent_invoked_every_item(rows)
+    assert_harness_guards_agent_invocation(
+        harness_path=ROOT / "scripts" / "run_judge_compare_pilot.py"
+    )
 
 
 def test_07_apply_cannot_arm_without_calibration_receipt():
@@ -114,7 +120,6 @@ def test_07_apply_cannot_arm_without_calibration_receipt():
         )
         is False
     )
-    # Empty / failing receipt also refuses.
     bad = ROOT / "receipts" / "raw" / "judge-spec" / "MISSING-CALIBRATION.json"
     assert (
         apply_arm_allowed(
@@ -125,6 +130,20 @@ def test_07_apply_cannot_arm_without_calibration_receipt():
         )
         is False
     )
+
+
+def test_reason_code_enum_hash_is_pinned():
+    """Pinned enum content hash; bump only with an explicit Spec/rubric change."""
+    from judge_spec_v1 import assert_reason_code_enum_sha
+
+    assert_reason_code_enum_sha(PINNED_REASON_CODE_ENUM_SHA256)
+
+
+def test_cause_receipt_content_hashes_are_disjoint():
+    """The six Spec cause receipts must not share content hashes."""
+    from judge_spec_v1 import assert_cause_receipts_content_hash_disjoint
+
+    assert_cause_receipts_content_hash_disjoint(ROOT / "receipts")
 
 
 def test_rubric_seed_has_frozen_examples_per_question():
