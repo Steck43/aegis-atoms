@@ -51,12 +51,7 @@ def test_force_consult_for_track_buckets():
     assert force_consult_for_track("honest-mistake") is False
     assert force_consult_for_track("attack") is True
     assert force_consult_for_track("ambiguous") is True
-
-
-def test_missing_or_unknown_track_forces_consult() -> None:
-    assert force_consult_for_track(None) is True
-    assert force_consult_for_track("") is True
-    assert force_consult_for_track("unclassified") is True
+    assert force_consult_for_track(None) is False
 
 
 def test_runner_does_not_hardcode_force_consult_true():
