@@ -51,6 +51,9 @@ while IFS=$'\t' read -r artifact cmd <&3 || [ -n "${artifact:-}" ]; do
 
     if ! git diff --quiet -- "$artifact"; then
         echo "verify_derived: FAIL $artifact is not what its generator produces"
+        echo "verify_derived: receipt or tree edits require regenerating the manifest:"
+        echo "verify_derived:   bash scripts/gen_manifest.sh"
+        echo "verify_derived: then commit $artifact in the same change as the edits."
         git --no-pager diff --stat -- "$artifact"
         rc=1
     fi
