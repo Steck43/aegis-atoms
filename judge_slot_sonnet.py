@@ -179,6 +179,8 @@ def running_atoms_commit() -> str:
     import subprocess
 
     root = Path(__file__).resolve().parent
+    if not (root / ".git").exists() and not (root.parent / ".git").exists():
+        raise ValueError("cannot resolve running atoms commit: no .git (fail closed)")
     proc = subprocess.run(
         ["git", "rev-parse", "HEAD"],
         cwd=root,
@@ -192,6 +194,25 @@ def running_atoms_commit() -> str:
     return tip
 
 
+def running_atoms_dirty() -> bool:
+    """True when the plugin tree has uncommitted changes."""
+    import subprocess
+
+    root = Path(__file__).resolve().parent
+    if not (root / ".git").exists() and not (root.parent / ".git").exists():
+        raise ValueError("cannot resolve dirty flag: no .git (fail closed)")
+    proc = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        raise ValueError(f"cannot resolve dirty flag: {proc.stderr}")
+    return bool((proc.stdout or "").strip())
+
+
 def g6_pin_fields(*, effort: str) -> dict[str, str]:
     """Required Spec §1 pins for every G6 / decision-log row."""
     pins = {
@@ -199,6 +220,7 @@ def g6_pin_fields(*, effort: str) -> dict[str, str]:
         "rubric_sha": rubric_sha256(),
         "prompt_sha": JUDGE_PROMPT_SHA256,
         "atoms_commit": running_atoms_commit(),
+        "atoms_dirty": "true" if running_atoms_dirty() else "false",
         "sampling": "structured_no_temp_top_p",
         "effort": effort,
         "sdk": SDK_PIN,
