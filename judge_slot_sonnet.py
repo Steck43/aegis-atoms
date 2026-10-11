@@ -79,9 +79,8 @@ except ImportError:  # standalone / sys.path test import
     )
     from judge_spec_v1 import REQUIRED_G6_PINS, map_model_answer_to_outcome
 
-MODEL_ID = "claude-sonnet-4-5-20250929"  # dated snapshot (Spec §1)
-TEMPERATURE = 0.0
-TOP_P = 1.0
+MODEL_ID = "claude-sonnet-5"  # J-7: raws + smoke returned this id; no dated 4.5 pin
+# J7-3: provider rejects temperature/top_p as deprecated for this model.
 EFFORT_FLOOR = "low"  # lowest selectable; adaptive thinking stays on (pack pin)
 MAX_OUTPUT_TOKENS = 2000
 USER_ASK_CHAR_CAP = 4_000
@@ -200,7 +199,7 @@ def g6_pin_fields(*, effort: str) -> dict[str, str]:
         "rubric_sha": rubric_sha256(),
         "prompt_sha": JUDGE_PROMPT_SHA256,
         "atoms_commit": running_atoms_commit(),
-        "sampling": f"temp={TEMPERATURE},top_p={TOP_P},structured",
+        "sampling": "structured_no_temp_top_p",
         "effort": effort,
         "sdk": SDK_PIN,
     }
@@ -525,8 +524,6 @@ def _call_anthropic(
     return client.messages.create(
         model=MODEL_ID,
         max_tokens=max_tokens,
-        temperature=TEMPERATURE,
-        top_p=TOP_P,
         system=[
             {
                 "type": "text",
