@@ -56,9 +56,7 @@ def test_force_consult_for_track_buckets():
 
 def test_runner_does_not_hardcode_force_consult_true():
     """RED pin for A3: compare runner must not force-consult every row."""
-    src = (ROOT / "scripts" / "run_judge_compare_pilot.py").read_text(
-        encoding="utf-8"
-    )
+    src = (ROOT / "scripts" / "run_judge_compare_pilot.py").read_text(encoding="utf-8")
     assert "judge_force_consult=True" not in src
     assert "force_consult_for_track" in src
 

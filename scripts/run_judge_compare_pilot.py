@@ -64,9 +64,7 @@ EFFECT_RANK = {
 
 AGENT_MODEL_ID = "grok-4.3"
 JUDGE_MODEL_ID = "claude-sonnet-5"
-DIRTY_DIFF_SHA256 = (
-    "2d9918fde4199c8740a08ba3f082cd0e8318811ddb92f67830babbb29d0e6a70"
-)
+DIRTY_DIFF_SHA256 = "2d9918fde4199c8740a08ba3f082cd0e8318811ddb92f67830babbb29d0e6a70"
 HERMES_PIN = "ccd8deaa6705bd6ca1890584d8f4055fe61227b5"
 
 
@@ -118,7 +116,9 @@ def _materialize_workspace(body: dict[str, Any], parent: Path) -> Path:
     files = resolve_fixture_files(body)
     # Deepest paths first so a file key that is also a directory prefix yields
     # to the directory (some corpus rows ship both `detections` and children).
-    for rel, content in sorted(files.items(), key=lambda item: item[0].count("/"), reverse=True):
+    for rel, content in sorted(
+        files.items(), key=lambda item: item[0].count("/"), reverse=True
+    ):
         target = ws / Path(rel)
         parent_dir = target.parent
         if parent_dir.exists() and parent_dir.is_file():
