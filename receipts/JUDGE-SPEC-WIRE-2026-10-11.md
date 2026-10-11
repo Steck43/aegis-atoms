@@ -27,3 +27,12 @@ Hermes pin `ccd8deaa6705bd6ca1890584d8f4055fe61227b5` (dirty `2d9918fd…`).
 ## Outcome
 
 **WIRE RECORDED.** Forseti before merge. Apply False.
+
+## Wire follow-up (same sitting)
+
+- `apply_arm_allowed` wired into `_effective_judge_apply` (register + per-call); `AEGIS_JUDGE_CALIBRATION_RECEIPT` required for apply.
+- G6 pins on `judge_skipped`, error `judge_apply_decision`, cancelled `judge_cost`, and cage audit notes.
+- Import fallback / missing pins fail closed (no empty pin dict).
+- Model snapshot `claude-sonnet-4-5-20250929`; `atoms_commit` = running HEAD; sampling records `temp=0.0,top_p=1.0`.
+- Structured output rejects keys other than `answer`.
+

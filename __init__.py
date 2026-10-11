@@ -808,6 +808,11 @@ def _profile_allows_judge_apply() -> bool:
     return file_id == _JUDGE_APPLY_PROFILE_ID
 
 
+def _calibration_receipt_path() -> Path | None:
+    raw = (os.environ.get("AEGIS_JUDGE_CALIBRATION_RECEIPT") or "").strip()
+    return Path(raw) if raw else None
+
+
 def _effective_judge_apply(configured: bool) -> tuple[bool, str | None]:
     """Per-call apply gate. Config alone never arms apply.
 
@@ -819,6 +824,22 @@ def _effective_judge_apply(configured: bool) -> tuple[bool, str | None]:
         return False, "missing_AEGIS_JUDGE_APPLY_GO"
     if not _profile_allows_judge_apply():
         return False, "profile_not_step11_test"
+    try:
+        from judge_slot_sonnet import EFFORT_FLOOR, JUDGE_PROMPT_SHA256, g6_pin_fields
+        from judge_spec_v1 import apply_arm_allowed
+    except ImportError:
+        return False, "judge_spec_import_failed"
+    try:
+        pins = g6_pin_fields(effort=str(EFFORT_FLOOR))
+    except Exception:
+        return False, "g6_pins_unavailable"
+    if not apply_arm_allowed(
+        calibration_receipt_path=_calibration_receipt_path(),
+        rubric_sha=str(pins.get("rubric_sha") or ""),
+        prompt_sha=str(JUDGE_PROMPT_SHA256 or pins.get("prompt_sha") or ""),
+        atoms_commit=str(pins.get("atoms_commit") or ""),
+    ):
+        return False, "calibration_arm_refused"
     return True, None
 
 
@@ -833,18 +854,23 @@ def _append_judge_skip_row(
     """Quota / gate skips still leave a G6-shaped row (Forseti nit)."""
     path = Path(eng._expand("${HERMES_HOME}/logs/aegis-judge.jsonl", env))
     try:
-        eng.append_judge_log_row(
-            path,
-            {
-                "record_type": "judge_skipped",
-                "reason": reason,
-                "tool_name": tool_name,
-                "evaluation_id": ":".join(x for x in (session_id, tool_call_id) if x)
-                or "unknown",
-                "judge_enabled": False,
-                "judge_apply_verdict": False,
-            },
-        )
+        try:
+            from judge_slot_sonnet import EFFORT_FLOOR, g6_pin_fields
+        except ImportError as exc:
+            raise eng.JudgeLogWriteError(
+                f"judge_skipped pins unavailable: {exc}"
+            ) from exc
+        skip_row = {
+            "record_type": "judge_skipped",
+            "reason": reason,
+            "tool_name": tool_name,
+            "evaluation_id": ":".join(x for x in (session_id, tool_call_id) if x)
+            or "unknown",
+            "judge_enabled": False,
+            "judge_apply_verdict": False,
+        }
+        skip_row.update(g6_pin_fields(effort=str(EFFORT_FLOOR)))
+        eng.append_judge_log_row(path, skip_row)
     except eng.JudgeLogWriteError as exc:
         logger.error("aegis-atoms judge skip row failed closed: %s", exc)
         raise

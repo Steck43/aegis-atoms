@@ -1496,15 +1496,18 @@ def apply_judge_phase(
                 JudgeUnavailable,
                 g6_pin_fields,
             )
-        except ImportError:
+        except ImportError as _slot_import_exc:
             JUDGE_PROMPT_SHA256 = None  # type: ignore[assignment]
             MODEL_ID = "unknown"
             JUDGE_PHASE_DEADLINE_S = 10.0
             JUDGE_REQUEST_TIMEOUT_S = 8.0
             EFFORT_FLOOR = "low"
+            _SLOT_IMPORT_ERR = _slot_import_exc
 
             def g6_pin_fields(*, effort: str) -> dict[str, str]:  # type: ignore[misc]
-                return {}
+                raise RuntimeError(
+                    f"judge_slot_sonnet import failed; refuse empty pins: {_SLOT_IMPORT_ERR}"
+                )
 
             class JudgeUnavailable(Exception):  # type: ignore[no-redef]
                 pass
@@ -1708,20 +1711,23 @@ def apply_judge_phase(
             prompt_sha=JUDGE_PROMPT_SHA256 if "JUDGE_PROMPT_SHA256" in dir() else None,
         )
         try:
-            append_judge_log_row(
-                judge_audit_path,
-                {
-                    "record_type": "judge_apply_decision",
-                    "evaluation_id": evaluation_id,
-                    "judge_enabled": True,
-                    "judge_apply_verdict": bool(judge_apply_verdict),
-                    "judge_verdict": "escalate",
-                    "judge_error": reason,
-                    "judge_latency_ms": latency_ms,
-                    "winning_effect": closed.winning_effect,
-                    "applied": False,
-                },
-            )
+            err_row: dict[str, Any] = {
+                "record_type": "judge_apply_decision",
+                "evaluation_id": evaluation_id,
+                "judge_enabled": True,
+                "judge_apply_verdict": bool(judge_apply_verdict),
+                "judge_verdict": "escalate",
+                "judge_error": reason,
+                "judge_latency_ms": latency_ms,
+                "winning_effect": closed.winning_effect,
+                "applied": False,
+            }
+            try:
+                err_row.update(g6_pin_fields(effort=str(EFFORT_FLOOR)))
+            except Exception as pin_exc:
+                err_row["pin_error"] = f"{type(pin_exc).__name__}:{pin_exc}"
+                # Missing pins fail closed on the result; still leave the error row.
+            append_judge_log_row(judge_audit_path, err_row)
         except JudgeLogWriteError:
             # Already fail-closed on the result; log itself is dead.
             pass

@@ -19,6 +19,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
+from pathlib import Path
 from typing import Any
 
 try:
@@ -80,7 +81,9 @@ except ImportError:  # standalone / sys.path test import
     )
     from judge_spec_v1 import REQUIRED_G6_PINS, map_model_answer_to_outcome
 
-MODEL_ID = "claude-sonnet-5"  # legacy pin — Spec §1 plans a snapshot swap
+MODEL_ID = "claude-sonnet-4-5-20250929"  # dated snapshot (Spec §1)
+TEMPERATURE = 0.0
+TOP_P = 1.0
 EFFORT_FLOOR = "low"  # lowest selectable; adaptive thinking stays on (pack pin)
 MAX_OUTPUT_TOKENS = 2000
 USER_ASK_CHAR_CAP = 4_000
@@ -130,6 +133,9 @@ def _opinion_from_structured(data: dict[str, Any]) -> JudgeOpinion:
         raise MalformedJudgeOutput(
             "legacy recommendation/confidence/reason schema rejected (Spec v1)"
         )
+    extra = sorted(set(data) - {"answer"})
+    if extra:
+        raise MalformedJudgeOutput(f"extra keys rejected: {extra}")
     outcome = map_model_answer_to_outcome(data)
     if outcome == "ESCALATE":
         raise MalformedJudgeOutput(f"escalate:bad_or_unknown_answer:{data!r}")
@@ -171,14 +177,32 @@ def _structured_format() -> dict[str, Any]:
     }
 
 
+def running_atoms_commit() -> str:
+    """Return HEAD of this plugin tree; refuse empty/unknown."""
+    import subprocess
+
+    root = Path(__file__).resolve().parent
+    proc = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    tip = (proc.stdout or "").strip()
+    if proc.returncode != 0 or not tip or tip == "unknown":
+        raise ValueError(f"cannot resolve running atoms commit: {proc.stderr}")
+    return tip
+
+
 def g6_pin_fields(*, effort: str) -> dict[str, str]:
     """Required Spec §1 pins for every G6 / decision-log row."""
     pins = {
         "model_snapshot": MODEL_ID,
         "rubric_sha": rubric_sha256(),
         "prompt_sha": JUDGE_PROMPT_SHA256,
-        "atoms_commit": RUBRIC_ATOMS_COMMIT_PIN,
-        "sampling": "deterministic-structured",
+        "atoms_commit": running_atoms_commit(),
+        "sampling": f"temp={TEMPERATURE},top_p={TOP_P},structured",
         "effort": effort,
         "sdk": SDK_PIN,
     }
@@ -472,6 +496,7 @@ def _write_cancelled_cost_row(
         "tokens_in": int(usage.tokens_in),
         "tokens_out": int(usage.tokens_out),
     }
+    row.update(g6_pin_fields(effort=EFFORT_FLOOR))
     with path.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(row, ensure_ascii=False) + "\n")
 
@@ -502,6 +527,8 @@ def _call_anthropic(
     return client.messages.create(
         model=MODEL_ID,
         max_tokens=max_tokens,
+        temperature=TEMPERATURE,
+        top_p=TOP_P,
         system=[
             {
                 "type": "text",
