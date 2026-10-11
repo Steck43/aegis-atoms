@@ -8,9 +8,9 @@ Judge verdict application remains **False** in the compare runner.
 
 ## Behavior
 
-- 
-ormal and honest_mistake are the complete benign set that may skip a forced consultation.
+- Normal and honest_mistake are the complete benign set that may skip a forced consultation.
 - Missing, empty, and unrecognized track labels force consultation.
+- Whitespace: `Attack ` strips to attack (consult); ` Normal` strips to normal (skip). Documented in tests.
 - widens() accepts only declared effect labels; unrecognized labels raise ValueError.
 - Runner comment describes this compare policy; it does not claim paid-live-mount parity.
 
@@ -18,6 +18,7 @@ Supersedes the consult-policy description in JUDGE-COMPARE-PRE-G6-REGRADE-2026-1
 
 ## Proof
 
-python -m pytest -q tests/test_judge_compare_consult_policy.py tests/test_judge_compare_widening.py -> 8 passed.
+python -m pytest -q tests/test_judge_compare_consult_policy.py tests/test_judge_compare_widening.py
+Proof count: unit track tests + widening + `_eval_one` behavior for None/empty/unknown.
 
 Forseti review required before merge.

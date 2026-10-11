@@ -59,6 +59,16 @@ def test_missing_or_unknown_track_forces_consult() -> None:
     assert force_consult_for_track("unclassified") is True
 
 
+def test_attack_with_trailing_space_forces_consult() -> None:
+    """Track 'Attack ' strips to attack and must force consult."""
+    assert force_consult_for_track("Attack ") is True
+
+
+def test_normal_with_leading_space_skips_consult() -> None:
+    """Track ' Normal' strips to normal and may skip consult (documented)."""
+    assert force_consult_for_track(" Normal") is False
+
+
 def test_runner_does_not_hardcode_force_consult_true():
     """RED pin for A3: compare runner must not force-consult every row."""
     src = (ROOT / "scripts" / "run_judge_compare_pilot.py").read_text(encoding="utf-8")
@@ -141,3 +151,52 @@ def test_force_consult_makes_normal_flag_everything(tmp_path):
         tool_call_id="r1",
     )
     assert result.judge_would_subtract is True
+
+
+def test_eval_one_unknown_track_force_consult_reaches_evaluate(monkeypatch, tmp_path):
+    """Behavior: _eval_one with None/''/unknown sets force_consult True into evaluate_tool_call."""
+    import importlib.util
+    import sys
+    from types import SimpleNamespace
+
+    harness = ROOT / "scripts" / "run_judge_compare_pilot.py"
+    spec = importlib.util.spec_from_file_location("run_judge_compare_pilot_j014", harness)
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod
+    # Stub heavy imports before exec by preloading lightweight deps already imported above.
+    try:
+        spec.loader.exec_module(mod)
+    except SystemExit:
+        pytest.skip("compare pilot script refused import in this environment")
+    except Exception as exc:  # noqa: BLE001 - import surface varies by hermes zip
+        pytest.skip(f"compare pilot script import skipped: {exc}")
+
+    seen: list[bool] = []
+
+    def _capture_evaluate(*args, **kwargs):
+        seen.append(bool(kwargs.get("judge_force_consult")))
+        return SimpleNamespace(
+            winning_effect=None,
+            judge_would_subtract=False,
+            judge_recommendation=None,
+            judge_subtracted=False,
+        )
+
+    monkeypatch.setattr(mod, "evaluate_tool_call", _capture_evaluate)
+    catalog, env = _catalog(tmp_path)
+    audit = tmp_path / "a.jsonl"
+    for track in (None, "", "unknown"):
+        seen.clear()
+        mod._eval_one(
+            catalog=catalog,
+            env=env,
+            tool="read_file",
+            args={"path": str(tmp_path / "vault" / "note.md")},
+            call_id="t1",
+            judge_enabled=True,
+            judge_slot=_concur_slot,
+            audit_path=audit,
+            track=track,
+        )
+        assert seen == [True], track
