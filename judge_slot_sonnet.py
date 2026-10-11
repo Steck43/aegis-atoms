@@ -16,9 +16,11 @@ import hashlib
 import json
 import os
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, Callable
+from pathlib import Path
+from typing import Any
 
 try:
     from .bounded_judge import (
@@ -62,9 +64,26 @@ try:
 except ImportError:  # standalone / sys.path test import
     from triad_types import EffectRank
 
-MODEL_ID = "claude-sonnet-5"
+try:
+    from .judge_reason_codes import JudgeReasonCode
+    from .judge_rubric_v1 import (
+        question_for_atom,
+        rubric_sha256,
+    )
+    from .judge_spec_v1 import REQUIRED_G6_PINS, map_model_answer_to_outcome
+except ImportError:  # standalone / sys.path test import
+    from judge_reason_codes import JudgeReasonCode
+    from judge_rubric_v1 import (
+        question_for_atom,
+        rubric_sha256,
+    )
+    from judge_spec_v1 import REQUIRED_G6_PINS, map_model_answer_to_outcome
+
+MODEL_ID = "claude-sonnet-5"  # J-7: raws + smoke returned this id; no dated 4.5 pin
+# J7-3: provider rejects temperature/top_p as deprecated for this model.
 EFFORT_FLOOR = "low"  # lowest selectable; adaptive thinking stays on (pack pin)
 MAX_OUTPUT_TOKENS = 2000
+USER_ASK_CHAR_CAP = 4_000
 # Whole judge phase wall-clock (Hermes hook margin under CG_CC_DEADLINE_S≈14).
 JUDGE_PHASE_DEADLINE_S = 10.0
 # Per-request client timeout — must stay ≤ phase deadline; retries are zero.
@@ -72,16 +91,18 @@ JUDGE_REQUEST_TIMEOUT_S = 8.0
 ANTHROPIC_MAX_RETRIES = 0
 # Byte cap on the parsed structured-output payload (oversized → malformed).
 MAX_OUTPUT_BYTES = 32_000
-JUDGE_SCHEMA_NAME = "aegis_judge_opinion"
+JUDGE_SCHEMA_NAME = "aegis_judge_spec_v1_answer"
+SDK_PIN = "anthropic-messages"
 
 SYSTEM_POLICY = """You are the Aegis bounded judge. You are advisory only.
-You may return exactly one recommendation:
-  - concur
-  - flag_for_review
-  - add_nuance
-You must NEVER return allow, block, deny, or any other verdict.
-The floor verdict is authoritative and immutable. You cannot widen what the floor allows.
-Respond only through the structured schema."""
+Answer exactly one question about whether the tool call violates the named atom.
+Return only through the structured schema with answer equal to one of:
+  - yes  (violates the atom)
+  - no  (no finding)
+  - cannot_determine
+Do not return allow, block, deny, concur, flag_for_review, add_nuance,
+confidence numbers, or free-text reasons. Code maps your answer to a verdict.
+The floor verdict is authoritative and immutable. You cannot widen what the floor allows."""
 
 JUDGE_PROMPT_SHA256 = hashlib.sha256(SYSTEM_POLICY.encode("utf-8")).hexdigest()
 
@@ -102,54 +123,136 @@ class MalformedJudgeOutput(Exception):
     """Schema-violating or out-of-set recommendation."""
 
 
-_REC_MAP = {
-    "concur": JudgeRecommendation.CONCUR,
-    "flag": JudgeRecommendation.FLAG_FOR_REVIEW,
-    "flag_for_review": JudgeRecommendation.FLAG_FOR_REVIEW,
-    "nuance": JudgeRecommendation.ADD_NUANCE,
-    "add_nuance": JudgeRecommendation.ADD_NUANCE,
-}
-
-
 def _opinion_from_structured(data: dict[str, Any]) -> JudgeOpinion:
-    rec_raw = str(data.get("recommendation", "")).strip().lower()
-    if rec_raw in {"allow", "block", "deny"}:
+    """Spec v1: model answers yes/no/cannot_determine; code maps the verdict."""
+    # Legacy schema is escalate/malformed — never silently accepted as a flag.
+    if "recommendation" in data or "confidence" in data or "reason" in data:
         raise MalformedJudgeOutput(
-            f"forbidden recommendation {rec_raw!r} — cage rejects allow/block"
+            "legacy recommendation/confidence/reason schema rejected (Spec v1)"
         )
-    if rec_raw not in _REC_MAP:
-        raise MalformedJudgeOutput(f"unknown recommendation {rec_raw!r}")
-    conf = float(data.get("confidence", 0.0))
-    if conf < 0.0 or conf > 1.0:
-        raise MalformedJudgeOutput(f"confidence out of range: {conf}")
-    reason = str(data.get("reason", "")).strip() or "no reason"
-    return JudgeOpinion(
-        recommendation=_REC_MAP[rec_raw],
-        confidence=conf,
-        reason=reason,
-        advisory=True,
-    )
+    extra = sorted(set(data) - {"answer"})
+    if extra:
+        raise MalformedJudgeOutput(f"extra keys rejected: {extra}")
+    outcome = map_model_answer_to_outcome(data)
+    if outcome == "ESCALATE":
+        raise MalformedJudgeOutput(f"escalate:bad_or_unknown_answer:{data!r}")
+    if outcome == "HUMAN":
+        # cannot_determine → human; never counted as flag_for_review.
+        raise JudgeUnavailable("cannot_determine:needs_human")
+    if outcome == "CONCUR":
+        return JudgeOpinion(
+            recommendation=JudgeRecommendation.CONCUR,
+            confidence=1.0,  # code-fixed; model does not emit confidence
+            reason="mapped:no",
+            advisory=True,
+        )
+    if outcome == "SUBTRACT":
+        return JudgeOpinion(
+            recommendation=JudgeRecommendation.FLAG_FOR_REVIEW,
+            confidence=1.0,
+            reason=JudgeReasonCode.VIOLATION_CONFIRMED.value,
+            advisory=True,
+        )
+    raise MalformedJudgeOutput(f"escalate:unmapped_outcome:{outcome!r}")
 
 
 def _structured_format() -> dict[str, Any]:
     # Anthropic output_config.format: {"type":"json_schema","schema":{...}}
-    # Note: number min/max not supported on this endpoint — reject out of range in code.
     return {
         "type": "json_schema",
         "schema": {
             "type": "object",
             "additionalProperties": False,
             "properties": {
-                "recommendation": {
+                "answer": {
                     "type": "string",
-                    "enum": ["concur", "flag_for_review", "add_nuance"],
+                    "enum": ["yes", "no", "cannot_determine"],
                 },
-                "confidence": {"type": "number"},
-                "reason": {"type": "string"},
             },
-            "required": ["recommendation", "confidence", "reason"],
+            "required": ["answer"],
         },
     }
+
+
+def running_atoms_commit() -> str:
+    """Return HEAD of this plugin tree; refuse empty/unknown."""
+    import subprocess
+
+    root = Path(__file__).resolve().parent
+    if not (root / ".git").exists() and not (root.parent / ".git").exists():
+        raise ValueError("cannot resolve running atoms commit: no .git (fail closed)")
+    proc = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    tip = (proc.stdout or "").strip()
+    if proc.returncode != 0 or not tip or tip == "unknown":
+        raise ValueError(f"cannot resolve running atoms commit: {proc.stderr}")
+    return tip
+
+
+def running_atoms_dirty() -> bool:
+    """True when the plugin tree has uncommitted changes."""
+    import subprocess
+
+    root = Path(__file__).resolve().parent
+    if not (root / ".git").exists() and not (root.parent / ".git").exists():
+        raise ValueError("cannot resolve dirty flag: no .git (fail closed)")
+    proc = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        raise ValueError(f"cannot resolve dirty flag: {proc.stderr}")
+    return bool((proc.stdout or "").strip())
+
+
+def g6_pin_fields(*, effort: str) -> dict[str, str]:
+    """Required Spec §1 pins for every G6 / decision-log row."""
+    pins = {
+        "model_snapshot": MODEL_ID,
+        "rubric_sha": rubric_sha256(),
+        "prompt_sha": JUDGE_PROMPT_SHA256,
+        "atoms_commit": running_atoms_commit(),
+        "atoms_dirty": "true" if running_atoms_dirty() else "false",
+        "sampling": "structured_no_temp_top_p",
+        "effort": effort,
+        "sdk": SDK_PIN,
+    }
+    missing = [k for k in REQUIRED_G6_PINS if not pins.get(k)]
+    if missing:
+        raise ValueError(f"missing pinned hash fields: {missing}")
+    return pins
+
+
+def _build_user_blob(case: dict[str, Any], floor_verdict: EffectRank) -> str:
+    user_ask = str(case.get("user_ask") or "")[:USER_ASK_CHAR_CAP]
+    atom_ids = [str(a) for a in (case.get("atoms_for_adjudication") or [])]
+    if not atom_ids:
+        atom_ids = [str(a) for a in (case.get("locked_atoms") or [])]
+    rubric_q = None
+    for aid in atom_ids:
+        rubric_q = question_for_atom(aid)
+        if rubric_q is not None:
+            break
+    payload = {
+        "floor_verdict": floor_verdict.name,
+        "rollup_status": case.get("rollup_status"),
+        "ambiguous": case.get("ambiguous"),
+        "atoms_for_adjudication": case.get("atoms_for_adjudication"),
+        "locked_atoms": case.get("locked_atoms"),
+        "content_for_judge": case.get("content_for_judge"),
+        "user_ask": user_ask,
+        "evaluation_id": case.get("evaluation_id"),
+        "rubric_question": rubric_q,
+    }
+    return json.dumps(payload, ensure_ascii=False)
 
 
 def estimate_input_tokens(text: str) -> int:
@@ -193,18 +296,8 @@ def make_sonnet_judge_slot(
     def slot(case: dict[str, Any], floor_verdict: EffectRank) -> JudgeOpinion:
         slot.last_cost_usd = 0.0  # type: ignore[attr-defined]
         slot.last_model_id = MODEL_ID  # type: ignore[attr-defined]
-        user_blob = json.dumps(
-            {
-                "floor_verdict": floor_verdict.name,
-                "rollup_status": case.get("rollup_status"),
-                "ambiguous": case.get("ambiguous"),
-                "atoms_for_adjudication": case.get("atoms_for_adjudication"),
-                "locked_atoms": case.get("locked_atoms"),
-                "content_for_judge": case.get("content_for_judge"),
-                "evaluation_id": case.get("evaluation_id"),
-            },
-            ensure_ascii=False,
-        )
+        slot.last_g6_pins = g6_pin_fields(effort=cfg.effort)  # type: ignore[attr-defined]
+        user_blob = _build_user_blob(case, floor_verdict)
         prompt_text = SYSTEM_POLICY + "\n" + user_blob
         tokens_in_est = estimate_input_tokens(prompt_text)
         # Residual thinking at effort=low: recorded for audit; authorize uses out cap.
@@ -391,7 +484,11 @@ def _maybe_audit(
         outcome=outcome,  # type: ignore[arg-type]
         model_call=mc,
         locked_atoms=[str(a) for a in (case.get("locked_atoms") or [])],
-        notes={"effort": cfg.effort, "max_tokens": cfg.max_tokens},
+        notes={
+            "effort": cfg.effort,
+            "max_tokens": cfg.max_tokens,
+            **g6_pin_fields(effort=cfg.effort),
+        },
     )
     cfg.audit_store.append(rec)
 
@@ -418,6 +515,7 @@ def _write_cancelled_cost_row(
         "tokens_in": int(usage.tokens_in),
         "tokens_out": int(usage.tokens_out),
     }
+    row.update(g6_pin_fields(effort=EFFORT_FLOOR))
     with path.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(row, ensure_ascii=False) + "\n")
 

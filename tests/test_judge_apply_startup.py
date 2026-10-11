@@ -35,6 +35,10 @@ def test_register_allows_apply_with_go(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("AEGIS_JUDGE_APPLY_GO", "1")
     monkeypatch.setenv("AEGIS_PROFILE_ID", "step11-test")
     monkeypatch.setenv("HERMES_HOME", str(profile))
+    # Calibration arm is required once GO + profile match.
+    monkeypatch.setattr(
+        atoms, "_effective_judge_apply", lambda configured: (True, None)
+    )
     monkeypatch.setattr(atoms, "_assert_live_plugin_path", lambda: tmp_path)
     monkeypatch.setattr(atoms, "_write_load_heartbeat", lambda root: None)
     hooks: list[str] = []
