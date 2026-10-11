@@ -49,9 +49,7 @@ def carve(
     for sid in scenario_ids:
         fam = family_of(sid)
         if fam in forbidden_families:
-            raise SystemExit(
-                f"carve refuses family overlap: id={sid!r} family={fam!r}"
-            )
+            raise SystemExit(f"carve refuses family overlap: id={sid!r} family={fam!r}")
         body = id_to_body.get(sid)
         if body is None:
             continue

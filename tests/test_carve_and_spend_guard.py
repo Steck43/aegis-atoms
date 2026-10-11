@@ -23,7 +23,9 @@ def _load(name: str, rel: str):
 
 
 def test_carve_refuses_content_overlap_new_id():
-    carve_mod = _load("carve_judge_calibration_split", "scripts/carve_judge_calibration_split.py")
+    carve_mod = _load(
+        "carve_judge_calibration_split", "scripts/carve_judge_calibration_split.py"
+    )
     body = "same body text for two ids"
     digest = carve_mod.body_content_hash(body)
     with pytest.raises(SystemExit, match="content overlap"):
@@ -37,7 +39,9 @@ def test_carve_refuses_content_overlap_new_id():
 
 
 def test_carve_refuses_family_overlap():
-    carve_mod = _load("carve_judge_calibration_split", "scripts/carve_judge_calibration_split.py")
+    carve_mod = _load(
+        "carve_judge_calibration_split", "scripts/carve_judge_calibration_split.py"
+    )
     with pytest.raises(SystemExit, match="family overlap"):
         carve_mod.carve(
             ["shell_rm_1"],
@@ -51,9 +55,7 @@ def test_runner_raises_when_agent_not_invoked():
     from judge_spec_v1 import guard_agent_mode_rows
 
     with pytest.raises(AssertionError):
-        guard_agent_mode_rows(
-            [{"id": "x", "agent_mode": True, "agent_invoked": False}]
-        )
+        guard_agent_mode_rows([{"id": "x", "agent_mode": True, "agent_invoked": False}])
 
 
 def test_paid_run_refuses_over_line_cap(tmp_path: Path):

@@ -105,9 +105,7 @@ def test_06_agent_invoked_on_every_item_regression():
 
     # Behavior: rows-path guard raises when agent_mode and agent not invoked.
     with pytest.raises(AssertionError):
-        guard_agent_mode_rows(
-            [{"id": "a", "agent_mode": True, "agent_invoked": False}]
-        )
+        guard_agent_mode_rows([{"id": "a", "agent_mode": True, "agent_invoked": False}])
     # Wired into the real compare harness rows path (not a source-string-only guard).
     harness = ROOT / "scripts" / "run_judge_compare_pilot.py"
     text = harness.read_text(encoding="utf-8")
