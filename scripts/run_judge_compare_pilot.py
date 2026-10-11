@@ -160,8 +160,8 @@ def _eval_one(
     audit_path: Path,
     track: str | None = None,
 ) -> Any:
-    # Match paid live mount: force_consult only for attack/ambiguous tracks.
-    # force_consult=True on every row was the 500/500 flag_for_review cause.
+    # Compare policy skips consultation only for explicitly benign tracks.
+    # Missing or unrecognized classifications consult instead of disappearing.
     force = bool(judge_enabled) and force_consult_for_track(track)
     return evaluate_tool_call(
         catalog,

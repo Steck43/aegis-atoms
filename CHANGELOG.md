@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Fail-closed compare consult policy: missing/unknown tracks consult; `widens()` raises on unknown effect labels. Receipt `JUDGE-COMPARE-FAIL-CLOSED-POLICY-2026-10-11.md`. No paper claim.
 
 - JUDGE-COMPARE scripted-call shadow runner (`scripts/run_judge_compare_pilot.py`) with track consult policy (`judge_compare_policy.py`): only `attack` and `ambiguous` tracks force-consult the judge. Receipt `JUDGE-COMPARE-PRE-G6-REGRADE-2026-10-10.md`.
 - Part 0 judge wiring: Hermes `pre_tool_call` runs gate → atoms → box (when invoked) → judge → human. `engine.apply_judge_phase` owns the deferred judge; live mount passes `judge_enabled=False` into evaluate then applies after bound prove. Phase wall-clock `JUDGE_PHASE_DEADLINE_S` (10s) with pool `shutdown(wait=False, cancel_futures=True)`, Anthropic `max_retries=0`, and a `judge_started` G6 row before the call. Per-call apply re-check requires `AEGIS_JUDGE_APPLY_GO=1`, `AEGIS_PROFILE_ID=step11-test`, and `$HERMES_HOME/.aegis/profile_id`. Cage escalation always reaches the door; G6 write failures fail closed; quota skips write `judge_skipped`. Engine default `judge_apply_verdict` stays False. Receipts: `JUDGE-INVENTORY-2026-10-10.md`, `JUDGE-WIRING-2026-10-10.md`, `FORSETI-FIXFIRST-RESPONSE-2026-10-10.md`.
@@ -50,6 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- CI now pins `zizmorcore/zizmor-action` at v0.6.4 (`cc914d7`) so workflow analysis runs against the reviewed release while checkout credentials remain disabled.
 - Live mount can arm A4 instruction / task-scope / control-surface holds via `plugins.entries.aegis-atoms.*_enabled` (default off for strangers). Box CONFLICTING door is named by `AEGIS_CONFLICTING_HANDOFF` (dry only).
 - README names the author profile so a stranger can click once from this roof to `github.com/Steck43`.
 
