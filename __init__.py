@@ -532,7 +532,7 @@ def pre_llm_call(
     model: str,
     platform: str,
     **kwargs: Any,
-) -> Optional[dict]:
+) -> dict | None:
     origin = eng.session_origin_from_hook(platform, kwargs.get("sender_id", ""))
     _remember_session_text(session_id, user_message, origin)
     return None
@@ -620,7 +620,7 @@ def pre_tool_call(
     session_id: str = "",
     tool_call_id: str = "",
     **kwargs: Any,
-) -> Optional[dict]:
+) -> dict | None:
     # Default enforce so a mode-read failure still fails closed.
     mode = "enforce"
     try:
@@ -749,6 +749,7 @@ def pre_tool_call(
                 judge_consult_tools=_JUDGE_CONSULT_TOOLS if using_paid else None,
                 judge_slot=judge_slot,
                 judge_audit_path=judge_audit,
+                user_ask=session_text,
             )
             global _JUDGE_SITTING_USED
             _JUDGE_SITTING_USED += 1

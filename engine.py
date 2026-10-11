@@ -623,17 +623,17 @@ def evaluate_tool_call(
     if flow_atom_enabled and session_ctx is not None:
         try:
             from .memory_governance import (
-                evaluate_memory_flow,
-                memory_denial_message,
                 ATOM_SECRET_TO_DURABLE,
                 MEMORY_ATOMS,
+                evaluate_memory_flow,
+                memory_denial_message,
             )
         except ImportError:
             from memory_governance import (
-                evaluate_memory_flow,
-                memory_denial_message,
                 ATOM_SECRET_TO_DURABLE,
                 MEMORY_ATOMS,
+                evaluate_memory_flow,
+                memory_denial_message,
             )
         try:
             from .session_context import ToolCallView, sink_class_for_tool
@@ -703,17 +703,21 @@ def evaluate_tool_call(
     if instruction_surface_enabled and tool_name in WRITE_TOOLS:
         try:
             from .memory_governance import (
-                evaluate_instruction_surface_write,
-                memory_denial_message as instr_denial_message,
                 ATOM_WRITE_INSTRUCTION,
                 MEMORY_ATOMS,
+                evaluate_instruction_surface_write,
+            )
+            from .memory_governance import (
+                memory_denial_message as instr_denial_message,
             )
         except ImportError:
             from memory_governance import (
-                evaluate_instruction_surface_write,
-                memory_denial_message as instr_denial_message,
                 ATOM_WRITE_INSTRUCTION,
                 MEMORY_ATOMS,
+                evaluate_instruction_surface_write,
+            )
+            from memory_governance import (
+                memory_denial_message as instr_denial_message,
             )
         try:
             from .triad_types import EffectRank as InstrEffect
@@ -781,17 +785,17 @@ def evaluate_tool_call(
     if irreversible_ops_enabled:
         try:
             from .irreversible_ops import (
-                evaluate_irreversible_ops,
-                irreversible_denial_message,
                 ATOM_IRREVERSIBLE,
                 IRREVERSIBLE_ATOMS,
+                evaluate_irreversible_ops,
+                irreversible_denial_message,
             )
         except ImportError:
             from irreversible_ops import (
-                evaluate_irreversible_ops,
-                irreversible_denial_message,
                 ATOM_IRREVERSIBLE,
                 IRREVERSIBLE_ATOMS,
+                evaluate_irreversible_ops,
+                irreversible_denial_message,
             )
         try:
             from .triad_types import EffectRank as IrrEffect
@@ -848,17 +852,17 @@ def evaluate_tool_call(
     if task_scope_enabled:
         try:
             from .task_scope import (
-                evaluate_task_scope,
-                task_scope_denial_message,
                 ATOM_TASK_SCOPE,
                 TASK_SCOPE_ATOMS,
+                evaluate_task_scope,
+                task_scope_denial_message,
             )
         except ImportError:
             from task_scope import (
-                evaluate_task_scope,
-                task_scope_denial_message,
                 ATOM_TASK_SCOPE,
                 TASK_SCOPE_ATOMS,
+                evaluate_task_scope,
+                task_scope_denial_message,
             )
         try:
             from .triad_types import EffectRank as ScopeEffect
@@ -917,17 +921,17 @@ def evaluate_tool_call(
     if control_surface_enabled and tool_name in WRITE_TOOLS:
         try:
             from .memory_governance import (
-                evaluate_control_surface_write,
-                control_surface_denial_message,
                 ATOM_WRITE_CONTROL,
                 MEMORY_ATOMS,
+                control_surface_denial_message,
+                evaluate_control_surface_write,
             )
         except ImportError:
             from memory_governance import (
-                evaluate_control_surface_write,
-                control_surface_denial_message,
                 ATOM_WRITE_CONTROL,
                 MEMORY_ATOMS,
+                control_surface_denial_message,
+                evaluate_control_surface_write,
             )
         try:
             from .triad_types import EffectRank as CtrlEffect
@@ -995,21 +999,21 @@ def evaluate_tool_call(
     if action_gating_enabled:
         try:
             from .action_gating import (
+                ACTION_GATING_ATOMS,
+                ATOM_PATH_OUTSIDE,
+                ATOM_SHELL_UNSANITIZED,
                 evaluate_action_gating,
                 rollup_denial_message,
                 strangler_observe_split,
-                ATOM_PATH_OUTSIDE,
-                ATOM_SHELL_UNSANITIZED,
-                ACTION_GATING_ATOMS,
             )
         except ImportError:
             from action_gating import (
+                ACTION_GATING_ATOMS,
+                ATOM_PATH_OUTSIDE,
+                ATOM_SHELL_UNSANITIZED,
                 evaluate_action_gating,
                 rollup_denial_message,
                 strangler_observe_split,
-                ATOM_PATH_OUTSIDE,
-                ATOM_SHELL_UNSANITIZED,
-                ACTION_GATING_ATOMS,
             )
         try:
             from .triad_types import EffectRank, RollupStatus
@@ -1106,22 +1110,24 @@ def evaluate_tool_call(
     if content_detection_enabled:
         try:
             from .content_detection import (
-                evaluate_content_detection,
-                content_denial_message,
                 ATOM_INDIRECT_MARKER,
                 CONTENT_DETECTION_ATOMS,
+                content_denial_message,
+                evaluate_content_detection,
             )
         except ImportError:
             from content_detection import (
-                evaluate_content_detection,
-                content_denial_message,
                 ATOM_INDIRECT_MARKER,
                 CONTENT_DETECTION_ATOMS,
+                content_denial_message,
+                evaluate_content_detection,
             )
         try:
-            from .triad_types import EffectRank as ER, TrustDomain
+            from .triad_types import EffectRank as ER
+            from .triad_types import TrustDomain
         except ImportError:
-            from triad_types import EffectRank as ER, TrustDomain
+            from triad_types import EffectRank as ER
+            from triad_types import TrustDomain
         import uuid as _uuid
 
         blobs: list[str] = []
@@ -1192,28 +1198,34 @@ def evaluate_tool_call(
     if supply_chain_enabled:
         try:
             from .supply_chain import (
-                evaluate_supply_chain,
-                rollup_denial_message as sc_denial,
                 ATOM_TOOL_INTEGRITY,
+                DEFAULT_BASELINE_PATH,
+                SUPPLY_CHAIN_ATOMS,
                 SUPPLY_CHAIN_CONTROLS,
                 SUPPLY_CHAIN_EDGES,
-                SUPPLY_CHAIN_ATOMS,
-                DEFAULT_BASELINE_PATH,
+                evaluate_supply_chain,
+            )
+            from .supply_chain import (
+                rollup_denial_message as sc_denial,
             )
         except ImportError:
             from supply_chain import (
-                evaluate_supply_chain,
-                rollup_denial_message as sc_denial,
                 ATOM_TOOL_INTEGRITY,
+                DEFAULT_BASELINE_PATH,
+                SUPPLY_CHAIN_ATOMS,
                 SUPPLY_CHAIN_CONTROLS,
                 SUPPLY_CHAIN_EDGES,
-                SUPPLY_CHAIN_ATOMS,
-                DEFAULT_BASELINE_PATH,
+                evaluate_supply_chain,
+            )
+            from supply_chain import (
+                rollup_denial_message as sc_denial,
             )
         try:
-            from .triad_types import EffectRank as ScEffect, RollupStatus as ScRS
+            from .triad_types import EffectRank as ScEffect
+            from .triad_types import RollupStatus as ScRS
         except ImportError:
-            from triad_types import EffectRank as ScEffect, RollupStatus as ScRS
+            from triad_types import EffectRank as ScEffect
+            from triad_types import RollupStatus as ScRS
 
         meta = tool_metadata if isinstance(tool_metadata, dict) else {}
         baseline = approved_tools_path or str(DEFAULT_BASELINE_PATH)
@@ -1357,6 +1369,7 @@ def evaluate_tool_call(
             judge_slot=judge_slot,
             judge_threshold=judge_threshold,
             judge_audit_path=judge_audit_path,
+            user_ask=session_text,
         )
     return sealed
 
@@ -1424,6 +1437,7 @@ def apply_judge_phase(
     judge_slot: Any | None = None,
     judge_threshold: float | None = None,
     judge_audit_path: str | None = None,
+    user_ask: str = "",
 ) -> EvaluationResult:
     """Bounded judge after the floor (and box, when the host ran it) is final.
 
@@ -1463,26 +1477,34 @@ def apply_judge_phase(
         from judge_consumer import apply_judge_subtract
     try:
         from .judge_slot_sonnet import (
+            EFFORT_FLOOR,
             JUDGE_PHASE_DEADLINE_S,
             JUDGE_PROMPT_SHA256,
             JUDGE_REQUEST_TIMEOUT_S,
             MODEL_ID,
             JudgeUnavailable,
+            g6_pin_fields,
         )
     except ImportError:
         try:
             from judge_slot_sonnet import (
+                EFFORT_FLOOR,
                 JUDGE_PHASE_DEADLINE_S,
                 JUDGE_PROMPT_SHA256,
                 JUDGE_REQUEST_TIMEOUT_S,
                 MODEL_ID,
                 JudgeUnavailable,
+                g6_pin_fields,
             )
         except ImportError:
             JUDGE_PROMPT_SHA256 = None  # type: ignore[assignment]
             MODEL_ID = "unknown"
             JUDGE_PHASE_DEADLINE_S = 10.0
             JUDGE_REQUEST_TIMEOUT_S = 8.0
+            EFFORT_FLOOR = "low"
+
+            def g6_pin_fields(*, effort: str) -> dict[str, str]:  # type: ignore[misc]
+                return {}
 
             class JudgeUnavailable(Exception):  # type: ignore[no-redef]
                 pass
@@ -1501,16 +1523,15 @@ def apply_judge_phase(
 
         # Evidence before the paid call so a kill still leaves a G6 row.
         # Uses append_judge_log_row (fail-closed), not the cage audit path alone.
-        append_judge_log_row(
-            judge_audit_path,
-            {
-                "record_type": "judge_started",
-                "evaluation_id": evaluation_id,
-                "tool_name": tool_name,
-                "judge_apply_verdict": bool(judge_apply_verdict),
-                "phase_deadline_s": float(JUDGE_PHASE_DEADLINE_S),
-            },
-        )
+        started_row: dict[str, Any] = {
+            "record_type": "judge_started",
+            "evaluation_id": evaluation_id,
+            "tool_name": tool_name,
+            "judge_apply_verdict": bool(judge_apply_verdict),
+            "phase_deadline_s": float(JUDGE_PHASE_DEADLINE_S),
+        }
+        started_row.update(g6_pin_fields(effort=str(EFFORT_FLOOR)))
+        append_judge_log_row(judge_audit_path, started_row)
 
         best_effect = result.winning_effect
         block_message = result.block_message
@@ -1533,9 +1554,11 @@ def apply_judge_phase(
             else ("contradicted" if best_effect == "block" else "supported"),
             "locked_atoms": locked,
             "candidate_atoms": list(locked),
+            "atoms_for_adjudication": list(locked),
             "evaluation_id": evaluation_id,
             "security_relevant": bool(best_effect in ("block", "human_review")),
             "tool_name": tool_name,
+            "user_ask": str(user_ask or "")[:4000],
         }
         if judge_force_consult:
             case["ambiguous"] = True
@@ -1653,26 +1676,25 @@ def apply_judge_phase(
         result.judge_error = judge_error
         result.judge_cost_usd = float(cost) if cost is not None else None
 
-        append_judge_log_row(
-            judge_audit_path,
-            {
-                "record_type": "judge_apply_decision",
-                "evaluation_id": evaluation_id,
-                "judge_enabled": True,
-                "judge_apply_verdict": bool(judge_apply_verdict),
-                "judge_verdict": judge_verdict,
-                "judge_subtracted": result.judge_subtracted,
-                "judge_latency_ms": result.judge_latency_ms,
-                "judge_model": result.judge_model,
-                "judge_prompt_sha256": result.judge_prompt_sha256,
-                "judge_error": judge_error,
-                "judge_cost_usd": result.judge_cost_usd,
-                "applied": bool(judge_apply_verdict),
-                "would_subtract": would_subtract,
-                "shadow_effect": new_effect,
-                "winning_effect": best_effect,
-            },
-        )
+        decision_row: dict[str, Any] = {
+            "record_type": "judge_apply_decision",
+            "evaluation_id": evaluation_id,
+            "judge_enabled": True,
+            "judge_apply_verdict": bool(judge_apply_verdict),
+            "judge_verdict": judge_verdict,
+            "judge_subtracted": result.judge_subtracted,
+            "judge_latency_ms": result.judge_latency_ms,
+            "judge_model": result.judge_model,
+            "judge_prompt_sha256": result.judge_prompt_sha256,
+            "judge_error": judge_error,
+            "judge_cost_usd": result.judge_cost_usd,
+            "applied": bool(judge_apply_verdict),
+            "would_subtract": would_subtract,
+            "shadow_effect": new_effect,
+            "winning_effect": best_effect,
+        }
+        decision_row.update(g6_pin_fields(effort=str(EFFORT_FLOOR)))
+        append_judge_log_row(judge_audit_path, decision_row)
         return result
     except Exception as exc:  # noqa: BLE001 — must not escape into Hermes swallow
         latency_ms = (_time.monotonic() - t0) * 1000.0
