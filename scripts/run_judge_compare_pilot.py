@@ -51,16 +51,8 @@ from harness.schema_fixes import (  # noqa: E402
     synthesize_gold_calls,
 )
 from judge_budget import BudgetExhausted, BudgetGuard  # noqa: E402
-from judge_compare_policy import force_consult_for_track  # noqa: E402
+from judge_compare_policy import force_consult_for_track, widens  # noqa: E402
 from judge_slot_sonnet import SonnetJudgeConfig, make_sonnet_judge_slot  # noqa: E402
-
-EFFECT_RANK = {
-    None: 0,
-    "allow": 0,
-    "monitor": 1,
-    "human_review": 2,
-    "block": 3,
-}
 
 AGENT_MODEL_ID = "grok-4.3"
 JUDGE_MODEL_ID = "claude-sonnet-5"
@@ -104,10 +96,6 @@ def _effect_of(result: Any) -> str | None:
     if effect is None and getattr(result, "block_message", None) is None:
         return None
     return effect
-
-
-def _widens(off_effect: str | None, on_effect: str | None) -> bool:
-    return EFFECT_RANK.get(on_effect, 0) < EFFECT_RANK.get(off_effect, 0)
 
 
 def _materialize_workspace(body: dict[str, Any], parent: Path) -> Path:
@@ -304,7 +292,7 @@ def run_compare(
 
         off_effect = _effect_of(off)
         on_effect = _effect_of(on)
-        if _widens(off_effect, on_effect):
+        if widens(off_effect, on_effect):
             widening.append(sid)
 
         if off_effect == "human_review":
@@ -357,7 +345,7 @@ def run_compare(
                 "on_judge_error": getattr(on, "judge_error", None),
                 "on_judge_latency_ms": getattr(on, "judge_latency_ms", None),
                 "on_judge_cost_usd": getattr(on, "judge_cost_usd", None),
-                "widening": _widens(off_effect, on_effect),
+                "widening": widens(off_effect, on_effect),
                 "checkpoint": {
                     "gate": checkpoint.get("gate"),
                     "atoms": checkpoint.get("atoms"),
