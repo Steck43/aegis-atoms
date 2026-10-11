@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Ruff development and CI range resolves to `>=0.16.9,<0.17`, replacing the closed Dependabot proposal with a branch that runs the protected floor. Receipt: `RUFF-0.16.9-2026-10-11.md`.
+
 ### Added
 
 - JUDGE-COMPARE scripted-call shadow runner (`scripts/run_judge_compare_pilot.py`) with track consult policy (`judge_compare_policy.py`): only `attack` and `ambiguous` tracks force-consult the judge. Receipt `JUDGE-COMPARE-PRE-G6-REGRADE-2026-10-10.md`.
