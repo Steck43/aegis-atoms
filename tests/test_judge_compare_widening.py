@@ -21,4 +21,3 @@ def test_compare_rejects_unknown_effect_labels() -> None:
         widens("unknown", "block")
     with pytest.raises(ValueError, match="unknown on_effect"):
         widens("block", "unknown")
-
