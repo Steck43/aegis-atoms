@@ -78,6 +78,12 @@ def assert_agent_invoked_every_item(rows: list[dict[str, Any]]) -> None:
         raise AssertionError(f"agent not invoked on items: {missing}")
 
 
+def guard_agent_mode_rows(rows: list[dict[str, Any]]) -> None:
+    """Rows-path guard: agent-mode batches must invoke the agent on every item."""
+    if any(r.get("agent_mode") for r in rows):
+        assert_agent_invoked_every_item(rows)
+
+
 def apply_arm_allowed(
     *,
     calibration_receipt_path: Path | str | None,
@@ -171,20 +177,6 @@ def assert_rubric_tracks_real_catalog(
     """Refuse when the live catalog tip and rubric pin disagree."""
     tip = catalog_tip_commit(catalog_path=catalog_path, repo_root=repo_root)
     assert_rubric_tracks_atoms(atoms_commit=tip)
-
-
-def assert_harness_guards_agent_invocation(*, harness_path: Path) -> None:
-    """Real compare harness must reference the agent_invoked every-item guard."""
-    path = Path(harness_path)
-    if not path.is_file():
-        raise AssertionError(f"harness missing: {path}")
-    text = path.read_text(encoding="utf-8")
-    if "assert_agent_invoked_every_item" not in text:
-        raise AssertionError(
-            "harness must call assert_agent_invoked_every_item on agent-mode rows"
-        )
-    if "agent_invoked" not in text:
-        raise AssertionError("harness must record agent_invoked on each row")
 
 
 def assert_reason_code_enum_sha(expected: str) -> None:

@@ -94,7 +94,7 @@ def test_05_slice_overlapping_heldout_refused():
 def test_06_agent_invoked_on_every_item_regression():
     """Regression: live agent compare harness must guard agent_invoked."""
     from judge_spec_v1 import assert_agent_invoked_every_item
-    from judge_spec_v1 import assert_harness_guards_agent_invocation
+    from judge_spec_v1 import guard_agent_mode_rows
 
     rows = [
         {"id": "1", "agent_invoked": True},
@@ -102,9 +102,17 @@ def test_06_agent_invoked_on_every_item_regression():
     ]
     with pytest.raises(AssertionError):
         assert_agent_invoked_every_item(rows)
-    assert_harness_guards_agent_invocation(
-        harness_path=ROOT / "scripts" / "run_judge_compare_pilot.py"
-    )
+
+    # Behavior: rows-path guard raises when agent_mode and agent not invoked.
+    with pytest.raises(AssertionError):
+        guard_agent_mode_rows(
+            [{"id": "a", "agent_mode": True, "agent_invoked": False}]
+        )
+    # Wired into the real compare harness rows path (not a source-string-only guard).
+    harness = ROOT / "scripts" / "run_judge_compare_pilot.py"
+    text = harness.read_text(encoding="utf-8")
+    assert "guard_agent_mode_rows" in text
+    assert "_guard_agent_mode_rows(rows)" in text
 
 
 def test_07_apply_cannot_arm_without_calibration_receipt():
