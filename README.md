@@ -22,7 +22,7 @@ This repository is the atom plane and a bounded judge, as source. The allowlist 
 <div align="center">
 
 ![Atoms harness](https://img.shields.io/badge/Atoms%20harness-7%2F16%20hard--deny-1f6feb)
-![mode](https://img.shields.io/badge/live%20profile-enforce-success)
+![mode](https://img.shields.io/badge/profile%20config-enforce%2C%20live%20load%20not%20measured-lightgrey)
 ![python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![status](https://img.shields.io/badge/status-enforce%20research%20build-blueviolet)
 
@@ -70,7 +70,7 @@ flowchart TD
     ENF --> OUT([allow · deny · escalate])
 ```
 
-PDP evaluate is a pre-tool call: the tool has not run yet, the call goes to atoms, and a contradiction the rollup cannot settle goes to the box. On the live mount the judge subtracts when it flags, under a sitting quota. Plugin mode no longer turns the judge off.
+PDP evaluate is a pre-tool call: the tool has not run yet, the call goes to atoms, and a contradiction the rollup cannot settle goes to the box. With `judge_apply_verdict=true` the judge subtracts when it flags, under a sitting quota. The live mount defaults that flag to false, and a live subtract on the Hermes gateway has not been measured. Plugin mode no longer turns the judge off.
 
 ## The three-object model
 
@@ -121,7 +121,7 @@ above against a clean checkout.
 
 ## Status
 
-Capability-gate is the live allowlist. The live atoms profile is enforce. The live mount defaults `judge_apply_verdict=false` (tune; Landen GO arms apply). C1 path-outside records `strangler-observe` when `AEGIS_STRANGLER_OBSERVE=1`. A separate Hermes triad plugin is not in `plugins.enabled`.
+Capability-gate is the live allowlist. The atoms profile config sets enforce. A live load of this plugin into the Hermes gateway on that profile has not been measured. The live mount defaults `judge_apply_verdict=false` (tune; Landen GO arms apply). C1 path-outside records `strangler-observe` when `AEGIS_STRANGLER_OBSERVE=1`. A separate Hermes triad plugin is not in `plugins.enabled`.
 
 ---
 
