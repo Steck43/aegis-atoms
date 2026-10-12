@@ -32,7 +32,12 @@ jobs:
         run: pip install -q pytest
 
       - name: head fixture green
-        run: python -m pytest -q tests/test_strip_ci_fixture.py
+        # Isolated config: do not load repo pytest.ini pythonpath / tests/conftest
+        # (those import the plugin root, which needs PyYAML the floor installs).
+        run: >
+          python -m pytest -q --noconftest --import-mode=importlib
+          -c tools/strip_ci_fixture/pytest.ini
+          tools/strip_ci_fixture/test_add.py
 
       - name: strip recipes red then restore green
         run: bash .floor/craft/strip_check.sh

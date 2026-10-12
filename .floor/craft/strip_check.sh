@@ -10,6 +10,10 @@ if [[ ! -f "$TSV" ]]; then
 fi
 
 TARGET=tools/strip_ci_fixture/add.py
+FIXTURE_PYTEST=(
+  -q --noconftest --import-mode=importlib
+  -c tools/strip_ci_fixture/pytest.ini
+)
 while IFS=$'\t' read -r package strip_cmd nodeid expect_sub; do
   expect_sub="${expect_sub%$'\r'}"
   package="${package%$'\r'}"
@@ -22,7 +26,7 @@ while IFS=$'\t' read -r package strip_cmd nodeid expect_sub; do
   PY=python3
   command -v "$PY" >/dev/null || PY=python
   set +e
-  out="$($PY -m pytest -q "$nodeid" 2>&1)"
+  out="$($PY -m pytest "${FIXTURE_PYTEST[@]}" "$nodeid" 2>&1)"
   rc=$?
   set -e
   cp "$backup" "$TARGET"
@@ -38,7 +42,7 @@ while IFS=$'\t' read -r package strip_cmd nodeid expect_sub; do
     exit 1
   fi
   echo "strip_check: strip red OK for $package"
-  $PY -m pytest -q "$nodeid"
+  $PY -m pytest "${FIXTURE_PYTEST[@]}" "$nodeid"
   echo "strip_check: head green OK for $package"
 done < "$TSV"
 
