@@ -8,30 +8,18 @@ stage-two ceiling. Compares cage classification stub-vs-live.
 from __future__ import annotations
 
 import json
-import os
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(ROOT))
+
+from provider_key import load_anthropic_key  # noqa: E402
 
 
 def _load_key() -> str:
-    env = os.environ.get("ANTHROPIC_API_KEY", "").strip()
-    if env:
-        return env
-    for p in (
-        ROOT / "secrets" / ".env",
-        ROOT.parent.parent / "secrets" / ".env",
-        Path.home() / ".hermes" / ".env",
-    ):
-        if not p.is_file():
-            continue
-        for line in p.read_text(encoding="utf-8", errors="replace").splitlines():
-            line = line.strip()
-            if line.startswith("ANTHROPIC_API_KEY="):
-                return line.split("=", 1)[1].strip().strip('"').strip("'")
-    return ""
+    return load_anthropic_key()
 
 
 def main() -> int:

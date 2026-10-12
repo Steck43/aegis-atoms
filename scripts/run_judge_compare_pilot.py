@@ -22,37 +22,48 @@ from types import SimpleNamespace
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-
-
-def _resolve_sibling(name: str) -> Path:
-    """Windows clone path, or the /mnt/c mirror when running under WSL."""
-    win = Path(r"C:\Users\lande\Engineering_and_Development") / name
-    if win.is_dir():
-        return win
-    wsl = Path("/mnt/c/Users/lande/Engineering_and_Development") / name
-    if wsl.is_dir():
-        return wsl
-    return win
-
-
-ESTATE = _resolve_sibling("hermes-agent-estate")
-HUB = _resolve_sibling("Grok-Bot-Hub") / "burn-queue" / "2026-10-09-hermes-corpus"
-
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(ESTATE))
 
 from engine import evaluate_tool_call, load_catalog  # noqa: E402
-from harness.corpus_join import join_pilot  # noqa: E402
-from harness.pins import HERMES_ZIP_SHA256, PILOT_500_SHA256  # noqa: E402
-from harness.pilot import require_pin  # noqa: E402
-from harness.schema_fixes import (  # noqa: E402
-    normalize_workspace_path,
-    resolve_fixture_files,
-    synthesize_gold_calls,
-)
 from judge_budget import BudgetExhausted, BudgetGuard  # noqa: E402
 from judge_compare_policy import force_consult_for_track, widens  # noqa: E402
 from judge_slot_sonnet import SonnetJudgeConfig, make_sonnet_judge_slot  # noqa: E402
+from provider_key import load_anthropic_key  # noqa: E402
+
+_ESTATE_READY = False
+
+
+def _ensure_estate() -> None:
+    """Put the corpus harness checkout on the path. No compiled-in location."""
+    global _ESTATE_READY
+    if _ESTATE_READY:
+        return
+    raw = os.environ.get("AEGIS_ESTATE_ROOT", "").strip()
+    if not raw:
+        raise SystemExit(
+            "AEGIS_ESTATE_ROOT is unset; set it to the checkout that "
+            "provides the corpus harness"
+        )
+    estate = Path(raw)
+    if not estate.is_dir():
+        raise SystemExit("AEGIS_ESTATE_ROOT is not a directory")
+    sys.path.insert(0, str(estate))
+    _ESTATE_READY = True
+
+
+def _corpus_dir() -> Path:
+    raw = os.environ.get("JUDGE_COMPARE_CORPUS", "").strip()
+    if not raw:
+        raise SystemExit(
+            "JUDGE_COMPARE_CORPUS is unset; set it to the corpus directory "
+            "or pass --hermes-zip and --pilot"
+        )
+    path = Path(raw)
+    if not path.is_dir():
+        raise SystemExit("JUDGE_COMPARE_CORPUS is not a directory")
+    return path
+
 
 AGENT_MODEL_ID = "grok-4.3"
 JUDGE_MODEL_ID = "claude-sonnet-5"
@@ -73,22 +84,7 @@ def _sha256_text(text: str) -> str:
 
 
 def _load_anthropic_key() -> str:
-    env = os.environ.get("ANTHROPIC_API_KEY", "").strip()
-    if env:
-        return env
-    candidates = [
-        Path.home() / ".hermes" / "profiles" / "aegis" / ".env",
-        Path("/home/landen/.hermes/profiles/aegis/.env"),
-        Path(r"\\wsl$\Ubuntu\home\landen\.hermes\profiles\aegis\.env"),
-        ROOT / "secrets" / ".env",
-    ]
-    for path in candidates:
-        if not path.is_file():
-            continue
-        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-            if line.startswith("ANTHROPIC_API_KEY="):
-                return line.split("=", 1)[1].strip().strip('"').strip("'")
-    return ""
+    return load_anthropic_key()
 
 
 def _effect_of(result: Any) -> str | None:
@@ -99,6 +95,9 @@ def _effect_of(result: Any) -> str | None:
 
 
 def _materialize_workspace(body: dict[str, Any], parent: Path) -> Path:
+    _ensure_estate()
+    from harness.schema_fixes import resolve_fixture_files
+
     ws = parent / "ws"
     ws.mkdir(parents=True, exist_ok=True)
     files = resolve_fixture_files(body)
@@ -120,6 +119,9 @@ def _materialize_workspace(body: dict[str, Any], parent: Path) -> Path:
 
 
 def _absolutize_args(args: dict[str, Any], ws: Path) -> dict[str, Any]:
+    _ensure_estate()
+    from harness.schema_fixes import normalize_workspace_path
+
     out = dict(args)
     for key in ("path", "file", "target", "cwd", "directory"):
         value = out.get(key)
@@ -197,6 +199,12 @@ def run_compare(
     variance_n: int,
     seed: int,
 ) -> dict[str, Any]:
+    _ensure_estate()
+    from harness.corpus_join import join_pilot
+    from harness.pins import HERMES_ZIP_SHA256, PILOT_500_SHA256
+    from harness.pilot import require_pin
+    from harness.schema_fixes import synthesize_gold_calls
+
     require_pin(hermes_zip, HERMES_ZIP_SHA256, "hermes.zip")
     require_pin(pilot_jsonl, PILOT_500_SHA256, "pilot-500.jsonl")
     joined = join_pilot(pilot_jsonl, hermes_zip)
@@ -456,10 +464,8 @@ def run_compare(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--hermes-zip", type=Path, default=HUB / "hermes.zip")
-    parser.add_argument(
-        "--pilot", type=Path, default=HUB / "_frozen_unpack" / "pilot-500.jsonl"
-    )
+    parser.add_argument("--hermes-zip", type=Path, default=None)
+    parser.add_argument("--pilot", type=Path, default=None)
     parser.add_argument(
         "--out-dir",
         type=Path,
@@ -470,6 +476,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--variance-n", type=int, default=50)
     parser.add_argument("--seed", type=int, default=20261010)
     args = parser.parse_args(argv)
+    if args.hermes_zip is None or args.pilot is None:
+        corpus = _corpus_dir()
+        if args.hermes_zip is None:
+            args.hermes_zip = corpus / "hermes.zip"
+        if args.pilot is None:
+            args.pilot = corpus / "_frozen_unpack" / "pilot-500.jsonl"
 
     summary = run_compare(
         hermes_zip=args.hermes_zip,
