@@ -16,10 +16,10 @@ ENV_FILE_VAR = "ANTHROPIC_ENV_FILE"
 
 def _home_pattern() -> re.Pattern[str]:
     windows = "C:" + "\\" + "Users" + "\\"
-    windows_fwd = "C:" + "/Users/"
-    mnt = "/mnt/c" + "/Users"
+    windows_fwd = "C:" + "/" + "Users" + "/"
+    mnt = "/mnt/c" + "/" + "Users"
     home = "(?:^|[/\\\\])" + "home" + "[/\\\\]" + "[^/\\\\\\s\"'`]+"
-    mac = "(?<![A-Za-z0-9])" + "/Users/" + "[^/\\s\"'`]+"
+    mac = "(?<![A-Za-z0-9])" + "/" + "Users" + "/" + "[^/\\s\"'`]+"
     parts = [
         re.escape(windows),
         re.escape(windows_fwd),
