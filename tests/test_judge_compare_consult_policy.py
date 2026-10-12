@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 from bounded_judge import JudgeOpinion, JudgeRecommendation
 from engine import evaluate_tool_call, load_catalog
 from judge_compare_policy import force_consult_for_track
