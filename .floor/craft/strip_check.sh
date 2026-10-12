@@ -9,28 +9,51 @@ if [[ ! -f "$TSV" ]]; then
   exit 2
 fi
 
-TARGET=tools/strip_ci_fixture/add.py
-FIXTURE_PYTEST=(
-  -q --noconftest --import-mode=importlib
-  -c tools/strip_ci_fixture/pytest.ini
-)
-while IFS=$'\t' read -r package strip_cmd nodeid expect_sub; do
+backup=""
+target=""
+restore_target() {
+  if [[ -n "${backup:-}" && -f "${backup}" && -n "${target:-}" ]]; then
+    cp "$backup" "$target"
+    rm -f "$backup"
+  fi
+  backup=""
+  target=""
+}
+trap restore_target EXIT
+
+ran=0
+while IFS=$'\t' read -r package strip_target strip_cmd nodeid expect_sub; do
   expect_sub="${expect_sub%$'\r'}"
   package="${package%$'\r'}"
+  strip_target="${strip_target%$'\r'}"
   [[ -z "${package:-}" || "$package" =~ ^# ]] && continue
-  echo "strip_check: recipe package=$package"
+  if [[ -z "${strip_target:-}" || -z "${strip_cmd:-}" || -z "${nodeid:-}" || -z "${expect_sub:-}" ]]; then
+    echo "strip_check FAIL: incomplete recipe for package=$package" >&2
+    exit 2
+  fi
+  if [[ ! -f "$strip_target" ]]; then
+    echo "strip_check FAIL: strip target missing: $strip_target" >&2
+    exit 2
+  fi
+  ran=$((ran + 1))
+  echo "strip_check: recipe package=$package target=$strip_target"
+  target="$strip_target"
   backup=$(mktemp)
-  cp "$TARGET" "$backup"
+  cp "$target" "$backup"
   # shellcheck disable=SC2086
   eval "$strip_cmd"
   PY=python3
   command -v "$PY" >/dev/null || PY=python
+  # Fixture job installs pytest only; isolate from repo pytest.ini / plugin root.
+  local_pytest=( -q --noconftest --import-mode=importlib )
+  if [[ -f tools/strip_ci_fixture/pytest.ini && "$nodeid" == tools/strip_ci_fixture/* ]]; then
+    local_pytest+=( -c tools/strip_ci_fixture/pytest.ini )
+  fi
   set +e
-  out="$($PY -m pytest "${FIXTURE_PYTEST[@]}" "$nodeid" 2>&1)"
+  out="$($PY -m pytest "${local_pytest[@]}" "$nodeid" 2>&1)"
   rc=$?
   set -e
-  cp "$backup" "$TARGET"
-  rm -f "$backup"
+  restore_target
   if [[ $rc -eq 0 ]]; then
     echo "strip_check FAIL: expected red under strip for $package" >&2
     echo "$out" >&2
@@ -42,8 +65,13 @@ while IFS=$'\t' read -r package strip_cmd nodeid expect_sub; do
     exit 1
   fi
   echo "strip_check: strip red OK for $package"
-  $PY -m pytest "${FIXTURE_PYTEST[@]}" "$nodeid"
+  $PY -m pytest "${local_pytest[@]}" "$nodeid"
   echo "strip_check: head green OK for $package"
 done < "$TSV"
 
-echo "strip_check: all recipes OK"
+if [[ $ran -eq 0 ]]; then
+  echo "strip_check FAIL: no recipes in $TSV" >&2
+  exit 2
+fi
+
+echo "strip_check: all recipes OK ($ran)"
