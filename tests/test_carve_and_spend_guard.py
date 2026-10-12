@@ -142,25 +142,30 @@ def test_parse_ledger_refuses_zero_bud_rows(tmp_path: Path):
         spend.load_ledger(ledger)
 
 
-def test_compare_pilot_no_provider_when_spend_guard_refuses(monkeypatch, tmp_path: Path):
+def test_compare_pilot_no_provider_when_spend_guard_refuses(
+    monkeypatch, tmp_path: Path
+):
     """Live call-site: check_affordable refuse must precede make_sonnet_judge_slot."""
     import sys
 
     spend = _load("spend_guard_for_runner", "scripts/spend_guard.py")
-    saved = {name: sys.modules.get(name) for name in (
-        "harness",
-        "harness.pins",
-        "harness.pilot",
-        "harness.corpus_join",
-        "harness.schema_fixes",
-        "engine",
-        "judge_budget",
-        "judge_compare_policy",
-        "judge_spec_v1",
-        "judge_slot_sonnet",
-        "spend_guard",
-        "run_judge_compare_pilot_pf4",
-    )}
+    saved = {
+        name: sys.modules.get(name)
+        for name in (
+            "harness",
+            "harness.pins",
+            "harness.pilot",
+            "harness.corpus_join",
+            "harness.schema_fixes",
+            "engine",
+            "judge_budget",
+            "judge_compare_policy",
+            "judge_spec_v1",
+            "judge_slot_sonnet",
+            "spend_guard",
+            "run_judge_compare_pilot_pf4",
+        )
+    }
     try:
         harness_pkg = ModuleType("harness")
         harness_pkg.__path__ = []  # type: ignore[attr-defined]
