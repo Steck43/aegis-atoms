@@ -51,7 +51,22 @@ def test_force_consult_for_track_buckets():
     assert force_consult_for_track("honest-mistake") is False
     assert force_consult_for_track("attack") is True
     assert force_consult_for_track("ambiguous") is True
-    assert force_consult_for_track(None) is False
+
+
+def test_missing_or_unknown_track_forces_consult() -> None:
+    assert force_consult_for_track(None) is True
+    assert force_consult_for_track("") is True
+    assert force_consult_for_track("unclassified") is True
+
+
+def test_attack_with_trailing_space_forces_consult() -> None:
+    """Track 'Attack ' strips to attack and must force consult."""
+    assert force_consult_for_track("Attack ") is True
+
+
+def test_normal_with_leading_space_skips_consult() -> None:
+    """Track ' Normal' strips to normal and may skip consult (documented)."""
+    assert force_consult_for_track(" Normal") is False
 
 
 def test_runner_does_not_hardcode_force_consult_true():
@@ -136,3 +151,94 @@ def test_force_consult_makes_normal_flag_everything(tmp_path):
         tool_call_id="r1",
     )
     assert result.judge_would_subtract is True
+
+
+def test_eval_one_unknown_track_force_consult_reaches_evaluate(monkeypatch, tmp_path):
+    """Behavior: _eval_one with None/''/unknown sets force_consult True into evaluate_tool_call."""
+    import importlib.util
+    import sys
+    from types import ModuleType, SimpleNamespace
+
+    saved = {
+        name: sys.modules.get(name)
+        for name in (
+            "harness",
+            "harness.pins",
+            "harness.pilot",
+            "harness.corpus_join",
+            "harness.schema_fixes",
+            "spend_guard",
+            "run_judge_compare_pilot_j014",
+        )
+    }
+    try:
+        harness_pkg = ModuleType("harness")
+        harness_pkg.__path__ = []  # type: ignore[attr-defined]
+        pins = ModuleType("harness.pins")
+        pins.HERMES_ZIP_SHA256 = "a" * 64
+        pins.PILOT_500_SHA256 = "b" * 64
+        pilot = ModuleType("harness.pilot")
+        pilot.require_pin = lambda *a, **k: "ok"
+        corpus = ModuleType("harness.corpus_join")
+        corpus.join_pilot = lambda *a, **k: []
+        schema = ModuleType("harness.schema_fixes")
+        schema.normalize_workspace_path = lambda v: v
+        schema.resolve_fixture_files = lambda body: {}
+        schema.synthesize_gold_calls = lambda body: []
+        spend = ModuleType("spend_guard")
+        spend.SpendGuardRefuse = RuntimeError
+        spend.check_affordable = lambda *a, **k: None
+        for name, mod in (
+            ("harness", harness_pkg),
+            ("harness.pins", pins),
+            ("harness.pilot", pilot),
+            ("harness.corpus_join", corpus),
+            ("harness.schema_fixes", schema),
+            ("spend_guard", spend),
+        ):
+            sys.modules[name] = mod
+
+        path = ROOT / "scripts" / "run_judge_compare_pilot.py"
+        spec = importlib.util.spec_from_file_location(
+            "run_judge_compare_pilot_j014", path
+        )
+        assert spec and spec.loader
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = mod
+        spec.loader.exec_module(mod)
+
+        seen: list[bool] = []
+
+        def _capture_evaluate(*args, **kwargs):
+            seen.append(bool(kwargs.get("judge_force_consult")))
+            return SimpleNamespace(
+                winning_effect=None,
+                judge_would_subtract=False,
+                judge_recommendation=None,
+                judge_subtracted=False,
+            )
+
+        monkeypatch.setattr(mod, "evaluate_tool_call", _capture_evaluate)
+        catalog, env = _catalog(tmp_path)
+        audit = tmp_path / "a.jsonl"
+        for track in (None, "", "unknown"):
+            seen.clear()
+            mod._eval_one(
+                catalog=catalog,
+                env=env,
+                tool="read_file",
+                args={"path": str(tmp_path / "vault" / "note.md")},
+                call_id="t1",
+                judge_enabled=True,
+                judge_slot=_concur_slot,
+                audit_path=audit,
+                track=track,
+            )
+            assert seen == [True], track
+    finally:
+        for name, prior in saved.items():
+            if prior is None:
+                sys.modules.pop(name, None)
+            else:
+                sys.modules[name] = prior
+        sys.modules.pop("run_judge_compare_pilot_j014", None)
