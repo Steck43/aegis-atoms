@@ -36,7 +36,7 @@ Compare scaffold: `receipts/JUDGE-COMPARE-PRE-G6-REGRADE-2026-10-10.md`.
 | Host | Result |
 |---|---|
 | WSL Hermes | `ccd8deaa67` — swallow confirmed; no hook deadline |
-| aegisbox | REACHED via Tailscale `landen@100.72.168.92` @ `2026-10-10T212035Z` — atoms `master` `d14295d1` (PR #53; clean; **not** on #60 tip); isolation `main` `131bbb34` (clean); `isolation-manager` at `~/isolation-layer/target/release/`; `artifacts` → scaffold bak symlink |
+| aegisbox | REACHED via Tailscale `the test host` @ `2026-10-10T212035Z` — atoms `master` `d14295d1` (PR #53; clean; **not** on #60 tip); isolation `main` `131bbb34` (clean); `isolation-manager` at `~/isolation-layer/target/release/`; `artifacts` → scaffold bak symlink |
 
 ## Live WSL profile allowlist (2026-10-10 dest-read)
 
