@@ -18,7 +18,10 @@ Supersedes the consult-policy description in JUDGE-COMPARE-PRE-G6-REGRADE-2026-1
 
 ## Proof
 
+```
 python -m pytest -q tests/test_judge_compare_consult_policy.py tests/test_judge_compare_widening.py
-Proof count: unit track tests + widening + `_eval_one` behavior for None/empty/unknown.
+```
+
+Proof count: **11 passed** (consult-policy including `_eval_one` None/empty/unknown with stubbed `harness`/`harness.pins`, plus widening).
 
 Forseti review required before merge.

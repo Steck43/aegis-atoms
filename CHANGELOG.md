@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Compare consult `_eval_one` test stubs `harness` and `harness.pins` in `sys.modules` so the behavior path runs under CI (no import skip); receipt Proof count is **11 passed**. Receipt JUDGE-COMPARE-FAIL-CLOSED-POLICY-2026-10-11.md.
 - Compare consult policy: behavior test for _eval_one on None/empty/unknown tracks; Attack / Normal whitespace pins; receipt text repaired. Receipt JUDGE-COMPARE-FAIL-CLOSED-POLICY-2026-10-11.md.
 - Raise `zizmorcore/zizmor-action` from 0.6.2 to 0.6.4 (`cc914d7fΓÇª`), recreating closed Dependabot #28 on a fresh branch.
 - Ruff development and CI range resolves to `>=0.16.9,<0.17`, replacing the closed Dependabot proposal with a branch that runs the protected floor. Receipt: `RUFF-0.16.9-2026-10-11.md`.
