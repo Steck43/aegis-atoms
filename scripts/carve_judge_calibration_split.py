@@ -104,6 +104,16 @@ def _load_lines(path: Path) -> list[str]:
     ]
 
 
+def _require_nonempty_lines(path: Path, *, label: str) -> set[str]:
+    """Refuse a missing or empty forbid-list so disjoint claims cannot be silent True."""
+    if not path.is_file():
+        raise SystemExit(f"REFUSE: {label} missing: {path}")
+    lines = _load_lines(path)
+    if not lines:
+        raise SystemExit(f"REFUSE: {label} empty: {path}")
+    return set(lines)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument(
@@ -146,11 +156,17 @@ def main() -> int:
     ids = _load_lines(args.ids_file)
     held = set(_load_lines(args.heldout_file))
     forbidden_hashes: set[str] = set()
-    if args.forbidden_body_hashes_file and args.forbidden_body_hashes_file.is_file():
-        forbidden_hashes = set(_load_lines(args.forbidden_body_hashes_file))
+    if args.forbidden_body_hashes_file is not None:
+        forbidden_hashes = _require_nonempty_lines(
+            args.forbidden_body_hashes_file,
+            label="forbidden-body-hashes-file",
+        )
     forbidden_families: set[str] = set()
-    if args.forbidden_families_file and args.forbidden_families_file.is_file():
-        forbidden_families = set(_load_lines(args.forbidden_families_file))
+    if args.forbidden_families_file is not None:
+        forbidden_families = _require_nonempty_lines(
+            args.forbidden_families_file,
+            label="forbidden-families-file",
+        )
     id_to_body: dict[str, str] = {}
     if args.bodies_json and args.bodies_json.is_file():
         id_to_body = json.loads(args.bodies_json.read_text(encoding="utf-8"))

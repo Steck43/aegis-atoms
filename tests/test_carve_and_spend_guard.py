@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 
@@ -12,8 +13,6 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def _load(name: str, rel: str):
-    import sys
-
     path = ROOT / rel
     spec = importlib.util.spec_from_file_location(name, path)
     assert spec and spec.loader
@@ -94,6 +93,84 @@ def test_carve_content_hash_true_when_bodies_checked():
     assert doc["content_hash_disjoint"] is True
 
 
+def test_carve_cli_refuses_missing_forbidden_hashes(tmp_path: Path, monkeypatch):
+    carve_mod = _load(
+        "carve_judge_calibration_split_cli", "scripts/carve_judge_calibration_split.py"
+    )
+    ids = tmp_path / "ids.txt"
+    held = tmp_path / "held.txt"
+    ids.write_text("id_a\n", encoding="utf-8")
+    held.write_text("held_x\n", encoding="utf-8")
+    missing = tmp_path / "missing-hashes.txt"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "carve_judge_calibration_split",
+            "--ids-file",
+            str(ids),
+            "--heldout-file",
+            str(held),
+            "--forbidden-body-hashes-file",
+            str(missing),
+            "--out",
+            str(tmp_path / "out.json"),
+        ],
+    )
+    with pytest.raises(SystemExit, match="forbidden-body-hashes-file missing"):
+        carve_mod.main()
+
+
+def test_carve_cli_refuses_empty_forbidden_families(tmp_path: Path, monkeypatch):
+    carve_mod = _load(
+        "carve_judge_calibration_split_cli2", "scripts/carve_judge_calibration_split.py"
+    )
+    ids = tmp_path / "ids.txt"
+    held = tmp_path / "held.txt"
+    empty = tmp_path / "empty-families.txt"
+    ids.write_text("id_a\n", encoding="utf-8")
+    held.write_text("held_x\n", encoding="utf-8")
+    empty.write_text("# only comments\n\n", encoding="utf-8")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "carve_judge_calibration_split",
+            "--ids-file",
+            str(ids),
+            "--heldout-file",
+            str(held),
+            "--forbidden-families-file",
+            str(empty),
+            "--out",
+            str(tmp_path / "out.json"),
+        ],
+    )
+    with pytest.raises(SystemExit, match="forbidden-families-file empty"):
+        carve_mod.main()
+
+
+def test_cause_diag_no_provider_when_spend_guard_refuses(monkeypatch):
+    """Stripping the spend guard must turn this red: refuse before make_sonnet_judge_slot."""
+    cause = _load("run_judge_cause_diag_50", "scripts/run_judge_cause_diag_50.py")
+    provider_calls: list[str] = []
+
+    def _boom_slot(*_a, **_k):
+        provider_calls.append("slot")
+        raise AssertionError("provider slot must not be built after spend refuse")
+
+    def _refuse(*_a, **_k):
+        raise cause.SpendGuardRefuse("cap")
+
+    monkeypatch.setattr(cause, "require_pin", lambda *a, **k: "ok")
+    monkeypatch.setattr(cause, "_load_key", lambda: "sk-test")
+    monkeypatch.setattr(cause, "check_affordable", _refuse)
+    monkeypatch.setattr(cause, "make_sonnet_judge_slot", _boom_slot)
+    with pytest.raises(SystemExit, match="spend guard before provider"):
+        cause.main()
+    assert provider_calls == []
+
+
 def test_runner_raises_when_agent_not_invoked():
     from judge_spec_v1 import guard_agent_mode_rows
 
@@ -146,8 +223,6 @@ def test_compare_pilot_no_provider_when_spend_guard_refuses(
     monkeypatch, tmp_path: Path
 ):
     """Live call-site: check_affordable refuse must precede make_sonnet_judge_slot."""
-    import sys
-
     spend = _load("spend_guard_for_runner", "scripts/spend_guard.py")
     saved = {
         name: sys.modules.get(name)
