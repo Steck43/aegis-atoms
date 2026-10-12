@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- README no longer says the live atoms profile is enforce or that the judge subtracts on the live mount. Those lines read a config mode string and the engine path; no receipt shows this plugin loaded into the Hermes gateway on the live profile, or a judge subtract there. The badge now says the config sets enforce and the live load is not measured. Older entries below that say "live profile", "live mount arms" or "live Sonnet cycle audits" describe config and test paths, not a measured live load.
 - Spec seven Forseti W-2 FIX-FIRST: carve CLI refuses a missing or empty `--forbidden-body-hashes-file` / `--forbidden-families-file`; cause-diag has a no-provider-on-spend-refuse test so stripping that guard turns red.
 - Spec seven catalog-tip guard: tests workflow uses `fetch-depth: 0`, and `catalog_tip_commit` refuses a HEAD-collapsed tip when HEAD did not touch the catalog (shallow CI was comparing the merge/HEAD sha to `RUBRIC_ATOMS_COMMIT_PIN`).
 - Compare runner no longer hardcodes `judge_force_consult=True` on every pilot row (that produced 500/500 `flag_for_review`). Normal and honest_mistake abstain; attack and ambiguous consult. `tests/test_judge_compare_consult_policy.py`. `verify_derived.sh` now prints the `gen_manifest.sh` remediation when `SHA256SUMS` lags.
