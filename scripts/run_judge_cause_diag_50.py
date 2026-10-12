@@ -34,6 +34,7 @@ ESTATE = _resolve_sibling("hermes-agent-estate")
 HUB = _resolve_sibling("Grok-Bot-Hub") / "burn-queue" / "2026-10-09-hermes-corpus"
 
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ESTATE))
 
 from harness.corpus_join import join_pilot
@@ -48,6 +49,7 @@ from harness.schema_fixes import (
 from engine import evaluate_tool_call, load_catalog
 from judge_budget import BudgetGuard
 from judge_slot_sonnet import SonnetJudgeConfig, make_sonnet_judge_slot
+from spend_guard import SpendGuardRefuse, check_affordable
 
 HERMES_PIN = "ccd8deaa6705bd6ca1890584d8f4055fe61227b5"
 DIRTY = "2d9918fde4199c8740a08ba3f082cd0e8318811ddb92f67830babbb29d0e6a70"
@@ -109,6 +111,12 @@ def main() -> int:
     key = _load_key()
     if not key:
         raise SystemExit("REFUSE: ANTHROPIC_API_KEY missing")
+
+    spend_line = os.environ.get("AEGIS_SPEND_LINE", "BUD-2")
+    try:
+        check_affordable(spend_line, ceiling)
+    except SpendGuardRefuse as exc:
+        raise SystemExit(f"REFUSE: spend guard before provider: {exc}") from exc
 
     joined = [
         (row, body)

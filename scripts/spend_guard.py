@@ -45,6 +45,10 @@ def parse_ledger(text: str, *, path: Path) -> LedgerView:
         line_id, cap_s, spent_s, _rem = match.groups()
         caps[line_id] = float(cap_s)
         spent[line_id] = float(spent_s)
+    if not caps:
+        raise SpendGuardRefuse(
+            f"SPEND-LEDGER parse refused: zero BUD rows at {path}"
+        )
     total_match = _TOTAL_RE.search(text)
     if total_match:
         running = float(total_match.group(2))

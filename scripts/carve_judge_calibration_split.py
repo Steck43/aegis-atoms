@@ -46,18 +46,28 @@ def carve(
     forbidden_body_hashes = forbidden_body_hashes or set()
     forbidden_families = forbidden_families or set()
     id_to_body = id_to_body or {}
+    bodies_hashed = 0
     for sid in scenario_ids:
         fam = family_of(sid)
         if fam in forbidden_families:
             raise SystemExit(f"carve refuses family overlap: id={sid!r} family={fam!r}")
         body = id_to_body.get(sid)
         if body is None:
+            if forbidden_body_hashes:
+                raise SystemExit(
+                    f"carve refuses missing body when forbidden-hash list given: id={sid!r}"
+                )
             continue
         digest = body_content_hash(body)
+        bodies_hashed += 1
         if digest in forbidden_body_hashes:
             raise SystemExit(
                 f"carve refuses content overlap new id: id={sid!r} hash={digest[:12]}"
             )
+    if bodies_hashed == 0:
+        content_hash_disjoint: bool | str = "UNCHECKED"
+    else:
+        content_hash_disjoint = True
     tuning: list[str] = []
     locked: list[str] = []
     for sid in sorted(scenario_ids):
@@ -68,7 +78,7 @@ def carve(
         "tuning": tuning,
         "locked": locked,
         "heldout_disjoint": True,
-        "content_hash_disjoint": True,
+        "content_hash_disjoint": content_hash_disjoint,
         "family_disjoint": True,
         "labels": "OUT_OF_PATH_MODELED_NOT_IN_THIS_FILE",
         "protocol": {

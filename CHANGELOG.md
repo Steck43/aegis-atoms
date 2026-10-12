@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Spec seven Forseti W-1 FIX-FIRST: `check_affordable` runs before the first provider slot in `run_judge_compare_pilot.py` and `run_judge_cause_diag_50.py`; carve refuses missing bodies when a forbidden-hash list is given and writes `content_hash_disjoint: UNCHECKED` when nothing was hashed; ledger parser refuses zero BUD rows. Receipt `FORSETI-R3-REQUEST-SPEC-SEVEN-2026-10-11.md`.
 - Spec seven J0-2..4: compare runner calls `guard_agent_mode_rows` on the real rows path; source-string harness guard removed; carve refuses content-hash and family overlap; hub SPEND-LEDGER spend guard (`scripts/spend_guard.py`). Receipt `FORSETI-R3-REQUEST-SPEC-SEVEN-2026-10-11.md`.
 - Spec seven Forseti FIX-FIRST: real catalog/harness guards, pinned reason-code enum hash, disjoint cause-receipt content hashes. Receipt `FORSETI-FIXFIRST-SPEC-SEVEN-2026-10-11.md`.
 - Raise `zizmorcore/zizmor-action` from 0.6.2 to 0.6.4 (`cc914d7fΓÇª`), recreating closed Dependabot #28 on a fresh branch.

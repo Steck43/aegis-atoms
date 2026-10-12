@@ -25,10 +25,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def _resolve_sibling(name: str) -> Path:
-    """Windows clone path, or the /mnt/c mirror when running under WSL."""
+    """Windows clone path, spaced hub junction, or the /mnt/c mirror under WSL."""
     win = Path(r"C:\Users\lande\Engineering_and_Development") / name
     if win.is_dir():
         return win
+    spaced = Path(r"C:\Users\lande\Engineering & Development") / name
+    if spaced.is_dir():
+        return spaced
     wsl = Path("/mnt/c/Users/lande/Engineering_and_Development") / name
     if wsl.is_dir():
         return wsl
@@ -39,6 +42,7 @@ ESTATE = _resolve_sibling("hermes-agent-estate")
 HUB = _resolve_sibling("Grok-Bot-Hub") / "burn-queue" / "2026-10-09-hermes-corpus"
 
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "scripts"))
 sys.path.insert(0, str(ESTATE))
 
 from engine import evaluate_tool_call, load_catalog  # noqa: E402
@@ -53,7 +57,7 @@ from harness.schema_fixes import (  # noqa: E402
 from judge_budget import BudgetExhausted, BudgetGuard  # noqa: E402
 from judge_compare_policy import force_consult_for_track, widens  # noqa: E402
 from judge_spec_v1 import guard_agent_mode_rows as _guard_agent_mode_rows  # noqa: E402
-
+from spend_guard import SpendGuardRefuse, check_affordable  # noqa: E402
 
 from judge_slot_sonnet import SonnetJudgeConfig, make_sonnet_judge_slot  # noqa: E402
 
@@ -209,6 +213,12 @@ def run_compare(
     key = _load_anthropic_key()
     if not key:
         raise SystemExit("REFUSE: ANTHROPIC_API_KEY missing — no spend path")
+
+    spend_line = os.environ.get("AEGIS_SPEND_LINE", "BUD-8")
+    try:
+        check_affordable(spend_line, ceiling_usd)
+    except SpendGuardRefuse as exc:
+        raise SystemExit(f"REFUSE: spend guard before provider: {exc}") from exc
 
     out_dir.mkdir(parents=True, exist_ok=True)
     work = Path(tempfile.mkdtemp(prefix="judge-compare-", dir=str(out_dir)))
