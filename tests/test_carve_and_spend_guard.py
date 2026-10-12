@@ -152,23 +152,83 @@ def test_carve_cli_refuses_empty_forbidden_families(tmp_path: Path, monkeypatch)
 
 def test_cause_diag_no_provider_when_spend_guard_refuses(monkeypatch):
     """Stripping the spend guard must turn this red: refuse before make_sonnet_judge_slot."""
-    cause = _load("run_judge_cause_diag_50", "scripts/run_judge_cause_diag_50.py")
-    provider_calls: list[str] = []
+    # cause_diag imports estate harness + engine at import time; stub before load (CI has no estate).
+    saved = {
+        name: sys.modules.get(name)
+        for name in (
+            "harness",
+            "harness.corpus_join",
+            "harness.pilot",
+            "harness.pins",
+            "harness.schema_fixes",
+            "engine",
+            "judge_budget",
+            "judge_slot_sonnet",
+            "spend_guard",
+            "run_judge_cause_diag_50",
+        )
+    }
+    try:
+        harness_pkg = ModuleType("harness")
+        harness_pkg.__path__ = []  # type: ignore[attr-defined]
+        pins = ModuleType("harness.pins")
+        pins.HERMES_ZIP_SHA256 = "a" * 64
+        pins.PILOT_500_SHA256 = "b" * 64
+        pilot = ModuleType("harness.pilot")
+        pilot.require_pin = lambda *a, **k: "ok"
+        corpus = ModuleType("harness.corpus_join")
+        corpus.join_pilot = lambda *a, **k: []
+        schema = ModuleType("harness.schema_fixes")
+        schema.normalize_workspace_path = lambda v: v
+        schema.resolve_fixture_files = lambda body: {}
+        schema.synthesize_gold_calls = lambda body: []
+        for name, mod in (
+            ("harness", harness_pkg),
+            ("harness.pins", pins),
+            ("harness.pilot", pilot),
+            ("harness.corpus_join", corpus),
+            ("harness.schema_fixes", schema),
+        ):
+            sys.modules[name] = mod
+        engine = ModuleType("engine")
+        engine.evaluate_tool_call = lambda *a, **k: None
+        engine.load_catalog = lambda *a, **k: {}
+        sys.modules["engine"] = engine
+        spend = _load("spend_guard_cause", "scripts/spend_guard.py")
+        sys.modules["spend_guard"] = spend
+        jb = ModuleType("judge_budget")
+        jb.BudgetGuard = lambda **k: SimpleNamespace(**k)
+        sys.modules["judge_budget"] = jb
+        slot_mod = ModuleType("judge_slot_sonnet")
+        provider_calls: list[str] = []
 
-    def _boom_slot(*_a, **_k):
-        provider_calls.append("slot")
-        raise AssertionError("provider slot must not be built after spend refuse")
+        def _boom_slot(*_a, **_k):
+            provider_calls.append("slot")
+            raise AssertionError("provider slot must not be built after spend refuse")
 
-    def _refuse(*_a, **_k):
-        raise cause.SpendGuardRefuse("cap")
+        slot_mod.SonnetJudgeConfig = lambda **k: SimpleNamespace(**k)
+        slot_mod.make_sonnet_judge_slot = _boom_slot
+        sys.modules["judge_slot_sonnet"] = slot_mod
 
-    monkeypatch.setattr(cause, "require_pin", lambda *a, **k: "ok")
-    monkeypatch.setattr(cause, "_load_key", lambda: "sk-test")
-    monkeypatch.setattr(cause, "check_affordable", _refuse)
-    monkeypatch.setattr(cause, "make_sonnet_judge_slot", _boom_slot)
-    with pytest.raises(SystemExit, match="spend guard before provider"):
-        cause.main()
-    assert provider_calls == []
+        cause = _load("run_judge_cause_diag_50", "scripts/run_judge_cause_diag_50.py")
+
+        def _refuse(*_a, **_k):
+            raise spend.SpendGuardRefuse("cap")
+
+        monkeypatch.setattr(cause, "require_pin", lambda *a, **k: "ok")
+        monkeypatch.setattr(cause, "_load_key", lambda: "sk-test")
+        monkeypatch.setattr(cause, "check_affordable", _refuse)
+        monkeypatch.setattr(cause, "make_sonnet_judge_slot", _boom_slot)
+        with pytest.raises(SystemExit, match="spend guard before provider"):
+            cause.main()
+        assert provider_calls == []
+    finally:
+        for name, mod in saved.items():
+            if mod is None:
+                sys.modules.pop(name, None)
+            else:
+                sys.modules[name] = mod
+        sys.modules.pop("run_judge_cause_diag_50", None)
 
 
 def test_runner_raises_when_agent_not_invoked():
