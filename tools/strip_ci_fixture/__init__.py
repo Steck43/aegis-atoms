@@ -1,3 +1,1 @@
-from tools.strip_ci_fixture.add import add
-
-__all__ = ["add"]
+# Namespace marker only. Tests load add.py via importlib (no package import).
