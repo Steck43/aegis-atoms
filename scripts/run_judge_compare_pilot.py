@@ -71,6 +71,22 @@ DIRTY_DIFF_SHA256 = "2d9918fde4199c8740a08ba3f082cd0e8318811ddb92f67830babbb29d0
 HERMES_PIN = "ccd8deaa6705bd6ca1890584d8f4055fe61227b5"
 
 
+def _receipt_path(path: Path) -> str:
+    """Locator stored in a receipt. Never an absolute home path."""
+    resolved = path.resolve()
+    try:
+        return resolved.relative_to(ROOT.resolve()).as_posix()
+    except ValueError:
+        pass
+    raw = os.environ.get("JUDGE_COMPARE_CORPUS", "").strip()
+    if raw:
+        try:
+            return resolved.relative_to(Path(raw).resolve()).as_posix()
+        except ValueError:
+            pass
+    return path.name
+
+
 def _sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as stream:
@@ -409,7 +425,7 @@ def run_compare(
             "hermes_dirty_diff_sha256": DIRTY_DIFF_SHA256,
             "hermes.zip": HERMES_ZIP_SHA256,
             "pilot-500.jsonl": PILOT_500_SHA256,
-            "pilot_path": str(pilot_jsonl),
+            "pilot_path": _receipt_path(pilot_jsonl),
             "pilot_sha256_dest": _sha256_file(pilot_jsonl),
         },
         "models": {

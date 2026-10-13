@@ -33,7 +33,7 @@
     "hermes_dirty_diff_sha256": "2d9918fde4199c8740a08ba3f082cd0e8318811ddb92f67830babbb29d0e6a70",
     "hermes_runtime": "ccd8deaa6705bd6ca1890584d8f4055fe61227b5",
     "pilot-500.jsonl": "b752fddca6db14ae66692d6237057ffe4fb9b3a8d331a6fa7ca9ef7d4cc0d45c",
-    "pilot_path": "C:\\Users\\lande\\Engineering_and_Development\\Grok-Bot-Hub\\burn-queue\\2026-10-09-hermes-corpus\\_frozen_unpack\\pilot-500.jsonl",
+    "pilot_path": "_frozen_unpack/pilot-500.jsonl",
     "pilot_sha256_dest": "b752fddca6db14ae66692d6237057ffe4fb9b3a8d331a6fa7ca9ef7d4cc0d45c"
   },
   "rows": [
