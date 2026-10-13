@@ -13,9 +13,13 @@ runs where pyyaml is absent; the catalog is parsed by indentation, which is
 enough for its fixed shape.
 
 Usage:
-    python tools/build_registry.py            # write catalog/REGISTRY.tsv
-    python tools/build_registry.py --check    # exit 1 on stale TSV or cross-copy drift
-    python tools/build_registry.py --check --local-only   # skip vault and WSL
+    python tools/build_registry.py --local-only
+    python tools/build_registry.py --check --local-only
+    python tools/build_registry.py --check --vault-catalog PATH
+
+A full comparison reads the vault catalog from --vault-catalog or from
+AEGIS_VAULT_CATALOG. If neither is set, the command refuses. --local-only
+skips that copy and does not require the variable.
 
 Row sources (the only ones): this repo's catalog/Aegis-Atoms-v0.yaml,
 Aegis-Atoms-v0.bundle.yaml, and module-level ATOM_* string constants in the
@@ -35,6 +39,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import os
 import re
 import subprocess
 import sys
@@ -44,9 +49,7 @@ ROOT = Path(__file__).resolve().parents[1]
 TSV = ROOT / "catalog" / "REGISTRY.tsv"
 COLUMNS = ["atom_id", "status", "effect", "mode", "source", "copies"]
 
-VAULT_CATALOG = Path(
-    r"C:\Users\lande\Documents\Obsidian Vault\The_Boswell_Archive\Agent\Policy\Aegis-Atoms-v0.yaml"
-)
+VAULT_CATALOG_ENV = "AEGIS_VAULT_CATALOG"
 WSL_ROOT = "~/.hermes/profiles/aegis/plugins/aegis-atoms"
 
 # Local-only fence patterns live in catalog/.fence (gitignored). One regex per
@@ -259,7 +262,21 @@ def _wsl_cat(rel: str) -> str | None:
     return proc.stdout.decode("utf-8", errors="replace")
 
 
-def load_copies(local_only: bool) -> tuple[dict[str, dict], dict[str, dict], list[str]]:
+def _vault_catalog_path(explicit: Path | None) -> Path:
+    """Path of the vault catalog. Argument wins; otherwise the env var. Refuse if unset."""
+    if explicit is not None:
+        return explicit
+    raw = os.environ.get(VAULT_CATALOG_ENV, "").strip()
+    if not raw:
+        raise SystemExit(
+            f"{VAULT_CATALOG_ENV} is unset; pass --vault-catalog or set {VAULT_CATALOG_ENV}"
+        )
+    return Path(raw)
+
+
+def load_copies(
+    local_only: bool, vault_catalog: Path | None = None
+) -> tuple[dict[str, dict], dict[str, dict], list[str]]:
     """Return (catalog copies, code copies, skipped labels)."""
     cats: dict[str, dict] = {
         "pub_catalog": parse_catalog(
@@ -274,8 +291,9 @@ def load_copies(local_only: bool) -> tuple[dict[str, dict], dict[str, dict], lis
     skipped: list[str] = []
     if local_only:
         return cats, codes, ["vault", "wsl_catalog", "wsl_bundle", "wsl_code"]
-    if VAULT_CATALOG.is_file():
-        cats["vault"] = parse_catalog(VAULT_CATALOG.read_text(encoding="utf-8"))
+    vault_path = _vault_catalog_path(vault_catalog)
+    if vault_path.is_file():
+        cats["vault"] = parse_catalog(vault_path.read_text(encoding="utf-8"))
     else:
         skipped.append("vault")
     for label, rel in (
@@ -409,9 +427,15 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--local-only", action="store_true", help="skip vault and WSL copies"
     )
+    ap.add_argument(
+        "--vault-catalog",
+        default=None,
+        help="vault catalog file; otherwise AEGIS_VAULT_CATALOG. Required unless --local-only",
+    )
     args = ap.parse_args(argv)
 
-    cats, codes, skipped = load_copies(args.local_only)
+    explicit = Path(args.vault_catalog) if args.vault_catalog else None
+    cats, codes, skipped = load_copies(args.local_only, explicit)
     rows = build_rows(cats, codes)
     text = render(rows)
 
