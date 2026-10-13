@@ -77,6 +77,79 @@ def test_scripts_and_receipts_have_no_public_path_leaks() -> None:
     assert hits == [], "public path leaks:\n" + "\n".join(hits)
 
 
+_SKIP_PARTS = {".git", "__pycache__", ".pytest_cache", ".ruff_cache"}
+_QUOTE_JOIN = re.compile(r"""(?s)['"]\s*(?:\+\s*)?['"]""")
+
+
+def _host_tokens() -> list[tuple[str, str]]:
+    """Forbidden host locators, built from pieces so this file does not contain them."""
+    parts = (
+        ("opt-aegis", ("/", "opt", "/", "aegis")),
+        ("workspace", ("/", "work", "space")),
+        ("host-pc", ("Land", "ens", "PC")),
+        ("vault-name", ("Obs", "idian", " ", "Vault")),
+    )
+    return [(label, "".join(pieces)) for label, pieces in parts]
+
+
+def _collapse_splits(text: str) -> str:
+    """Join adjacent string literals so a path split across quotes is visible."""
+    prev = None
+    cur = text
+    while cur != prev:
+        prev = cur
+        cur = _QUOTE_JOIN.sub("", cur)
+    return cur
+
+
+def _scan_text(rel: str, text: str) -> list[str]:
+    tokens = _host_tokens()
+    collapsed = _collapse_splits(text)
+    hits: list[str] = []
+    for line_no, line in enumerate(text.splitlines(), 1):
+        folded = _collapse_splits(line)
+        for label, token in tokens:
+            if (
+                token.casefold() in line.casefold()
+                or token.casefold() in folded.casefold()
+            ):
+                hits.append(f"{rel}:{line_no}:{label}")
+    # A split that only meets once newlines between literals are removed.
+    if not hits:
+        for label, token in tokens:
+            if token.casefold() in collapsed.casefold():
+                hits.append(f"{rel}:split:{label}")
+    return hits
+
+
+def _tree_host_hits() -> list[str]:
+    hits: list[str] = []
+    for path in sorted(ROOT.rglob("*")):
+        if not path.is_file():
+            continue
+        if _SKIP_PARTS.intersection(path.parts):
+            continue
+        data = path.read_bytes()
+        if b"\x00" in data:
+            continue
+        text = data.decode("utf-8", errors="replace")
+        hits.extend(_scan_text(path.relative_to(ROOT).as_posix(), text))
+    return hits
+
+
+def test_tree_has_no_host_path_tokens() -> None:
+    hits = _tree_host_hits()
+    assert hits == [], "host path tokens:\n" + "\n".join(hits)
+
+
+def test_split_literals_are_visible_to_the_scanner() -> None:
+    left, right = "/opt", "/aegis"
+    quote = '"'
+    text = "x = " + quote + left + quote + " + " + quote + right + quote + "\n"
+    hits = _scan_text("sample.py", text)
+    assert any(hit.endswith(":opt-aegis") or ":opt-aegis" in hit for hit in hits)
+
+
 def test_home_pattern_matches_json_escaped_windows_path() -> None:
     drive = "C:"
     users = "Users"
