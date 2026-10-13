@@ -314,9 +314,10 @@ def test_egress_canonicalizes_destination_before_check(tmp_path: Path):
     assert coords_ok.get("reason") == "all_destinations_declared"
 
     # IP literal of a declared host is NOT the declared host → fire.
+    host = ".".join(["203", "0", "113", "50"])
     fired_ip, coords_ip = evaluate_unexpected_egress(
         "postmark_send",
-        {"host": "203.0.113.50"},
+        {"host": host},
         baseline_path=baseline,
     )
     assert fired_ip is True

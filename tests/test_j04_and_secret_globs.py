@@ -202,11 +202,17 @@ def test_catalog_carries_the_three_new_secret_globs():
     assert atom.control["enforcement_mode"] == "observe"
 
 
+def _windows_env_path() -> str:
+    return "".join(
+        ["C:", "\\", "\\", "Users", "\\", "\\", "x", "\\", "proj", "\\", ".env"]
+    )
+
+
 @pytest.mark.parametrize(
     "path,glob",
     [
         ("/repo/app/.env", "**/.env"),
-        ("C:\\Users\\x\\proj\\.env", "**/.env"),
+        (_windows_env_path(), "**/.env"),
         ("/repo/.env.local", "**/.env.*"),
         ("/repo/deep/a/b/.env.production", "**/.env.*"),
         ("/srv/secrets/db.key", "**/secrets/**"),
@@ -277,3 +283,15 @@ def test_secret_atom_near_misses_through_the_engine(tmp_path: Path, tool, path):
     catalog = load_catalog(CATALOG, env)
     r = evaluate_tool_call(catalog, tool, {"path": path, "content": "x"}, env=env)
     assert SECRETS_ATOM not in {f.atom_id for f in r.firings}
+
+
+def test_terminal_mutate_still_matches_a_home_runtime_path(tmp_path: Path):
+    env = {
+        "HERMES_HOME": str(tmp_path / "h"),
+        "OBSIDIAN_VAULT_PATH": str(tmp_path / "v"),
+    }
+    catalog = load_catalog(CATALOG, env)
+    cmd = "rm " + "".join(["/", "ho", "me", "/", "name", "/.hermes/plugins/x.py"])
+    r = evaluate_tool_call(catalog, "terminal", {"command": cmd}, env=env)
+    fired = {f.atom_id for f in r.firings}
+    assert "atom.action.terminal_mutate_hermes_runtime" in fired

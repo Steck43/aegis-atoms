@@ -48,10 +48,24 @@ def test_full_compare_refuses_when_vault_catalog_unset(monkeypatch):
     raise AssertionError("expected SystemExit")
 
 
-def test_missing_vault_catalog_file_is_skipped(tmp_path, monkeypatch):
+def test_missing_vault_catalog_file_exits(tmp_path, monkeypatch):
     monkeypatch.delenv("AEGIS_VAULT_CATALOG", raising=False)
-    _cats, _codes, skipped = br.load_copies(False, tmp_path / "absent.yaml")
-    assert "vault" in skipped
+    try:
+        br.load_copies(False, tmp_path / "absent.yaml")
+    except SystemExit as exc:
+        assert exc.code == 1
+        return
+    raise AssertionError("expected SystemExit 1")
+
+
+def test_missing_vault_catalog_env_exits(tmp_path, monkeypatch):
+    monkeypatch.setenv("AEGIS_VAULT_CATALOG", str(tmp_path / "absent.yaml"))
+    try:
+        br.load_copies(False)
+    except SystemExit as exc:
+        assert exc.code == 1
+        return
+    raise AssertionError("expected SystemExit 1")
 
 
 def test_every_code_atom_constant_is_a_row():

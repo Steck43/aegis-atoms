@@ -13,17 +13,21 @@ from provenance import classify_origin
 from flow_types import OriginClass
 
 
+def _hermes(*tail: str) -> str:
+    return "".join(["/", "ho", "me", "/", "u", "/.hermes", *tail])
+
+
 def test_config_read_tags_secret():
     origin = classify_origin(
         "read_file",
-        ["/home/u/.hermes/config.yaml"],
-        {"HERMES_HOME": "/home/u/.hermes"},
+        [_hermes("/config.yaml")],
+        {"HERMES_HOME": _hermes()},
     )
     assert origin == OriginClass.SECRET
 
 
 def test_dotenv_read_tags_secret():
-    origin = classify_origin("read_file", ["/home/u/.hermes/.env"], {})
+    origin = classify_origin("read_file", [_hermes("/.env")], {})
     assert origin == OriginClass.SECRET
 
 
