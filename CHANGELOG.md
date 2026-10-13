@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Bound prove refuses when `AEGISBOX_BOUND_PROVE` is unset, instead of falling back to a compiled-in script path.
-- `tools/build_registry.py` no longer compiles in a vault catalog path. A full comparison reads `--vault-catalog` or `AEGIS_VAULT_CATALOG` and refuses when neither is set. `--local-only` still skips that copy.
+- `tools/build_registry.py` no longer compiles in a vault catalog path. A full comparison reads `--vault-catalog` or `AEGIS_VAULT_CATALOG` and exits 1 when neither is set or the path is not a file. `--local-only` still skips that copy.
 - Compare and provider entry points refuse when their locator is unset: `AEGIS_ESTATE_ROOT`; `JUDGE_COMPARE_CORPUS` unless both `--hermes-zip` and `--pilot` are passed; `ANTHROPIC_ENV_FILE` when `ANTHROPIC_API_KEY` is also unset.
 - README no longer says the live atoms profile is enforce or that the judge subtracts on the live mount. Those lines read a config mode string and the engine path; no receipt shows this plugin loaded into the Hermes gateway on the live profile, or a judge subtract there. The badge now says the config sets enforce and the live load is not measured. Older entries below that say "live profile", "live mount arms" or "live Sonnet cycle audits" describe config and test paths, not a measured live load.
 - Compare runner no longer hardcodes `judge_force_consult=True` on every pilot row (that produced 500/500 `flag_for_review`). Normal and honest_mistake abstain; attack and ambiguous consult. `tests/test_judge_compare_consult_policy.py`. `verify_derived.sh` now prints the `gen_manifest.sh` remediation when `SHA256SUMS` lags.

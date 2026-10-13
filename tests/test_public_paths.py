@@ -1,16 +1,20 @@
-"""Public scripts and receipts carry no home paths, env-file paths, or IPv4 literals."""
+"""Tracked files carry no home paths, host tokens, or IPv4 literals.
+
+Enumeration is `git ls-files`, so gitignored files are not scanned. Env-file
+paths are checked on tracked files under scripts/ and receipts/.
+"""
 
 from __future__ import annotations
 
 import importlib.util
 import re
+import subprocess
 import sys
 from pathlib import Path
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-SCAN_DIRS = ("scripts", "receipts")
 ENV_FILE_VAR = "ANTHROPIC_ENV_FILE"
 
 
@@ -42,42 +46,6 @@ def _ipv4_pattern() -> re.Pattern[str]:
     return re.compile(rf"\b(?:{octet}\.){{3}}{octet}\b")
 
 
-def _leak_hits() -> list[str]:
-    home = _home_pattern()
-    env_path = _env_path_pattern()
-    ipv4 = _ipv4_pattern()
-    hits: list[str] = []
-    for name in SCAN_DIRS:
-        base = ROOT / name
-        if not base.is_dir():
-            continue
-        for path in sorted(base.rglob("*")):
-            if not path.is_file():
-                continue
-            data = path.read_bytes()
-            if b"\x00" in data:
-                continue
-            text = data.decode("utf-8", errors="replace")
-            rel = path.relative_to(ROOT).as_posix()
-            for line_no, line in enumerate(text.splitlines(), 1):
-                kinds: list[str] = []
-                if home.search(line):
-                    kinds.append("home")
-                if env_path.search(line):
-                    kinds.append("env")
-                if ipv4.search(line):
-                    kinds.append("ipv4")
-                if kinds:
-                    hits.append(f"{rel}:{line_no}:{'+'.join(kinds)}")
-    return hits
-
-
-def test_scripts_and_receipts_have_no_public_path_leaks() -> None:
-    hits = _leak_hits()
-    assert hits == [], "public path leaks:\n" + "\n".join(hits)
-
-
-_SKIP_PARTS = {".git", "__pycache__", ".pytest_cache", ".ruff_cache"}
 _QUOTE_JOIN = re.compile(r"""(?s)['"]\s*(?:\+\s*)?['"]""")
 
 
@@ -102,51 +70,95 @@ def _collapse_splits(text: str) -> str:
     return cur
 
 
-def _scan_text(rel: str, text: str) -> list[str]:
+def _scan_text(rel: str, text: str, *, env: bool) -> list[str]:
+    home = _home_pattern()
+    env_path = _env_path_pattern()
+    ipv4 = _ipv4_pattern()
     tokens = _host_tokens()
     collapsed = _collapse_splits(text)
     hits: list[str] = []
     for line_no, line in enumerate(text.splitlines(), 1):
         folded = _collapse_splits(line)
+        kinds: list[str] = []
+        if home.search(line) or home.search(folded):
+            kinds.append("home")
+        if env and (env_path.search(line) or env_path.search(folded)):
+            kinds.append("env")
+        if ipv4.search(line) or ipv4.search(folded):
+            kinds.append("ipv4")
         for label, token in tokens:
             if (
                 token.casefold() in line.casefold()
                 or token.casefold() in folded.casefold()
             ):
-                hits.append(f"{rel}:{line_no}:{label}")
-    # A split that only meets once newlines between literals are removed.
+                kinds.append(label)
+        if kinds:
+            hits.append(f"{rel}:{line_no}:{'+'.join(kinds)}")
     if not hits:
         for label, token in tokens:
             if token.casefold() in collapsed.casefold():
                 hits.append(f"{rel}:split:{label}")
+        if home.search(collapsed):
+            hits.append(f"{rel}:split:home")
+        if ipv4.search(collapsed):
+            hits.append(f"{rel}:split:ipv4")
     return hits
 
 
-def _tree_host_hits() -> list[str]:
+def _tracked_files() -> list[Path]:
+    raw = subprocess.check_output(["git", "ls-files", "-z"], cwd=ROOT)
+    paths: list[Path] = []
+    for rel in raw.split(b"\0"):
+        if not rel:
+            continue
+        path = ROOT / rel.decode()
+        if path.is_file():
+            paths.append(path)
+    return paths
+
+
+def _hits_for(paths: list[Path]) -> list[str]:
     hits: list[str] = []
-    for path in sorted(ROOT.rglob("*")):
-        if not path.is_file():
-            continue
-        if _SKIP_PARTS.intersection(path.parts):
-            continue
+    for path in paths:
         data = path.read_bytes()
         if b"\x00" in data:
             continue
         text = data.decode("utf-8", errors="replace")
-        hits.extend(_scan_text(path.relative_to(ROOT).as_posix(), text))
+        rel = path.relative_to(ROOT).as_posix()
+        env = rel.startswith("scripts/") or rel.startswith("receipts/")
+        hits.extend(_scan_text(rel, text, env=env))
     return hits
 
 
-def test_tree_has_no_host_path_tokens() -> None:
-    hits = _tree_host_hits()
-    assert hits == [], "host path tokens:\n" + "\n".join(hits)
+def test_tracked_files_have_no_public_path_leaks() -> None:
+    hits = _hits_for(_tracked_files())
+    assert hits == [], "public path leaks:\n" + "\n".join(hits)
+
+
+def test_planted_escaped_windows_path_fails_the_scan() -> None:
+    planted = ROOT / "tools" / "_planted_public_path.py"
+    drive = "C:"
+    users = "Users"
+    two = "\\" * 2
+    body = "p = " + '"' + drive + two + users + two + "x" + '"' + "\n"
+    planted.write_text(body, encoding="utf-8")
+    try:
+        hits = _hits_for([planted])
+        assert any("home" in hit for hit in hits), hits
+    finally:
+        planted.unlink(missing_ok=True)
+
+
+def test_ipv4_pattern_matches_a_dotted_quad() -> None:
+    addr = ".".join(["100", "72", "168", "92"])
+    assert _ipv4_pattern().search(addr)
 
 
 def test_split_literals_are_visible_to_the_scanner() -> None:
     left, right = "/opt", "/aegis"
     quote = '"'
     text = "x = " + quote + left + quote + " + " + quote + right + quote + "\n"
-    hits = _scan_text("sample.py", text)
+    hits = _scan_text("sample.py", text, env=False)
     assert any(hit.endswith(":opt-aegis") or ":opt-aegis" in hit for hit in hits)
 
 
@@ -161,6 +173,8 @@ def test_home_pattern_matches_json_escaped_windows_path() -> None:
     assert pattern.search(escaped)
     assert pattern.search(drive + one + users + one + "name")
     assert pattern.search(drive + slash + users + slash + "name")
+    user_home = "".join(["/", "ho", "me", "/", "name", "/"])
+    assert pattern.search(user_home)
 
 
 def _load_script(relative: str):

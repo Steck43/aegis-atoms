@@ -18,8 +18,8 @@ Usage:
     python tools/build_registry.py --check --vault-catalog PATH
 
 A full comparison reads the vault catalog from --vault-catalog or from
-AEGIS_VAULT_CATALOG. If neither is set, the command refuses. --local-only
-skips that copy and does not require the variable.
+AEGIS_VAULT_CATALOG. If neither is set, or the path is not a file, the
+command exits 1. --local-only skips that copy and does not require the variable.
 
 Row sources (the only ones): this repo's catalog/Aegis-Atoms-v0.yaml,
 Aegis-Atoms-v0.bundle.yaml, and module-level ATOM_* string constants in the
@@ -292,10 +292,13 @@ def load_copies(
     if local_only:
         return cats, codes, ["vault", "wsl_catalog", "wsl_bundle", "wsl_code"]
     vault_path = _vault_catalog_path(vault_catalog)
-    if vault_path.is_file():
-        cats["vault"] = parse_catalog(vault_path.read_text(encoding="utf-8"))
-    else:
-        skipped.append("vault")
+    if not vault_path.is_file():
+        print(
+            f"{VAULT_CATALOG_ENV} does not point at a file",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+    cats["vault"] = parse_catalog(vault_path.read_text(encoding="utf-8"))
     for label, rel in (
         ("wsl_catalog", "catalog/Aegis-Atoms-v0.yaml"),
         ("wsl_bundle", "Aegis-Atoms-v0.bundle.yaml"),

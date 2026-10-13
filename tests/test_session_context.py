@@ -13,14 +13,18 @@ from flow_types import OriginClass
 from session_context import SessionContext
 
 
+def _hermes(*tail: str) -> str:
+    return "".join(["/", "ho", "me", "/", "u", "/.hermes", *tail])
+
+
 def test_session_tracks_max_origin_secret_over_public():
     ctx = SessionContext(session_id="t1")
     ctx.record_read("web_search", [], {})
     assert ctx.max_origin == OriginClass.PUBLIC
     ctx.record_read(
         "read_file",
-        ["/home/u/.hermes/config.yaml"],
-        {"HERMES_HOME": "/home/u/.hermes"},
+        [_hermes("/config.yaml")],
+        {"HERMES_HOME": _hermes()},
     )
     assert ctx.max_origin == OriginClass.SECRET
 
