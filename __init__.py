@@ -564,11 +564,14 @@ def _bound_prove_on_aegisbox(
                 "gate_decision_sha256 / atoms_result_sha256"
             ),
         )
-    default = Path(
-        "/mnt/c/Users/lande/Engineering_and_Development/hermes-agent-estate/"
-        "wsl/scripts/aegisbox_bound_prove.py"
-    )
-    script = Path(os.environ.get("AEGISBOX_BOUND_PROVE", str(default)))
+    raw = os.environ.get("AEGIS_BOUND_PROVE", "").strip()
+    if not raw:
+        return (
+            None,
+            2,
+            "[aegis-atoms] bound prove script missing: AEGIS_BOUND_PROVE is unset",
+        )
+    script = Path(raw)
     if not script.is_file():
         return None, 2, f"[aegis-atoms] bound prove script missing: {script}"
     proc = subprocess.run(
@@ -829,7 +832,7 @@ def _append_judge_skip_row(
     tool_call_id: str,
     reason: str,
 ) -> None:
-    """Quota / gate skips still leave a G6-shaped row (Forseti nit)."""
+    """Quota / gate skips still leave a G6-shaped row."""
     path = Path(eng._expand("${HERMES_HOME}/logs/aegis-judge.jsonl", env))
     try:
         eng.append_judge_log_row(
@@ -851,11 +854,12 @@ def _append_judge_skip_row(
 
 def register(ctx) -> None:
     root = _assert_live_plugin_path()
-    # Startup assertion: apply stays off unless Landen sets AEGIS_JUDGE_APPLY_GO=1
-    # on the step11-test profile only. Live and every other profile refuse apply.
+    # Startup assertion: apply stays off unless the operator sets
+    # AEGIS_JUDGE_APPLY_GO=1 on the step11-test profile only. Live and every
+    # other profile refuse apply.
     # Rollback: unset AEGIS_JUDGE_APPLY_GO and set
     # plugins.entries.aegis-atoms.judge_apply_verdict false, then restart Hermes.
-    # Per-call re-check in pre_tool_call is the load-bearing gate (Forseti #60-2).
+    # Per-call re-check in pre_tool_call is the load-bearing gate.
     entry = _load_atoms_entry()
     apply_ok, apply_reason = _effective_judge_apply(entry.judge_apply_verdict)
     if entry.judge_apply_verdict and not apply_ok:

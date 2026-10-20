@@ -1,4 +1,4 @@
-"""Forseti r2/r3 — abandoned judge thread isolation + cancel metering."""
+"""Abandoned judge thread isolation and cancel metering."""
 
 from __future__ import annotations
 
@@ -202,7 +202,7 @@ class _FakeClient:
 
 
 def test_cancelled_phase_writes_cost_row_with_marker(tmp_path: Path) -> None:
-    """Forseti nit: cancelled:true cost row after a completed provider call."""
+    """Cancelled:true cost row after a completed provider call."""
     budget = BudgetGuard(ceiling_usd=2.0, stage_name="r3-cost-row")
     client = _FakeClient([])
     audit = tmp_path / "judge.jsonl"
@@ -240,7 +240,7 @@ def test_cancelled_phase_writes_cost_row_with_marker(tmp_path: Path) -> None:
 
 
 def test_completed_call_after_cancel_is_still_metered() -> None:
-    """Forseti r3: provider already charged — budget must count it."""
+    """Provider already charged: budget must count it."""
     budget = BudgetGuard(ceiling_usd=2.0, stage_name="r3-meter")
     client = _FakeClient([_ok_resp()])
     slot = make_sonnet_judge_slot(
@@ -279,7 +279,7 @@ def test_completed_call_after_cancel_is_still_metered() -> None:
 
 
 def test_cancelled_phase_starts_no_new_reask() -> None:
-    """Forseti r3: retry loop must not issue another paid slot call."""
+    """Retry loop must not issue another paid slot call."""
     calls: list[int] = []
 
     def counting_slot(case, floor):

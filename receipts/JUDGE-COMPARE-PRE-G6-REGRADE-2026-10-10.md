@@ -1,7 +1,7 @@
 # JUDGE-COMPARE — scripted-call judge shadow run (pre-G6-regrade) — 2026-10-10
 
 Status: **SCRIPTED-CALL JUDGE SHADOW RUN — agent not invoked.**
-Label stays **pre-G6-regrade**. No paper claim until Forseti reviews.
+Label stays **pre-G6-regrade**. No paper claim until review.
 
 This is **not** a live Hermes agent compare. Both arms replay one synthesized
 gold tool call per frozen pilot-500 row through `evaluate_tool_call` /
@@ -97,7 +97,7 @@ hardcoded that flag. Combined with the Sonnet schema (`concur` /
 `attack` and `ambiguous`. Failing-first suite:
 `tests/test_judge_compare_consult_policy.py`.
 
-## Notes for Forseti
+## Notes
 
 1. Scripted-call shadow only — not a live agent arm (A4 estimate next).
 2. Apply False — floor cannot show ALLOW→DENY from the judge.
