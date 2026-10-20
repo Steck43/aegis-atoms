@@ -1,5 +1,5 @@
 """
-aegis-atoms — deterministic atomic constraint layer (v0).
+aegis-atoms â€” deterministic atomic constraint layer (v0).
 
 Author:  Landen Stecker
 Date:    2026-07-11
@@ -176,7 +176,7 @@ class AtomsEntryConfig:
 
 
 def _coerce_bool(val: Any, default: bool) -> bool:
-    """Strict bool coerce. Rejects bool(\"false\") → True footguns."""
+    """Strict bool coerce. Rejects bool(\"false\") â†’ True footguns."""
     if val is None:
         return default
     if isinstance(val, bool):
@@ -194,7 +194,7 @@ def _coerce_bool(val: Any, default: bool) -> bool:
 
 
 def _load_atoms_entry() -> AtomsEntryConfig:
-    """Single load_config for mode + judge + A4 flags. Hermes-absent → defaults."""
+    """Single load_config for mode + judge + A4 flags. Hermes-absent â†’ defaults."""
     # Fail-closed mode default: broken/missing config must not silently observe.
     defaults = AtomsEntryConfig()
     try:
@@ -327,12 +327,12 @@ def _observe_judge_slot(env: dict[str, str]) -> tuple[Any | None, bool]:
     """
     SETTLE4 j4slot=A: paid Sonnet under observe when key present; else stub.
 
-    Returns (slot_or_None, using_paid). None → engine uses judge_slot_stub.
+    Returns (slot_or_None, using_paid). None â†’ engine uses judge_slot_stub.
     """
     key = _load_anthropic_key()
     if not key:
         logger.warning(
-            "aegis-atoms J4: ANTHROPIC_API_KEY missing — observe mount uses stub slot"
+            "aegis-atoms J4: ANTHROPIC_API_KEY missing â€” observe mount uses stub slot"
         )
         return None, False
 
@@ -499,7 +499,7 @@ def _assert_live_plugin_path() -> Path:
 def _write_load_heartbeat(root: Path) -> None:
     """Tip path + process pid so organic probes can bind load to a process.
 
-    Heartbeat alone is not proof the gateway mounted the plugin — callers must
+    Heartbeat alone is not proof the gateway mounted the plugin â€” callers must
     compare ``pid=`` to the live gateway PID (or a Discord-turn firing).
     """
     home = os.environ.get("HERMES_HOME")
@@ -682,7 +682,7 @@ def pre_tool_call(
         gate_decision = None
         if isinstance(pre_tool_context, dict):
             gate_decision = pre_tool_context.get("gate_decision")
-        # Order: gate (already in gate_decision) → atoms → box → judge → human.
+        # Order: gate (already in gate_decision) â†’ atoms â†’ box â†’ judge â†’ human.
         # Judge is deferred to apply_judge_phase so the box result is final first.
         result = eng.evaluate_tool_call(
             catalog,
@@ -781,7 +781,7 @@ def pre_tool_call(
         if result.block_message:
             return {"action": "block", "message": result.block_message}
     except Exception as exc:
-        # Hermes invoke_hook swallows exceptions → fail-open. Never re-raise.
+        # Hermes invoke_hook swallows exceptions â†’ fail-open. Never re-raise.
         logger.exception("aegis-atoms pre_tool_call failed")
         return {
             "action": "block",
@@ -834,7 +834,7 @@ def _append_judge_skip_row(
     tool_call_id: str,
     reason: str,
 ) -> None:
-    """Quota / gate skips still leave a G6-shaped row (Forseti nit)."""
+    """Quota / gate skips still leave a G6-shaped row."""
     path = Path(eng._expand("${HERMES_HOME}/logs/aegis-judge.jsonl", env))
     try:
         eng.append_judge_log_row(
@@ -856,11 +856,12 @@ def _append_judge_skip_row(
 
 def register(ctx) -> None:
     root = _assert_live_plugin_path()
-    # Startup assertion: apply stays off unless Landen sets AEGIS_JUDGE_APPLY_GO=1
-    # on the step11-test profile only. Live and every other profile refuse apply.
+    # Startup assertion: apply stays off unless the operator sets
+    # AEGIS_JUDGE_APPLY_GO=1 on the step11-test profile only. Live and every
+    # other profile refuse apply.
     # Rollback: unset AEGIS_JUDGE_APPLY_GO and set
     # plugins.entries.aegis-atoms.judge_apply_verdict false, then restart Hermes.
-    # Per-call re-check in pre_tool_call is the load-bearing gate (Forseti #60-2).
+    # Per-call re-check in pre_tool_call is the load-bearing gate.
     entry = _load_atoms_entry()
     apply_ok, apply_reason = _effective_judge_apply(entry.judge_apply_verdict)
     if entry.judge_apply_verdict and not apply_ok:

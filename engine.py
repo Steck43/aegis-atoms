@@ -1335,7 +1335,7 @@ def evaluate_tool_call(
         else:
             block_message = (
                 f"[aegis-atoms] Held by {best_atom_id}: {best_reason} "
-                "(human_review — Landen must approve this turn or apply via CEP/ACP before retry.)"
+                "(human_review: requires operator approval this turn or apply via CEP/ACP before retry.)"
             )
 
     sealed = _seal_receipt_fields(
@@ -1492,7 +1492,7 @@ def apply_judge_phase(
     t0 = _time.monotonic()
     clear_audit = set_audit_path
     # Capture path + cancel for this phase only. Abandoned workers must not
-    # write via a later call's module-level set_audit_path (Forseti r2).
+    # write via a later call's module-level set_audit_path.
     phase_cancel = _threading.Event()
     phase_audit = Path(judge_audit_path) if judge_audit_path else None
     try:

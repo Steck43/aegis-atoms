@@ -33,7 +33,7 @@ _audit_path: Path | None = None
 # Per-phase bind: abandoned timeout threads must not write into a later call's
 # G6 file via the module-level path. Each judge phase captures its own path and
 # cancel flag; after cancel, cage G6 audit writes are skipped. Completed provider
-# calls are still metered (Forseti r3).
+# calls are still metered.
 _phase_local = threading.local()
 
 
@@ -205,7 +205,7 @@ def _emit_audit(
     locked_atoms: list[str],
 ) -> None:
     # Abandoned after phase deadline: drop the write. Do not fall through to a
-    # later call's module-level path (Forseti r2 cross-call G6 pollution).
+    # later call's module-level path (cross-call G6 pollution).
     if is_judge_phase_cancelled():
         return
     path = getattr(_phase_local, "audit_path", None)
@@ -293,7 +293,7 @@ def apply_judge(
 
     try:
         while retries_used < cap:
-            # Abandoned phase: do not start another paid re-ask (Forseti r3).
+            # Abandoned phase: do not start another paid re-ask.
             if is_judge_phase_cancelled():
                 raise JudgeUnavailable("cancelled:phase_deadline")
             retries_used += 1

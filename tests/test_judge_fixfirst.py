@@ -1,4 +1,4 @@
-"""Forseti FIX-FIRST (2026-10-10) — real deadline, per-call apply, G6 rows."""
+"""FIX-FIRST (2026-10-10): real deadline, per-call apply, G6 rows."""
 
 from __future__ import annotations
 
@@ -169,7 +169,7 @@ def test_exception_in_pre_tool_never_escapes_to_hermes(monkeypatch, tmp_path) ->
 
     monkeypatch.setattr(atoms.eng, "apply_judge_phase", boom_phase)
 
-    # Escaped phase error must become a block dict — never raise into Hermes.
+    # Escaped phase error must become a block dict. It must not raise into Hermes.
     out = atoms.pre_tool_call(
         "read_file",
         {"path": str(tmp_path / "vault" / "note.md")},
