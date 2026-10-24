@@ -564,11 +564,16 @@ def _bound_prove_on_aegisbox(
                 "gate_decision_sha256 / atoms_result_sha256"
             ),
         )
-    default = Path(
-        "/mnt/c/Users/lande/Engineering_and_Development/hermes-agent-estate/"
-        "wsl/scripts/aegisbox_bound_prove.py"
-    )
-    script = Path(os.environ.get("AEGISBOX_BOUND_PROVE", str(default)))
+    # No default path: an unset variable refuses here, so the prove step never
+    # runs a script picked by host layout.
+    configured = os.environ.get("AEGISBOX_BOUND_PROVE", "").strip()
+    if not configured:
+        return (
+            None,
+            2,
+            "[aegis-atoms] bound prove refused: AEGISBOX_BOUND_PROVE not configured",
+        )
+    script = Path(configured)
     if not script.is_file():
         return None, 2, f"[aegis-atoms] bound prove script missing: {script}"
     proc = subprocess.run(
