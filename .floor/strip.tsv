@@ -1,0 +1,2 @@
+# package	strip_target	strip_cmd	pytest_nodeid	expect_fail_substring
+strip_ci_fixture	tools/strip_ci_fixture/add.py	bash tools/strip_ci_fixture/strip_to_wrong.sh	tools/strip_ci_fixture/test_add.py::test_add_one_plus_one_is_two	assert 0 == 2
