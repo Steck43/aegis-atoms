@@ -21,6 +21,7 @@ import subprocess
 import sys
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -618,6 +619,38 @@ def _bound_prove_on_aegisbox(
     return prove, 0, None
 
 
+def _append_failclosed_receipt(
+    tool_name: str, session_id: str, tool_call_id: str, mode: str, reason: str
+) -> None:
+    """Coverage UNKNOWN receipt for a call the evaluator could not finish.
+
+    Best effort: a write failure must not turn the fail-closed block into an
+    exception path."""
+    try:
+        env = _build_env()
+        log_path = Path(eng._expand("${HERMES_HOME}/logs/aegis-atoms.jsonl", env))
+        record = {
+            "record_type": "coverage",
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "evaluation_id": ":".join(x for x in (session_id, tool_call_id) if x)
+            or "unknown",
+            "tool_name": tool_name,
+            "mode": mode,
+            "coverage": "UNKNOWN",
+            "coverage_sources": [],
+            "atoms_fired": [],
+            "atoms_silent": [],
+            "final_effect": "block",
+            "blocked": mode == "enforce",
+            "reason": reason,
+        }
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        with log_path.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+    except Exception:
+        logger.exception("aegis-atoms fail-closed receipt write failed")
+
+
 def pre_tool_call(
     tool_name: str,
     args: dict,
@@ -633,6 +666,9 @@ def pre_tool_call(
         mode = entry.mode
         catalog = _load_catalog_cached()
         if catalog is None:
+            _append_failclosed_receipt(
+                tool_name, session_id, tool_call_id, mode, "catalog_unavailable"
+            )
             if mode == "enforce":
                 return {
                     "action": "block",
@@ -777,12 +813,18 @@ def pre_tool_call(
                     result.judge_escalated,
                     result.judge_recommendation,
                 )
+        # One coverage receipt per call, written after prove and judge so it
+        # records the final outcome, including calls where nothing fired.
+        eng.append_firings(log_path, [], catalog, result=result)
         # Human ask / block only after the judge (when enabled) has finished.
         if result.block_message:
             return {"action": "block", "message": result.block_message}
     except Exception as exc:
         # Hermes invoke_hook swallows exceptions -> fail-open. Never re-raise.
         logger.exception("aegis-atoms pre_tool_call failed")
+        _append_failclosed_receipt(
+            tool_name, session_id, tool_call_id, mode, "evaluator_error"
+        )
         return {
             "action": "block",
             "message": f"[aegis-atoms] evaluator error, failing closed: {exc!r}",

@@ -185,7 +185,11 @@ def test_j04_reaches_the_engine_as_a_block(tmp_path: Path):
         env=env,
         action_gating_enabled=False,
     )
-    assert off.winning_effect is None
+    # With gating off, J04 does not fire; the uncovered call is held by the
+    # coverage control instead of running.
+    assert not any(f.atom_id == ATOM_SHELL_UNSANITIZED for f in off.firings)
+    assert off.coverage == "UNKNOWN"
+    assert off.winning_effect == "human_review"
 
 
 # ---- secrets globs --------------------------------------------------------------
