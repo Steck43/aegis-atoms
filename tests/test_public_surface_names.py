@@ -2,16 +2,23 @@
 
 The names live outside the tree: the LEAK_DENYLIST secret in CI, or an
 untracked leak-denylist file under the repository's common git dir locally.
-A missing or short list fails in CI and skips with a reason elsewhere, so an
-absent list can never read as a clean tree.
+The seat is the literal row whose casefolded SHA-256 is SEAT_SHA256. It is
+chosen by content, not position, so a row added or removed elsewhere in the
+list cannot move the scan onto another name. A list that is missing, empty or
+without that row fails in CI and skips with a reason elsewhere, so an absent
+list can never read as a clean tree. A tracked file that is not UTF-8 counts
+as a hit: a scan that cannot read a file cannot clear it.
 """
 
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
+from typing import NoReturn
 
 import pytest
 import yaml
@@ -21,7 +28,7 @@ GENERIC_MARKERS = {
     "catalog/Aegis-Atoms-v0.yaml": ["CONFIDENTIAL", "NDA", "client name"],
     "Aegis-Atoms-v0.bundle.yaml": ["CONFIDENTIAL", "NDA"],
 }
-SEAT_ROW = 9
+SEAT_SHA256 = "5b8046ceca24242118123b520b55a8fc235ee4fbb6ce4a0506a7c02ccadbd9c2"
 _ARGS = {
     "tool_call_id": "call-synthetic-1",
     "gate_decision_sha256": "a" * 64,
@@ -47,22 +54,36 @@ def _local_denylist() -> Path:
     return common / "info" / "leak-denylist"
 
 
-def _denylist_rows() -> list[str]:
+def _missing(reason: str) -> NoReturn:
+    if os.environ.get("CI"):
+        pytest.fail(f"{reason}; set the LEAK_DENYLIST secret")
+    pytest.skip(reason)
+
+
+def _denylist_rows(local: Path | None = None) -> list[str]:
     text = os.environ.get("LEAK_DENYLIST", "").strip()
     if not text:
-        local = _local_denylist()
+        local = local or _local_denylist()
         text = local.read_text(encoding="utf-8") if local.is_file() else ""
     rows = [
         ln.strip()
         for ln in text.splitlines()
         if ln.strip() and not ln.strip().startswith("#")
     ]
-    if len(rows) > SEAT_ROW:
-        return rows
-    reason = f"leak denylist has {len(rows)} rows; need more than {SEAT_ROW}"
-    if os.environ.get("CI"):
-        pytest.fail(f"{reason}; set the LEAK_DENYLIST secret")
-    pytest.skip(reason)
+    if not rows:
+        _missing("leak denylist is missing or empty")
+    return rows
+
+
+def _digest(row: str) -> str:
+    return hashlib.sha256(row.casefold().encode("utf-8")).hexdigest()
+
+
+def _seat_row(rows: list[str], digest: str = SEAT_SHA256) -> str:
+    for row in rows:
+        if _digest(row) == digest:
+            return row
+    _missing(f"no row of the {len(rows)}-row leak denylist hashes to the seat")
 
 
 def _pattern(row: str) -> re.Pattern[str]:
@@ -72,35 +93,85 @@ def _pattern(row: str) -> re.Pattern[str]:
 
 
 def _scan(root: Path, paths: list[str], seat: re.Pattern[str]) -> list[str]:
-    hits = [path for path in paths if seat.search(path)]
+    hits = []
     for path in paths:
         file = root / path
-        if not file.is_file():
-            continue
-        try:
-            text = file.read_text(encoding="utf-8")
-        except UnicodeDecodeError:
-            continue
-        if seat.search(text):
+        text = ""
+        if file.is_file():
+            try:
+                text = file.read_bytes().decode("utf-8")
+            except UnicodeDecodeError:
+                hits.append(path)
+                continue
+        if seat.search(path) or seat.search(text):
             hits.append(path)
     return hits
 
 
+def _outcome(call: Callable[[], object]) -> str:
+    try:
+        call()
+    except pytest.fail.Exception:
+        return "fail"
+    except pytest.skip.Exception:
+        return "skip"
+    return "pass"
+
+
+def _planted_repo(tmp_path: Path, leak: bytes) -> list[str]:
+    _git("init", "-q", cwd=tmp_path)
+    (tmp_path / "clean.md").write_text("generic labels\n", encoding="utf-8")
+    (tmp_path / "leak.txt").write_bytes(leak)
+    _git("add", "clean.md", "leak.txt", cwd=tmp_path)
+    return _tracked(tmp_path)
+
+
 def test_tracked_tree_does_not_name_the_retired_seat() -> None:
-    seat = _pattern(_denylist_rows()[SEAT_ROW])
+    seat = _pattern(_seat_row(_denylist_rows()))
     assert _scan(ROOT, _tracked(), seat) == []
 
 
-def test_scan_fails_when_the_retired_seat_is_planted(tmp_path: Path) -> None:
-    row = _denylist_rows()[SEAT_ROW]
-    if row.lower().startswith("re:"):
-        pytest.fail("seat row is a regex; the planted canary needs a literal row")
-    _git("init", "-q", cwd=tmp_path)
-    (tmp_path / "clean.md").write_text("generic labels\n", encoding="utf-8")
-    (tmp_path / "leak.md").write_text(f"see {row.upper()} notes\n", encoding="utf-8")
-    _git("add", "clean.md", "leak.md", cwd=tmp_path)
-    hits = _scan(tmp_path, _tracked(tmp_path), _pattern(row))
-    assert hits == ["leak.md"]
+@pytest.mark.parametrize("encoding", ["utf-8", "utf-16", "cp1252"])
+def test_scan_fails_when_the_retired_seat_is_planted(
+    tmp_path: Path, encoding: str
+) -> None:
+    row = _seat_row(_denylist_rows())
+    leak = f"caf\u00e9, see {row.upper()} notes\n".encode(encoding)
+    hits = _scan(tmp_path, _planted_repo(tmp_path, leak), _pattern(row))
+    assert hits == ["leak.txt"]
+
+
+@pytest.mark.parametrize("encoding", ["utf-16", "cp1252"])
+def test_scan_fails_closed_on_a_file_it_cannot_decode(
+    tmp_path: Path, encoding: str
+) -> None:
+    leak = "caf\u00e9 menu\n".encode(encoding)
+    hits = _scan(tmp_path, _planted_repo(tmp_path, leak), re.compile("absent"))
+    assert hits == ["leak.txt"]
+
+
+def test_seat_row_is_chosen_by_content_not_position() -> None:
+    digest = _digest("Synthetic-Seat")
+    for rows in (
+        ["synthetic-seat"],
+        ["decoy-a", "re:decoy", "decoy-b", "SYNTHETIC-SEAT", "decoy-c"],
+        ["synthetic-seat", *(f"decoy-{n}" for n in range(12))],
+    ):
+        assert _seat_row(rows, digest).casefold() == "synthetic-seat"
+
+
+def test_missing_list_or_seat_fails_in_ci_and_skips_elsewhere(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    absent = tmp_path / "leak-denylist"
+    digest = _digest("synthetic-seat")
+    monkeypatch.delenv("LEAK_DENYLIST", raising=False)
+    monkeypatch.setenv("CI", "1")
+    assert _outcome(lambda: _denylist_rows(absent)) == "fail"
+    assert _outcome(lambda: _seat_row(["decoy-a", "decoy-b"], digest)) == "fail"
+    monkeypatch.delenv("CI")
+    assert _outcome(lambda: _denylist_rows(absent)) == "skip"
+    assert _outcome(lambda: _seat_row(["decoy-a", "decoy-b"], digest)) == "skip"
 
 
 def test_bound_prove_refuses_at_runtime_when_unset(
