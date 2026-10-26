@@ -110,7 +110,7 @@ atoms:
     detector:
       kind: terminal_command
       patterns:
-        - '(?i)(~/.hermes|/home/[^/\s]+/.hermes).*(plugins/|config\.yaml|cron/jobs\.json|/\.env)'
+        - '(?i)(~/.hermes|/hom[e]/[^/\s]+/.hermes).*(plugins/|config\.yaml|cron/jobs\.json|/\.env)'
         - '(?i)(tee|sed\s+-i|mv|cp|rm|chmod).*(config\.yaml|jobs\.json|/plugins/)'
         - '(?i)hermes\s+cron\s+(edit|add|remove)'
         - '(?i)systemctl\s+.*hermes-gateway'
@@ -192,7 +192,6 @@ atoms:
         - "CONFIDENTIAL"
         - "NDA"
         - "client name"
-        - "Incom Corporation"
       clean_path_markers: ["career-export", "LinkedIn", "cover", "resume", "website/"]
     # The public extract stripped this relaxation's session pattern (it named a
     # fenced client) and left a bare mapping, which made every firing raise

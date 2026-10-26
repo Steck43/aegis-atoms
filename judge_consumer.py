@@ -30,7 +30,7 @@ def _hitl_message(outcome: JudgeOutcome) -> str:
             f"[aegis-atoms] Held by bounded judge "
             f"({outcome.opinion.recommendation.value}): {outcome.opinion.reason}"
         )
-    return "[aegis-atoms] Held by bounded judge (HITL — Landen must approve)."
+    return "[aegis-atoms] Held by bounded judge (HITL: requires operator approval)."
 
 
 def needs_subtract(outcome: JudgeOutcome) -> bool:

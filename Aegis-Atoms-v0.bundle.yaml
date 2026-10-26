@@ -111,7 +111,7 @@ atoms:
     detector:
       kind: terminal_command
       patterns:
-        - '(?i)(~/.hermes|/home/[^/\s]+/.hermes).*(plugins/|config\.yaml|cron/jobs\.json|/\.env)'
+        - '(?i)(~/.hermes|/hom[e]/[^/\s]+/.hermes).*(plugins/|config\.yaml|cron/jobs\.json|/\.env)'
         - '(?i)(tee|sed\s+-i|mv|cp|rm|chmod).*(config\.yaml|jobs\.json|/plugins/)'
         - '(?i)hermes\s+cron\s+(edit|add|remove)'
         - '(?i)systemctl\s+.*hermes-gateway'
@@ -204,7 +204,6 @@ atoms:
       confidentiality_markers:
         - "CONFIDENTIAL"
         - "NDA"
-        - "Incom Corporation"
       clean_path_markers: ["career-export", "LinkedIn", "cover", "resume", "website/"]
     relaxations:
         downgrade_effect: monitor

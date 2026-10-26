@@ -1,7 +1,7 @@
 # JUDGE-COMPARE — scripted-call judge shadow run (pre-G6-regrade) — 2026-10-10
 
 Status: **SCRIPTED-CALL JUDGE SHADOW RUN — agent not invoked.**
-Label stays **pre-G6-regrade**. No paper claim until Forseti reviews.
+Label stays **pre-G6-regrade**. No paper claim until review.
 
 This is **not** a live Hermes agent compare. Both arms replay one synthesized
 gold tool call per frozen pilot-500 row through `evaluate_tool_call` /
@@ -50,7 +50,7 @@ re-extract only; stale bytes kept as `pilot-500.jsonl.stale-40d3ad1c`.
 | Off | `judge_enabled=False` |
 | On (A3) | `judge_enabled=True`, `judge_force_consult` only for `attack`/`ambiguous` tracks (`judge_compare_policy.force_consult_for_track`), `judge_apply_verdict=False` |
 | Runner | `scripts/run_judge_compare_pilot.py` |
-| Raw JSON (A3) | `receipts/raw/judge-compare-pre-g6/JUDGE-COMPARE-PRE-G6-REGRADE.json` sha256 `0c7294ad243b307534950c5ccbe2a29ad9d50a5148721a7144dcf32a1be519b8` (git-show LF) |
+| Raw JSON (A3) | `receipts/raw/judge-compare-pre-g6/JUDGE-COMPARE-PRE-G6-REGRADE.json` sha256 `b607cac51e02dda78b943736bf9138ceb8b85b955ba1bea39f0a4d2bf3568088` (git-show LF; absolute pilot path redacted to a relative locator) |
 | G6 on (A3) | sha256 `bff9ad34fe1e531ee3a15a276e16a6098efe49d88de3d2e287fee728632761c5` |
 | Pre-A3 raw (force_consult artifact) | sha256 `4ad40dff917594bf1368624f670d785f1f8a685524d6c50ed40fc3941522382f` — retained as cause evidence |
 
@@ -97,7 +97,7 @@ hardcoded that flag. Combined with the Sonnet schema (`concur` /
 `attack` and `ambiguous`. Failing-first suite:
 `tests/test_judge_compare_consult_policy.py`.
 
-## Notes for Forseti
+## Notes
 
 1. Scripted-call shadow only — not a live agent arm (A4 estimate next).
 2. Apply False — floor cannot show ALLOW→DENY from the judge.

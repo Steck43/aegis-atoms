@@ -38,6 +38,36 @@ def test_fence_pattern_is_not_tracked_in_git():
     assert tracked == ""
 
 
+def test_full_compare_refuses_when_vault_catalog_unset(monkeypatch):
+    monkeypatch.delenv("AEGIS_VAULT_CATALOG", raising=False)
+    try:
+        br.load_copies(False)
+    except SystemExit as exc:
+        assert "AEGIS_VAULT_CATALOG is unset" in str(exc)
+        return
+    raise AssertionError("expected SystemExit")
+
+
+def test_missing_vault_catalog_file_exits(tmp_path, monkeypatch):
+    monkeypatch.delenv("AEGIS_VAULT_CATALOG", raising=False)
+    try:
+        br.load_copies(False, tmp_path / "absent.yaml")
+    except SystemExit as exc:
+        assert exc.code == 1
+        return
+    raise AssertionError("expected SystemExit 1")
+
+
+def test_missing_vault_catalog_env_exits(tmp_path, monkeypatch):
+    monkeypatch.setenv("AEGIS_VAULT_CATALOG", str(tmp_path / "absent.yaml"))
+    try:
+        br.load_copies(False)
+    except SystemExit as exc:
+        assert exc.code == 1
+        return
+    raise AssertionError("expected SystemExit 1")
+
+
 def test_every_code_atom_constant_is_a_row():
     cats, codes, _ = br.load_copies(local_only=True)
     ids = {r["atom_id"] for r in br.build_rows(cats, codes)}

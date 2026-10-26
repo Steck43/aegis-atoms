@@ -8,43 +8,18 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import os
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(ROOT))
+
+from provider_key import load_anthropic_key  # noqa: E402
 
 
 def _load_key() -> str:
-    env = os.environ.get("ANTHROPIC_API_KEY", "").strip()
-    if env:
-        return env
-    # Prefer repo-local secrets/.env (gitignored). Worktree → parent aegis-atoms.
-    repo_root = ROOT
-    if (repo_root / "secrets" / ".env").is_file():
-        pass
-    elif (repo_root.parent.parent / "secrets" / ".env").is_file():
-        # .worktrees/judge-lane → aegis-atoms/secrets/.env
-        repo_root = repo_root.parent.parent
-    candidates = [
-        ROOT / "secrets" / ".env",
-        ROOT.parent.parent / "secrets" / ".env",  # worktree checkout
-        Path.home() / ".hermes" / ".env",
-        Path.home() / ".hermes" / "profiles" / "aegis" / ".env",
-    ]
-    for p in candidates:
-        if not p.is_file():
-            continue
-        for line in p.read_text(encoding="utf-8", errors="replace").splitlines():
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if line.startswith("ANTHROPIC_API_KEY="):
-                val = line.split("=", 1)[1].strip().strip('"').strip("'")
-                if val:
-                    return val
-    return ""
+    return load_anthropic_key()
 
 
 def main() -> int:
