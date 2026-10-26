@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Trusted kit-local-manifest re-pin to kit global hooks path (`merge_gate.py` at `97fc05767615`).
+
 - Trusted kit-local-manifest re-pin: `merge_gate.py` at `97fc05767615`.
 
 - Raise `zizmorcore/zizmor-action` from 0.6.2 to 0.6.4 (`cc914d7f…`), recreating closed Dependabot #28 on a fresh branch.
