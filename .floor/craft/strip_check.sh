@@ -22,7 +22,9 @@ restore_target() {
 trap restore_target EXIT
 
 ran=0
-while IFS=$'\t' read -r package strip_target strip_cmd nodeid expect_sub; do
+# fd 3, so a strip command or pytest that reads stdin cannot eat later rows.
+# The || test keeps a final row that has no trailing newline.
+while IFS=$'\t' read -r package strip_target strip_cmd nodeid expect_sub <&3 || [[ -n "${package:-}" ]]; do
   expect_sub="${expect_sub%$'\r'}"
   package="${package%$'\r'}"
   strip_target="${strip_target%$'\r'}"
@@ -67,7 +69,7 @@ while IFS=$'\t' read -r package strip_target strip_cmd nodeid expect_sub; do
   echo "strip_check: strip red OK for $package"
   $PY -m pytest "${local_pytest[@]}" "$nodeid"
   echo "strip_check: head green OK for $package"
-done < "$TSV"
+done 3< "$TSV"
 
 if [[ $ran -eq 0 ]]; then
   echo "strip_check FAIL: no recipes in $TSV" >&2
