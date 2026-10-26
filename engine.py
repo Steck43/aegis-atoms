@@ -496,6 +496,10 @@ def _effective_effect(
 ) -> tuple[str, str]:
     effect = str(atom.control.get("effect", "monitor"))
     mode = str(atom.control.get("enforcement_mode", "observe"))
+    # An effect outside the rank is read as block, the same default the
+    # relaxation clamp below uses, so a fired atom cannot decide nothing.
+    if effect not in EFFECT_RANK:
+        effect = "block"
     if session_origin != "human":
         return effect, mode
     for relax in _relaxation_list(atom.relaxations):
