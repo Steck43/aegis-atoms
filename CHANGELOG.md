@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- C2 shell structure: a plain `command` string is split into tokens and held to the same per-binary argv allowlist as an `argv` list, so the binary and every flag must be listed in either form. A string that does not split is denied. `tests/test_shell_string_argv_parity.py`.
 - Trusted kit-local-manifest re-pin to kit global hooks path (`merge_gate.py` at `97fc05767615`).
 - Removed a third-party name from a catalog confidentiality marker. The bound-prove script path comes from the environment, and a human-review hold says it requires operator approval. `tests/test_public_surface_names.py` fails if the retired seat name is in the tree or the marker list is no longer the generic labels.
 - Public path scrub: the judge scripts no longer compile in a home path or key file. The provider key comes from `ANTHROPIC_API_KEY` or a file named by `ANTHROPIC_ENV_FILE`, and an unset or missing file refuses. `tools/build_registry.py` reads the vault catalog from `--vault-catalog` or `AEGIS_VAULT_CATALOG` and refuses a path that is not a file. `tests/test_public_paths.py` scans every tracked file and fails on a home path (including a JSON-escaped Windows one), an env-file path, or a dotted IPv4 address.

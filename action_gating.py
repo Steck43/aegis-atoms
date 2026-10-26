@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import re
+import shlex
 import string
 import subprocess
 import sys
@@ -293,9 +294,10 @@ _ARGV_TOKEN_STRUCTURE = re.compile(r"[;|&`$<>()\n\r]")
 # A freeform command string runs under a shell, so a list of known shell
 # constructs is never complete: it missed a trailing "&", a newline, an env
 # prefix, brace expansion and heredocs. The string branch is an allowlist
-# instead. A plain command carries letters, digits, these few characters,
-# spaces, and quoted runs that hold the same plain characters. Anything else
-# is structure the argv schema does not permit.
+# instead, in two steps. First, a plain command carries letters, digits, these
+# few characters, spaces, and quoted runs that hold the same plain characters.
+# Second, the plain string is split into tokens and held to the same per-binary
+# argv schema as an argv list, so the binary and every flag must be listed.
 _PLAIN_CHARS = frozenset(string.ascii_letters + string.digits + "_./:,@%+=-")
 _QUOTE_CHARS = frozenset("'\"")
 _NAMED_CONSTRUCTS = ("<(", ">(", "$(", "<<", ">>", "&&", "||")
@@ -374,8 +376,8 @@ def inspect_call_structure(call: str | dict[str, Any]) -> dict[str, Any]:
     Permitted argv schema: {"argv": [binary, *args]} where binary is a bare
     basename on the per-binary flag allowlist and every flag token is listed
     for that binary. A freeform command string is permitted only when every
-    character is on the plain list (see _first_disallowed); anything else is
-    structure the schema does not permit.
+    character is on the plain list (see _first_disallowed) and its shlex
+    tokens pass the same argv schema. A string that does not split is denied.
     """
     if isinstance(call, dict):
         if "argv" in call:
@@ -397,7 +399,19 @@ def inspect_call_structure(call: str | dict[str, Any]) -> dict[str, Any]:
     found = _first_disallowed(call)
     if found is not None:
         return {"structure": found, "permitted": False, "command": call}
-    return {"structure": None, "permitted": True, "command": call}
+    try:
+        tokens = shlex.split(call, posix=True)
+    except ValueError as exc:
+        return {
+            "structure": f"command_parse_error:{type(exc).__name__}",
+            "permitted": False,
+            "command": call,
+        }
+    if not tokens:
+        return {"structure": None, "permitted": True, "command": call}
+    info = _inspect_argv(tokens)
+    info["command"] = call
+    return info
 
 
 def evaluate_shell_unsanitized(
