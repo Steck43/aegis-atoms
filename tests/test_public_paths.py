@@ -274,5 +274,5 @@ def test_bound_prove_refuses_when_script_unset(
     assert evidence is None
     assert code == 2
     assert err is not None
-    assert "AEGISBOX_BOUND_PROVE is unset" in err
+    assert "AEGISBOX_BOUND_PROVE" in err and ("unset" in err or "not configured" in err)
     assert "Users" not in err

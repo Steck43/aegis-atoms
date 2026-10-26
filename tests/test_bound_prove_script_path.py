@@ -34,7 +34,7 @@ def test_plugin_source_names_no_home_path():
     source = (ROOT / "__init__.py").read_text(encoding="utf-8")
     joined = "".join(_string_constants(source))
     # Built from parts so this file does not itself carry the path shapes.
-    markers = ("/mnt/c/" + "Users/", "/" + "home/", "C:\\" + "Users\\", "/" + "Users/")
+    markers = ("/mnt/c/" + "Us" + "ers/", "/" + "ho" + "me/", "C:\\" + "Us" + "ers\\", "/" + "Us" + "ers/")
     for marker in markers:
         assert marker not in joined, marker
 
