@@ -18,12 +18,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- GIT-5 strip-check CI fixture: `tools/strip_ci_fixture` wrong-answer strip proves red, head proves green; workflow `strip-check.yml` and `.floor/strip.tsv`.
+
 - Default pytest collection now carries `T-OS-01` and `T-SG-04` as strict expected failures, so implementing either contract without removing its marker and landing evidence fails the suite. `T-OS-02a..d` remains blocked on missing executable fixture definitions rather than being represented by empty tests. Receipt: `OS-SG-XFAIL-SUITE-2026-10-11.md`.
 - JUDGE-COMPARE scripted-call shadow runner (`scripts/run_judge_compare_pilot.py`) with track consult policy (`judge_compare_policy.py`): only `attack` and `ambiguous` tracks force-consult the judge. Receipt `JUDGE-COMPARE-PRE-G6-REGRADE-2026-10-10.md`.
 - Part 0 judge wiring: Hermes `pre_tool_call` runs gate → atoms → box (when invoked) → judge → human. `engine.apply_judge_phase` owns the deferred judge; live mount passes `judge_enabled=False` into evaluate then applies after bound prove. Phase wall-clock `JUDGE_PHASE_DEADLINE_S` (10s) with pool `shutdown(wait=False, cancel_futures=True)`, Anthropic `max_retries=0`, and a `judge_started` G6 row before the call. Per-call apply re-check requires `AEGIS_JUDGE_APPLY_GO=1`, `AEGIS_PROFILE_ID=step11-test`, and `$HERMES_HOME/.aegis/profile_id`. Cage escalation always reaches the door; G6 write failures fail closed; quota skips write `judge_skipped`. Engine default `judge_apply_verdict` stays False. Receipts: `JUDGE-INVENTORY-2026-10-10.md`, `JUDGE-WIRING-2026-10-10.md`, `FORSETI-FIXFIRST-RESPONSE-2026-10-10.md`.
 
 ### Fixed
+- `strip_check.sh` runs every recipe row, including a last row with no newline, and keeps strip stdin from eating later rows.
 
+- GIT-5 strip-check: recipe rows name their strip target; empty `.floor/strip.tsv` fails; restore-on-exit so a failed strip cannot leave the tree stripped.
+- GIT-5 strip-check: run the fixture under an isolated pytest.ini (`--noconftest`, empty `pythonpath`) so the job that installs only pytest never imports the plugin root / PyYAML.
+- GIT-5 strip-check: pin `actions/setup-python` to the floor digest, strip UTF-8 BOM from the fixture, load `add.py` via importlib so CI does not pull the plugin root.
 - The bound prove step (`AEGISBOX_PROVE=1`) no longer falls back to a script path on one developer machine. With `AEGISBOX_BOUND_PROVE` unset it refuses with exit 2 and runs nothing; enforce mode blocks the call. `tests/test_bound_prove_script_path.py`.
 - README no longer says the live atoms profile is enforce or that the judge subtracts on the live mount. Those lines read a config mode string and the engine path; no receipt shows this plugin loaded into the Hermes gateway on the live profile, or a judge subtract there. The badge now says the config sets enforce and the live load is not measured. Older entries below that say "live profile", "live mount arms" or "live Sonnet cycle audits" describe config and test paths, not a measured live load.
 - Compare runner no longer hardcodes `judge_force_consult=True` on every pilot row (that produced 500/500 `flag_for_review`). Normal and honest_mistake abstain; attack and ambiguous consult. `tests/test_judge_compare_consult_policy.py`. `verify_derived.sh` now prints the `gen_manifest.sh` remediation when `SHA256SUMS` lags.
@@ -42,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `evaluate_tool_call` takes `gate_decision`. A gate deny blocks in atoms; a gate allow never clears an atoms block. `tests/test_gate_decision_param.py` pins both sides.
 
 ### Fixed
+- `strip_check.sh` runs every recipe row, including a last row with no newline, and keeps strip stdin from eating later rows.
 
 - C2 argv lists use a per-binary flag allowlist instead of joining tokens and scanning for shell punctuation. Joining missed `tar --checkpoint-action`, `ssh -oProxyCommand`, and nested interpreters (`bash -c`, `python -c`, `sh -c`). The binary must be a bare basename on the map; a path-form binary (`/tmp/evil`, `./tool`) denies. Every flag token must be listed for that binary. Shell punctuation inside a token still denies. `tests/test_argv_flag_allowlist.py` pins the deny and allow cases.
 - C2 unsanitized-shell checks a command string against an allowlist, not a list of known shell constructs. The old list missed a trailing `&`, a newline, an env prefix (`FOO=bar cmd`), brace expansion and heredocs, so `sleep 1 &` passed under enforce. A command string now passes only when every character is a letter, digit, space, one of `_ . / : , @ % + = -`, or sits in a quoted run of those same characters. The first token may not be `NAME=VALUE`. Anything else fires. `tests/test_shell_closed_world.py` walks every punctuation character outside the plain set, so widening the old list could not have passed it. `catalog/REGISTRY.tsv` line numbers moved by one.
@@ -89,6 +96,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README leads with stakes, then the three-object invention at length, then maps. Runtime grade is stated as fact. Supervisory reader-orders and the short-sentence opening run are gone. BREAK is the J3 negative-control file. The apply-path fuzzer caller with `judge_apply_verdict=True` is named; `evaluate_tool_call` defaults that flag to True. PDP evaluate is labeled a pre-tool call. The grade table's Here column names the allowlist as the other roof. The live-mount flag is `judge_apply_verdict` everywhere. 
 
 ### Fixed
+- `strip_check.sh` runs every recipe row, including a last row with no newline, and keeps strip stdin from eating later rows.
 
 - `atom.condition.confidential_tag_in_clean_export` carried a bare `relaxations` mapping after the public extract removed its session pattern, and every firing raised `AttributeError`. With no pattern there is no relaxation, so it is now `relaxations: []`.
 - The recursive-delete rule in `irreversible_operations.yaml` no longer cites AIID 1178. That incident was a failed mkdir followed by moves that overwrote files, which no match kind in the file can see, so the citation claimed coverage the rule never had.
