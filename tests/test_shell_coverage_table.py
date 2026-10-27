@@ -180,6 +180,12 @@ def test_coverage_function_reports_why(tmp_path):
     assert f({"command": "   "})[0] is None
     assert f({"command": 42})[0] is None
     assert f({"command": "git status", "cmd": "x"})[1] == "unexpected_arg:cmd"
-    assert f({"command": "git status", "timeout": 30, "workdir": "."})[0] == (
-        "git.status"
+    root = str(tmp_path)
+    assert f(
+        {"command": "git status", "timeout": 30, "workdir": root},
+        allowed_roots=[root],
+    )[0] == ("git.status")
+    assert f({"command": "git status", "workdir": "."}, allowed_roots=[root]) == (
+        None,
+        "workdir_relative",
     )

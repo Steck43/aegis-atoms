@@ -233,6 +233,29 @@ def evaluate_path_outside_root(
         return True, coords
 
 
+# A write into a .git directory, or to a file named .git, can plant repo
+# config (core.fsmonitor, diff.external, a gitdir pointer) or a hook, and the
+# next git read on a covered row then runs it. A part counts as .git in any
+# case and with trailing dots or spaces, which some filesystems drop.
+_PATH_WRITE_TOOLS = frozenset({"write_file", "patch"})
+
+
+def _is_git_part(part: str) -> bool:
+    return part.rstrip(" .").casefold() == ".git"
+
+
+def names_git_control(raw: str) -> bool:
+    """True when the raw or resolved path has a .git part. Malformed is True."""
+    try:
+        text = raw.replace("\\", "/")
+        if any(_is_git_part(x) for x in text.split("/")):
+            return True
+        resolved = canonicalize_path(raw)
+    except Exception:
+        return True
+    return any(_is_git_part(x) for x in Path(resolved).parts)
+
+
 # Argv is a closed per-binary schema, not a joined-string denylist. Joining
 # tokens and scanning for shell punctuation missed flag-shaped escapes
 # (tar --checkpoint-action, ssh -oProxyCommand) and nested interpreters
@@ -421,8 +444,11 @@ def inspect_call_structure(call: str | dict[str, Any]) -> dict[str, Any]:
 # one exact row here. Exact binary, exact subcommand, exact flags, positionals
 # by a closed shape. No prefix match, no similarity. A binary or subcommand not
 # listed is UNKNOWN and takes control.coverage_unknown.
-# Known limit: a row bounds the argv, not repo config already on disk (a git
-# hook or core.fsmonitor set earlier still runs on git status).
+# A row bounds the argv, not repo config on disk: a hook or core.fsmonitor in
+# the repo still runs on git status. So a row covers only in a working dir
+# inside allowed_roots, no positional or working dir names a .git part, and
+# C1 denies path tool writes into .git. Config outside the roots (global
+# gitconfig, a bare repo planted by hand) is not bounded here.
 _POS_SHAPES: dict[str, re.Pattern[str]] = {
     # Relative path under the working dir: no leading / ~ . or -, no .. part.
     "rel_path": re.compile(r"(?:\.|[A-Za-z0-9_][A-Za-z0-9._/-]*)"),
@@ -510,22 +536,54 @@ def _match_row(tokens: list[str]) -> str | None:
                 shape.fullmatch(p) and ".." not in p.split("/") for p in positionals
             ):
                 continue
+            if any(_is_git_part(x) for p in positionals for x in p.split("/")):
+                continue
         return row.row_id
     return None
 
 
-def shell_call_coverage(args: Any) -> tuple[str | None, str]:
+def _workdir_bound(workdir: Any, allowed_roots: list[str] | None) -> str | None:
+    """Return why a working dir leaves the call UNKNOWN, or None if bounded.
+
+    Relative paths take the harness cwd, which the call does not show, so only
+    an absolute path that resolves inside allowed_roots is bounded.
+    """
+    if not isinstance(workdir, str) or not workdir.strip():
+        return "workdir_not_inspectable"
+    if not allowed_roots:
+        return "workdir_no_roots"
+    if not workdir.replace("\\", "/").startswith("/"):
+        return "workdir_relative"
+    if names_git_control(workdir):
+        return "workdir_git_control"
+    try:
+        resolved = canonicalize_path(workdir)
+    except Exception:
+        return "workdir_not_inspectable"
+    if not any(_is_under_root(resolved, r) for r in allowed_roots):
+        return "workdir_outside_roots"
+    return None
+
+
+def shell_call_coverage(
+    args: Any, *, allowed_roots: list[str] | None = None
+) -> tuple[str | None, str]:
     """Return (row ids, reason). Row ids None means the call is not COVERED.
 
     Every present surface (argv list and command string) must match a row,
     since a harness may run either. A call with neither surface, or with a
-    surface that is not inspectable, is never COVERED.
+    surface that is not inspectable, is never COVERED. A call that names a
+    working dir is COVERED only when that dir resolves inside allowed_roots.
     """
     if not isinstance(args, dict):
         return None, "args_not_mapping"
     for key in args:
         if key not in _SHELL_PASSIVE_KEYS:
             return None, f"unexpected_arg:{key}"
+    if "workdir" in args:
+        why = _workdir_bound(args["workdir"], allowed_roots)
+        if why is not None:
+            return None, why
     surfaces: list[list[str]] = []
     if "argv" in args:
         argv = args["argv"]
@@ -637,6 +695,10 @@ def evaluate_action_gating(
             fires, coords = evaluate_path_outside_root(
                 path, allowed_roots=allowed_roots
             )
+            if not fires and tool_name in _PATH_WRITE_TOOLS:
+                if names_git_control(path):
+                    fires = True
+                    coords["git_control"] = True
             if fires:
                 fired_ids.add(ATOM_PATH_OUTSIDE)
                 firings.append(_make_firing(ATOM_PATH_OUTSIDE, evaluation_id, coords))
