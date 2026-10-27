@@ -57,6 +57,13 @@ _AG_PATH_ATOM = "atoms.tool_invocation.path_resolves_outside_allowed_root"
 _AG_SHELL_ATOM = "atoms.tool_invocation.shell_invocation_unsanitized"
 
 
+def normalize_plugin_mode(value: Any) -> str:
+    """Engine mode: "observe" (trimmed, any case) observes; anything else enforces."""
+    if isinstance(value, str) and value.strip().lower() == "observe":
+        return "observe"
+    return "enforce"
+
+
 def decision_digest(gate_decision: Any) -> str:
     """Sha256 of the gate decision fields atoms actually read."""
     verdict = getattr(gate_decision, "verdict", None)
@@ -673,6 +680,9 @@ def evaluate_tool_call(
     control_surfaces_path: str | None = None,
     gate_decision: Any | None = None,
 ) -> EvaluationResult:
+    # Only "observe" observes. A case variant, blank, None or typo enforces;
+    # the exact-string compares below would otherwise read it as observe.
+    plugin_mode = normalize_plugin_mode(plugin_mode)
     # Gate composition: only a canonical allow falls through to atoms.
     # ASK escalates; deny / thrown / malformed / missing block. A gate allow
     # never clears an atoms block (atoms still run after allow).
