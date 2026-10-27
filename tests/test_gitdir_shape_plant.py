@@ -349,7 +349,9 @@ def test_pin_sets_safe_bare_repository_explicit():
         "GIT_CONFIG_COUNT": "1",
         "GIT_CONFIG_KEY_0": "safe.bareRepository",
         "GIT_CONFIG_VALUE_0": "explicit",
+        "GIT_CONFIG_PARAMETERS": "'safe.bareRepository'='explicit'",
     }
+    assert action_gating.git_pin_effective(env)
 
 
 def test_pin_keeps_existing_entries_and_is_idempotent():
@@ -399,6 +401,7 @@ def test_register_pins_the_host_env(monkeypatch, tmp_path):
     assert os.environ.get("GIT_CONFIG_COUNT") == "1"
     assert os.environ.get("GIT_CONFIG_KEY_0") == "safe.bareRepository"
     assert os.environ.get("GIT_CONFIG_VALUE_0") == "explicit"
+    assert os.environ.get("GIT_CONFIG_PARAMETERS") == "'safe.bareRepository'='explicit'"
 
 
 def test_suite_runs_git_with_the_pin():

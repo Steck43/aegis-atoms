@@ -397,12 +397,20 @@ def _normalize_path(path: str, env: dict[str, str]) -> str:
 def _extract_paths(tool_name: str, args: dict[str, Any]) -> list[str]:
     if not isinstance(args, dict):
         return []
+    out: list[str] = []
     key = PATH_ARG.get(tool_name)
     if key and isinstance(args.get(key), str):
-        return [args[key]]
-    if tool_name == "search_files" and isinstance(args.get("target"), str):
-        return [args["target"]]
-    return []
+        out.append(args[key])
+    elif tool_name == "search_files" and isinstance(args.get("target"), str):
+        out.append(args["target"])
+    if tool_name == "patch" and isinstance(args.get("patch"), str):
+        # A V4A body names its files in the body; resource atoms read them too.
+        try:
+            from .action_gating import parse_v4a_headers
+        except ImportError:
+            from action_gating import parse_v4a_headers
+        out.extend(parse_v4a_headers(args["patch"]).paths)
+    return out
 
 
 def _args_blob(args: dict[str, Any]) -> str:
@@ -1444,7 +1452,11 @@ def evaluate_tool_call(
     coverage_sources = sorted({f"fired:{f.atom_id}" for f in firings if f.fired})
     fired_ids = {f.atom_id for f in firings if f.fired}
     atoms_silent: list[dict[str, str]] = []
-    for atom in _bounding_atoms(catalog, tool_name, paths):
+    # Only a path arg bounds a call. V4A header paths can fire an atom but do
+    # not make a call with no path arg COVERED on their own.
+    arg_path = args.get(PATH_ARG.get(tool_name, "")) if isinstance(args, dict) else None
+    bound_paths = paths if tool_name != "patch" or isinstance(arg_path, str) else []
+    for atom in _bounding_atoms(catalog, tool_name, bound_paths):
         coverage_sources.append(f"atom:{atom.atom_id}")
         if atom.atom_id not in fired_ids:
             atoms_silent.append({"id": atom.atom_id, "version": atom.version})
@@ -1476,6 +1488,16 @@ def evaluate_tool_call(
                 coverage_sources.append(f"shell_table:{shell_row}")
                 if _AG_SHELL_ATOM not in fired_ids:
                     atoms_silent.append({"id": _AG_SHELL_ATOM, "version": "1"})
+    try:
+        from .action_gating import patch_body_reason
+    except ImportError:
+        from action_gating import patch_body_reason
+    # A patch body that names a file the atoms cannot read, or a V4A call with
+    # no readable header, is not bounded by its path arg or by any family that
+    # read only that arg, so it is never COVERED.
+    if isinstance(args, dict) and patch_body_reason(tool_name, args) is not None:
+        coverage_sources = []
+        atoms_silent = []
     coverage = "COVERED" if coverage_sources else "UNKNOWN"
     coverage_effect = None
     if coverage == "UNKNOWN":

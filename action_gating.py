@@ -273,28 +273,34 @@ def _git_name(part: str) -> str:
     return part.rstrip(" .").casefold()
 
 
-def is_gitdir_shaped(directory: Path) -> bool:
+def _present(path: Path, planned: frozenset[str]) -> bool:
+    """On disk now, or named by the same call (a patch that adds it)."""
+    return os.path.lexists(path) or str(path).casefold() in planned
+
+
+def is_gitdir_shaped(directory: Path, planned: frozenset[str] = frozenset()) -> bool:
     """True when the dir holds HEAD and one of config, objects, refs, commondir.
 
     Stricter than git, which needs HEAD, objects and refs, so a partial plant
-    counts too.
+    counts too. planned holds the paths the same call writes, so a plant laid
+    out in one patch is judged as it will be after the patch, not before.
     """
-    if not os.path.lexists(directory / "HEAD"):
+    if not _present(directory / "HEAD", planned):
         return False
-    return any(os.path.lexists(directory / n) for n in _GITDIR_PEERS)
+    return any(_present(directory / n, planned) for n in _GITDIR_PEERS)
 
 
-def _sibling_of_gitdir(directory: Path) -> bool:
-    if os.path.lexists(directory / "HEAD"):
+def _sibling_of_gitdir(directory: Path, planned: frozenset[str] = frozenset()) -> bool:
+    if _present(directory / "HEAD", planned):
         return True
-    return all(os.path.lexists(directory / n) for n in ("objects", "refs"))
+    return all(_present(directory / n, planned) for n in ("objects", "refs"))
 
 
 def _self_and_parents(path: Path) -> list[Path]:
     return [path, *path.parents]
 
 
-def gitdir_write_reason(raw: str) -> str | None:
+def gitdir_write_reason(raw: str, planned: frozenset[str] = frozenset()) -> str | None:
     """Why a write to raw would build or edit a repository with no .git part.
 
     HEAD is never written by a path tool. A config, commondir, gitdir or
@@ -319,18 +325,96 @@ def gitdir_write_reason(raw: str) -> str | None:
     for p in candidates:
         if not p.is_absolute():
             continue
-        if _git_name(p.name) in _GITDIR_SIBLING_WRITES and _sibling_of_gitdir(p.parent):
+        if _git_name(p.name) in _GITDIR_SIBLING_WRITES and _sibling_of_gitdir(
+            p.parent, planned
+        ):
             return "gitdir_sibling"
-        if any(is_gitdir_shaped(d) for d in p.parents):
+        if any(is_gitdir_shaped(d, planned) for d in p.parents):
             return "gitdir_inside"
     return None
 
 
 # A Hermes patch in V4A mode names its files in the patch body, not in path.
-_V4A_FILE_LINE = re.compile(
-    r"^\*\*\*\s*(?:Add File|Update File|Delete File|Move to):\s*(.+?)\s*$",
-    re.MULTILINE,
-)
+# The header grammar is the one Hermes applies (tools/patch_parser.py
+# parse_v4a_patch): split on LF, drop one trailing CR, re.match each line, so
+# any whitespace run is allowed after the stars and between the words, and Move
+# File names a source and a destination. Every line is read, not only the lines
+# between Begin and End Patch, so the atoms see at least the files Hermes does.
+# Codex "Move to:" is kept as a destination too.
+_V4A_UPDATE = re.compile(r"\*\*\*\s*Update\s+File:\s*(.+)")
+_V4A_ADD = re.compile(r"\*\*\*\s*Add\s+File:\s*(.+)")
+_V4A_DELETE = re.compile(r"\*\*\*\s*Delete\s+File:\s*(.+)")
+_V4A_MOVE = re.compile(r"\*\*\*\s*Move\s+File:\s*(.+?)\s*->\s*(.+)")
+_V4A_MOVE_TO = re.compile(r"\*\*\*\s*Move\s+to:\s*(.+)")
+_V4A_BEGIN = re.compile(r"^\*\*\*\s*Begin\s+Patch\s*$")
+_V4A_END = re.compile(r"^\*\*\*\s*End\s+Patch\s*$")
+
+
+class V4AHeaders(NamedTuple):
+    """Files a V4A body names. writes are files it creates or changes."""
+
+    paths: list[str]
+    writes: list[str]
+    unparsed: list[str]
+
+
+def parse_v4a_headers(body: str) -> V4AHeaders:
+    """Read every V4A file header the way Hermes does.
+
+    A line that starts with *** and is not Begin Patch, End Patch or a header
+    with a non-empty path is unparsed; the caller reads that call as UNKNOWN,
+    since the atoms cannot say which file it touches.
+    """
+    paths: list[str] = []
+    writes: list[str] = []
+    unparsed: list[str] = []
+    for raw_line in body.split("\n"):
+        line = raw_line[:-1] if raw_line.endswith("\r") else raw_line
+        if not line.startswith("***"):
+            continue
+        if _V4A_BEGIN.match(line) or _V4A_END.match(line):
+            continue
+        named: list[str] = []
+        for rx in (_V4A_UPDATE, _V4A_ADD, _V4A_MOVE_TO):
+            m = rx.match(line)
+            if m:
+                named.append(m.group(1).strip())
+                writes.append(m.group(1).strip())
+        m = _V4A_DELETE.match(line)
+        if m:
+            named.append(m.group(1).strip())
+        m = _V4A_MOVE.match(line)
+        if m:
+            named.extend((m.group(1).strip(), m.group(2).strip()))
+            writes.append(m.group(2).strip())
+        if not named or not all(named):
+            unparsed.append(line)
+            continue
+        paths.extend(named)
+    return V4AHeaders(paths, [w for w in writes if w], unparsed)
+
+
+def patch_body_reason(tool_name: str, args: dict[str, Any]) -> str | None:
+    """Why a patch call body leaves it UNKNOWN, or None when every file is read.
+
+    A patch arg that is not a string, a V4A mode call with no string body or no
+    file header, and any unparsed *** line all fail closed. The path arg alone
+    never makes a V4A call COVERED.
+    """
+    if tool_name != "patch":
+        return None
+    body = args.get("patch")
+    v4a = args.get("mode") == "patch"
+    if body is None:
+        return "v4a_no_body" if v4a else None
+    if not isinstance(body, str):
+        return "v4a_body_not_inspectable"
+    headers = parse_v4a_headers(body)
+    if headers.unparsed:
+        return "v4a_unparsed_header"
+    if v4a and not headers.paths:
+        return "v4a_no_file_header"
+    return None
 
 
 def write_targets(tool_name: str, args: dict[str, Any]) -> list[str]:
@@ -341,16 +425,42 @@ def write_targets(tool_name: str, args: dict[str, Any]) -> list[str]:
         out.append(path)
     body = args.get("patch")
     if tool_name == "patch" and isinstance(body, str):
-        out.extend(m.group(1) for m in _V4A_FILE_LINE.finditer(body))
+        out.extend(parse_v4a_headers(body).paths)
     return out
 
 
+def _planned_writes(tool_name: str, args: dict[str, Any]) -> frozenset[str]:
+    """Paths the call creates, and every parent dir of each, casefolded."""
+    names: list[str] = []
+    path = args.get("path") or args.get("target")
+    if isinstance(path, str):
+        names.append(path)
+    body = args.get("patch")
+    if tool_name == "patch" and isinstance(body, str):
+        names.extend(parse_v4a_headers(body).writes)
+    out: set[str] = set()
+    for raw in names:
+        forms = [Path(raw.replace("\\", "/"))]
+        try:
+            forms.append(Path(canonicalize_path(raw)))
+        except Exception:
+            pass
+        for p in forms:
+            out.update(str(x).casefold() for x in _self_and_parents(p))
+    return frozenset(out)
+
+
 def git_write_reason(tool_name: str, args: dict[str, Any]) -> tuple[str, str] | None:
-    """(path, reason) for the first write target that plants git control."""
+    """(path, reason) for the first write target that plants git control.
+
+    The gitdir shape is judged with every file the same call writes counted as
+    present, so one patch that adds objects, refs, config and HEAD is denied.
+    """
+    planned = _planned_writes(tool_name, args)
     for target in write_targets(tool_name, args):
         if names_git_control(target):
             return target, "git_control"
-        why = gitdir_write_reason(target)
+        why = gitdir_write_reason(target, planned)
         if why is not None:
             return target, why
     return None
@@ -551,34 +661,88 @@ def inspect_call_structure(call: str | dict[str, Any]) -> dict[str, Any]:
 # writes into .git or that build a gitdir shape (HEAD, config beside HEAD).
 # Config outside the roots (global gitconfig) is not bounded here. The plugin
 # also pins safe.bareRepository=explicit into the host env at register, which
-# a local terminal inherits, so git refuses a bare repo it finds by discovery.
+# a local terminal inherits, so git refuses a bare repo it finds by discovery,
+# and a git row is COVERED only while that pin is the value git would read.
 _SAFE_BARE_KEY = "safe.bareRepository"
 _SAFE_BARE_VALUE = "explicit"
 
 
-def pin_git_harness_env(environ: Any) -> None:
-    """Append safe.bareRepository=explicit to GIT_CONFIG_* in environ.
-
-    Keeps entries already there and is a no-op when the pin is present. A count
-    that is not a non-negative integer is read as 0, since git rejects it
-    anyway.
-    """
+def _config_count_pairs(environ: Any) -> list[tuple[str, str]]:
     raw = environ.get("GIT_CONFIG_COUNT", "0")
     try:
-        count = int(raw)
+        count = max(int(raw), 0)
     except (TypeError, ValueError):
         count = 0
-    count = max(count, 0)
+    return [
+        (
+            str(environ.get(f"GIT_CONFIG_KEY_{i}", "")),
+            str(environ.get(f"GIT_CONFIG_VALUE_{i}", "")),
+        )
+        for i in range(count)
+    ]
+
+
+def _config_parameter_pairs(environ: Any) -> list[tuple[str, str]] | None:
+    """GIT_CONFIG_PARAMETERS as (key, value) pairs, None when it does not split.
+
+    git writes it as shell quoted 'key'='value' or 'key=value' entries; shlex
+    joins either form into key=value.
+    """
+    raw = environ.get("GIT_CONFIG_PARAMETERS")
+    if raw is None:
+        return []
+    try:
+        tokens = shlex.split(str(raw), posix=True)
+    except ValueError:
+        return None
+    return [(t.partition("=")[0], t.partition("=")[2]) for t in tokens]
+
+
+def _last_safe_bare(pairs: list[tuple[str, str]]) -> str | None:
     last = None
-    for i in range(count):
-        key = str(environ.get(f"GIT_CONFIG_KEY_{i}", ""))
+    for key, value in pairs:
         if key.casefold() == _SAFE_BARE_KEY.casefold():
-            last = str(environ.get(f"GIT_CONFIG_VALUE_{i}", ""))
-    if last == _SAFE_BARE_VALUE:
+            last = value
+    return last
+
+
+def git_pin_effective(environ: Any = None) -> bool:
+    """True when git would read safe.bareRepository=explicit from this env.
+
+    git reads GIT_CONFIG_COUNT entries and then GIT_CONFIG_PARAMETERS, and the
+    last value wins, so a host GIT_CONFIG_PARAMETERS setting all overrode the
+    count pin. A PARAMETERS value that does not split is not effective.
+    """
+    if environ is None:
+        environ = os.environ
+    params = _config_parameter_pairs(environ)
+    if params is None:
+        return False
+    return _last_safe_bare(_config_count_pairs(environ) + params) == _SAFE_BARE_VALUE
+
+
+def pin_git_harness_env(environ: Any) -> None:
+    """Pin safe.bareRepository=explicit in GIT_CONFIG_* and GIT_CONFIG_PARAMETERS.
+
+    The count entry keeps entries already there and is a no-op when the pin is
+    the last value there. A count that is not a non-negative integer is read as
+    0, since git rejects it anyway. The pin is also appended to
+    GIT_CONFIG_PARAMETERS, which git reads last, so a host value there cannot
+    override it and a child env that resets GIT_CONFIG_COUNT to 0 still carries
+    it. A PARAMETERS value that does not split is left alone; git refuses it.
+    """
+    pairs = _config_count_pairs(environ)
+    count = len(pairs)
+    if _last_safe_bare(pairs) != _SAFE_BARE_VALUE:
+        environ[f"GIT_CONFIG_KEY_{count}"] = _SAFE_BARE_KEY
+        environ[f"GIT_CONFIG_VALUE_{count}"] = _SAFE_BARE_VALUE
+        environ["GIT_CONFIG_COUNT"] = str(count + 1)
+    params = _config_parameter_pairs(environ)
+    if params is None or _last_safe_bare(params) == _SAFE_BARE_VALUE:
         return
-    environ[f"GIT_CONFIG_KEY_{count}"] = _SAFE_BARE_KEY
-    environ[f"GIT_CONFIG_VALUE_{count}"] = _SAFE_BARE_VALUE
-    environ["GIT_CONFIG_COUNT"] = str(count + 1)
+    entry = f"'{_SAFE_BARE_KEY}'='{_SAFE_BARE_VALUE}'"
+    prior = str(environ.get("GIT_CONFIG_PARAMETERS", "")).strip()
+    environ["GIT_CONFIG_PARAMETERS"] = f"{prior} {entry}" if prior else entry
 
 
 _POS_SHAPES: dict[str, re.Pattern[str]] = {
@@ -703,7 +867,7 @@ def _workdir_bound(workdir: Any, allowed_roots: list[str] | None) -> str | None:
 
 
 def shell_call_coverage(
-    args: Any, *, allowed_roots: list[str] | None = None
+    args: Any, *, allowed_roots: list[str] | None = None, environ: Any = None
 ) -> tuple[str | None, str]:
     """Return (row ids, reason). Row ids None means the call is not COVERED.
 
@@ -750,6 +914,10 @@ def shell_call_coverage(
         if row is None:
             return None, f"no_table_row:{tokens[0]}"
         rows.add(row)
+    # A git row is bounded only while git would refuse a bare repo it finds by
+    # discovery, which a later host env change can undo.
+    if any(r.startswith("git.") for r in rows) and not git_pin_effective(environ):
+        return None, "git_pin_not_effective"
     return ",".join(sorted(rows)), "table_row"
 
 
@@ -835,6 +1003,24 @@ def evaluate_action_gating(
             if fires:
                 fired_ids.add(ATOM_PATH_OUTSIDE)
                 firings.append(_make_firing(ATOM_PATH_OUTSIDE, evaluation_id, coords))
+        body = args.get("patch")
+        if (
+            tool_name == "patch"
+            and isinstance(body, str)
+            and ATOM_PATH_OUTSIDE not in fired_ids
+        ):
+            # Every file a V4A body names, both ends of a move, gets full C1.
+            for header_path in parse_v4a_headers(body).paths:
+                fires, coords = evaluate_path_outside_root(
+                    header_path, allowed_roots=allowed_roots
+                )
+                if fires:
+                    coords["v4a_header"] = True
+                    fired_ids.add(ATOM_PATH_OUTSIDE)
+                    firings.append(
+                        _make_firing(ATOM_PATH_OUTSIDE, evaluation_id, coords)
+                    )
+                    break
         if tool_name in _PATH_WRITE_TOOLS and ATOM_PATH_OUTSIDE not in fired_ids:
             hit = git_write_reason(tool_name, args)
             if hit is not None:
