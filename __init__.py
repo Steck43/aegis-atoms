@@ -916,7 +916,8 @@ def register(ctx) -> None:
         )
     _write_load_heartbeat(root)
     # A local terminal inherits this env; git then refuses a bare repo it finds
-    # by walking up from the working dir.
+    # by walking up from the working dir, and ignores a program any config file
+    # names for core.fsmonitor, core.hooksPath or core.pager.
     action_gating.pin_git_harness_env(os.environ)
     logger.info("aegis-atoms registered from %s", root)
     ctx.register_hook("pre_llm_call", pre_llm_call)

@@ -334,6 +334,69 @@ def gitdir_write_reason(raw: str, planned: frozenset[str] = frozenset()) -> str 
     return None
 
 
+# git reads user config from HOME/.gitconfig and XDG_CONFIG_HOME/git/config
+# (HOME/.config/git/config by default), and Hermes runs the terminal with HOME
+# at {HERMES_HOME}/home, which is inside the roots. A core.fsmonitor written
+# there ran a program on a covered git status. A login shell also sources the
+# init files in HOME, and ssh reads HOME/.ssh (config ProxyCommand, rc,
+# authorized_keys). So a path tool write to one of these names is control,
+# wherever it lands and whatever the case or trailing dots and spaces.
+_SHELL_INIT_NAMES = frozenset(
+    {
+        ".bashrc",
+        ".bash_profile",
+        ".bash_login",
+        ".bash_logout",
+        ".profile",
+        ".zshrc",
+        ".zshenv",
+        ".zprofile",
+        ".zlogin",
+        ".zlogout",
+    }
+)
+_XDG_GIT_NAMES = frozenset({"config", "attributes"})
+
+
+def home_control_reason(raw: str) -> str | None:
+    """Why a write to raw edits git user config or a shell init file.
+
+    The raw and the resolved path are both read, so a link in the roots that
+    points at HOME/.gitconfig counts. git/config counts under a .config dir or
+    under the XDG_CONFIG_HOME the host env names, not under any dir named git.
+    Malformed input is a reason.
+    """
+    try:
+        text = raw.replace("\\", "/")
+        resolved = Path(canonicalize_path(raw))
+    except Exception:
+        return "home_control_not_inspectable"
+    for p in (Path(text), resolved):
+        name = _git_name(p.name)
+        if name == ".gitconfig":
+            return "home_git_config"
+        if name in _SHELL_INIT_NAMES:
+            return "shell_init"
+        if any(_git_name(part) == ".ssh" for part in p.parts):
+            return "ssh_control"
+        if name in _XDG_GIT_NAMES and _git_name(p.parent.name) == "git":
+            base = p.parent.parent
+            if _git_name(base.name) == ".config" or _is_xdg_config_home(base):
+                return "xdg_git_config"
+    return None
+
+
+def _is_xdg_config_home(directory: Path) -> bool:
+    """True when directory is the XDG_CONFIG_HOME the host env names."""
+    raw = os.environ.get("XDG_CONFIG_HOME")
+    if not raw:
+        return False
+    try:
+        return Path(canonicalize_path(raw)) == Path(canonicalize_path(str(directory)))
+    except Exception:
+        return True
+
+
 # A Hermes patch in V4A mode names its files in the patch body, not in path.
 # The header grammar is the one Hermes applies (tools/patch_parser.py
 # parse_v4a_patch): split on LF, drop one trailing CR, re.match each line, so
@@ -460,6 +523,9 @@ def git_write_reason(tool_name: str, args: dict[str, Any]) -> tuple[str, str] | 
     for target in write_targets(tool_name, args):
         if names_git_control(target):
             return target, "git_control"
+        why = home_control_reason(target)
+        if why is not None:
+            return target, why
         why = gitdir_write_reason(target, planned)
         if why is not None:
             return target, why
@@ -659,12 +725,22 @@ def inspect_call_structure(call: str | dict[str, Any]) -> dict[str, Any]:
 # inside allowed_roots that is not and does not sit under a gitdir shaped dir,
 # no positional or working dir names a .git part, and C1 denies path tool
 # writes into .git or that build a gitdir shape (HEAD, config beside HEAD).
-# Config outside the roots (global gitconfig) is not bounded here. The plugin
-# also pins safe.bareRepository=explicit into the host env at register, which
-# a local terminal inherits, so git refuses a bare repo it finds by discovery,
-# and a git row is COVERED only while that pin is the value git would read.
+# User config is not bounded by the row either, and Hermes puts HOME inside the
+# roots, so C1 also denies writes to HOME/.gitconfig, git/config and shell init
+# files. As a second wall the plugin pins, at register, into the host env a
+# local terminal inherits: safe.bareRepository=explicit, so git refuses a bare
+# repo it finds by discovery, and core.fsmonitor=false, core.hooksPath=/dev/null
+# and core.pager=cat, so a program named in any config file does not run for
+# those keys. Command line config wins over every file. A git row is COVERED
+# only while each pin is the value git would read.
 _SAFE_BARE_KEY = "safe.bareRepository"
 _SAFE_BARE_VALUE = "explicit"
+GIT_ENV_PINS: tuple[tuple[str, str], ...] = (
+    (_SAFE_BARE_KEY, _SAFE_BARE_VALUE),
+    ("core.fsmonitor", "false"),
+    ("core.hooksPath", "/dev/null"),
+    ("core.pager", "cat"),
+)
 
 
 def _config_count_pairs(environ: Any) -> list[tuple[str, str]]:
@@ -698,16 +774,16 @@ def _config_parameter_pairs(environ: Any) -> list[tuple[str, str]] | None:
     return [(t.partition("=")[0], t.partition("=")[2]) for t in tokens]
 
 
-def _last_safe_bare(pairs: list[tuple[str, str]]) -> str | None:
+def _last_value(pairs: list[tuple[str, str]], key: str) -> str | None:
     last = None
-    for key, value in pairs:
-        if key.casefold() == _SAFE_BARE_KEY.casefold():
+    for k, value in pairs:
+        if k.casefold() == key.casefold():
             last = value
     return last
 
 
 def git_pin_effective(environ: Any = None) -> bool:
-    """True when git would read safe.bareRepository=explicit from this env.
+    """True when git would read every GIT_ENV_PINS value from this env.
 
     git reads GIT_CONFIG_COUNT entries and then GIT_CONFIG_PARAMETERS, and the
     last value wins, so a host GIT_CONFIG_PARAMETERS setting all overrode the
@@ -718,31 +794,42 @@ def git_pin_effective(environ: Any = None) -> bool:
     params = _config_parameter_pairs(environ)
     if params is None:
         return False
-    return _last_safe_bare(_config_count_pairs(environ) + params) == _SAFE_BARE_VALUE
+    pairs = _config_count_pairs(environ) + params
+    return all(_last_value(pairs, key) == value for key, value in GIT_ENV_PINS)
 
 
 def pin_git_harness_env(environ: Any) -> None:
-    """Pin safe.bareRepository=explicit in GIT_CONFIG_* and GIT_CONFIG_PARAMETERS.
+    """Pin GIT_ENV_PINS in GIT_CONFIG_* and GIT_CONFIG_PARAMETERS.
 
-    The count entry keeps entries already there and is a no-op when the pin is
-    the last value there. A count that is not a non-negative integer is read as
-    0, since git rejects it anyway. The pin is also appended to
-    GIT_CONFIG_PARAMETERS, which git reads last, so a host value there cannot
-    override it and a child env that resets GIT_CONFIG_COUNT to 0 still carries
-    it. A PARAMETERS value that does not split is left alone; git refuses it.
+    The count entries keep entries already there, and a pin that is already
+    the last value there is not added again. A count that is not a
+    non-negative integer is read as 0, since git rejects it anyway. Each pin is
+    also appended to GIT_CONFIG_PARAMETERS, which git reads last, so a host
+    value there cannot override it and a child env that resets
+    GIT_CONFIG_COUNT to 0 still carries it. A PARAMETERS value that does not
+    split is left alone; git refuses it.
     """
     pairs = _config_count_pairs(environ)
     count = len(pairs)
-    if _last_safe_bare(pairs) != _SAFE_BARE_VALUE:
-        environ[f"GIT_CONFIG_KEY_{count}"] = _SAFE_BARE_KEY
-        environ[f"GIT_CONFIG_VALUE_{count}"] = _SAFE_BARE_VALUE
-        environ["GIT_CONFIG_COUNT"] = str(count + 1)
+    for key, value in GIT_ENV_PINS:
+        if _last_value(pairs, key) != value:
+            environ[f"GIT_CONFIG_KEY_{count}"] = key
+            environ[f"GIT_CONFIG_VALUE_{count}"] = value
+            pairs.append((key, value))
+            count += 1
+    environ["GIT_CONFIG_COUNT"] = str(count)
     params = _config_parameter_pairs(environ)
-    if params is None or _last_safe_bare(params) == _SAFE_BARE_VALUE:
+    if params is None:
         return
-    entry = f"'{_SAFE_BARE_KEY}'='{_SAFE_BARE_VALUE}'"
+    entries = [
+        f"'{key}'='{value}'"
+        for key, value in GIT_ENV_PINS
+        if _last_value(params, key) != value
+    ]
+    if not entries:
+        return
     prior = str(environ.get("GIT_CONFIG_PARAMETERS", "")).strip()
-    environ["GIT_CONFIG_PARAMETERS"] = f"{prior} {entry}" if prior else entry
+    environ["GIT_CONFIG_PARAMETERS"] = " ".join([prior, *entries] if prior else entries)
 
 
 _POS_SHAPES: dict[str, re.Pattern[str]] = {

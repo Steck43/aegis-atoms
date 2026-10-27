@@ -300,7 +300,8 @@ def test_pin_wins_over_host_parameters_all():
     env = {"GIT_CONFIG_PARAMETERS": "'safe.bareRepository'='all'"}
     assert not action_gating.git_pin_effective(env)
     action_gating.pin_git_harness_env(env)
-    assert env["GIT_CONFIG_PARAMETERS"].endswith("'safe.bareRepository'='explicit'")
+    params = env["GIT_CONFIG_PARAMETERS"]
+    assert params.index("'safe.bareRepository'='explicit'") > params.index("'all'")
     assert action_gating.git_pin_effective(env)
     action_gating.pin_git_harness_env(env)
     assert env["GIT_CONFIG_PARAMETERS"].count("explicit") == 1

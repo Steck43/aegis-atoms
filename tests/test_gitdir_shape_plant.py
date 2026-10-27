@@ -346,10 +346,19 @@ def test_pin_sets_safe_bare_repository_explicit():
     env: dict[str, str] = {}
     action_gating.pin_git_harness_env(env)
     assert env == {
-        "GIT_CONFIG_COUNT": "1",
+        "GIT_CONFIG_COUNT": "4",
         "GIT_CONFIG_KEY_0": "safe.bareRepository",
         "GIT_CONFIG_VALUE_0": "explicit",
-        "GIT_CONFIG_PARAMETERS": "'safe.bareRepository'='explicit'",
+        "GIT_CONFIG_KEY_1": "core.fsmonitor",
+        "GIT_CONFIG_VALUE_1": "false",
+        "GIT_CONFIG_KEY_2": "core.hooksPath",
+        "GIT_CONFIG_VALUE_2": "/dev/null",
+        "GIT_CONFIG_KEY_3": "core.pager",
+        "GIT_CONFIG_VALUE_3": "cat",
+        "GIT_CONFIG_PARAMETERS": (
+            "'safe.bareRepository'='explicit' 'core.fsmonitor'='false'"
+            " 'core.hooksPath'='/dev/null' 'core.pager'='cat'"
+        ),
     }
     assert action_gating.git_pin_effective(env)
 
@@ -361,8 +370,11 @@ def test_pin_keeps_existing_entries_and_is_idempotent():
         "GIT_CONFIG_VALUE_0": "cat",
     }
     action_gating.pin_git_harness_env(env)
+    once = dict(env)
     action_gating.pin_git_harness_env(env)
-    assert env["GIT_CONFIG_COUNT"] == "2"
+    assert env == once
+    # core.pager cat is already the last value, so it is not added again.
+    assert env["GIT_CONFIG_COUNT"] == "4"
     assert env["GIT_CONFIG_KEY_0"] == "core.pager"
     assert env["GIT_CONFIG_KEY_1"] == "safe.bareRepository"
     assert env["GIT_CONFIG_VALUE_1"] == "explicit"
@@ -376,7 +388,7 @@ def test_pin_overrides_a_weaker_earlier_value(value):
         "GIT_CONFIG_VALUE_0": value,
     }
     action_gating.pin_git_harness_env(env)
-    assert env["GIT_CONFIG_COUNT"] == "2"
+    assert env["GIT_CONFIG_COUNT"] == "5"
     assert env["GIT_CONFIG_VALUE_1"] == "explicit"
 
 
@@ -384,7 +396,7 @@ def test_pin_overrides_a_weaker_earlier_value(value):
 def test_pin_with_bad_count_starts_at_zero(count):
     env = {"GIT_CONFIG_COUNT": count}
     action_gating.pin_git_harness_env(env)
-    assert env["GIT_CONFIG_COUNT"] == "1"
+    assert env["GIT_CONFIG_COUNT"] == "4"
     assert env["GIT_CONFIG_VALUE_0"] == "explicit"
 
 
@@ -398,10 +410,10 @@ def test_register_pins_the_host_env(monkeypatch, tmp_path):
     monkeypatch.setattr(atoms, "_assert_live_plugin_path", lambda: tmp_path)
     monkeypatch.setattr(atoms, "_write_load_heartbeat", lambda _root: None)
     atoms.register(SimpleNamespace(register_hook=lambda *a, **k: None))
-    assert os.environ.get("GIT_CONFIG_COUNT") == "1"
+    assert os.environ.get("GIT_CONFIG_COUNT") == "4"
     assert os.environ.get("GIT_CONFIG_KEY_0") == "safe.bareRepository"
     assert os.environ.get("GIT_CONFIG_VALUE_0") == "explicit"
-    assert os.environ.get("GIT_CONFIG_PARAMETERS") == "'safe.bareRepository'='explicit'"
+    assert action_gating.git_pin_effective(os.environ)
 
 
 def test_suite_runs_git_with_the_pin():
