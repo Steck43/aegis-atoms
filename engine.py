@@ -1447,9 +1447,20 @@ def evaluate_tool_call(
             if _AG_PATH_ATOM not in fired_ids:
                 atoms_silent.append({"id": _AG_PATH_ATOM, "version": "1"})
         if tool_name in _AG_SHELL_TOOLS:
-            coverage_sources.append(f"atom:{_AG_SHELL_ATOM}")
-            if _AG_SHELL_ATOM not in fired_ids:
-                atoms_silent.append({"id": _AG_SHELL_ATOM, "version": "1"})
+            # C2 permitted is not coverage on its own: it reads binary and
+            # flags only. COVERED needs an inspected command that matches an
+            # exact shell coverage row; no command means UNKNOWN.
+            try:
+                from .action_gating import shell_call_coverage
+            except ImportError:
+                from action_gating import shell_call_coverage
+
+            shell_row, _shell_why = shell_call_coverage(args)
+            if shell_row is not None:
+                coverage_sources.append(f"atom:{_AG_SHELL_ATOM}")
+                coverage_sources.append(f"shell_table:{shell_row}")
+                if _AG_SHELL_ATOM not in fired_ids:
+                    atoms_silent.append({"id": _AG_SHELL_ATOM, "version": "1"})
     coverage = "COVERED" if coverage_sources else "UNKNOWN"
     coverage_effect = None
     if coverage == "UNKNOWN":

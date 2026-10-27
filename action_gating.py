@@ -17,7 +17,7 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 from uuid import uuid4
 
 try:
@@ -412,6 +412,150 @@ def inspect_call_structure(call: str | dict[str, Any]) -> dict[str, Any]:
     info = _inspect_argv(tokens)
     info["command"] = call
     return info
+
+
+# Shell coverage table. C2 permitted only says the binary and each flag are on
+# the allowlist; positionals and subcommands pass unread, so C2 alone let
+# interpreters, git config, tar option letters and curl header files through.
+# A terminal call counts as COVERED only when every inspected surface matches
+# one exact row here. Exact binary, exact subcommand, exact flags, positionals
+# by a closed shape. No prefix match, no similarity. A binary or subcommand not
+# listed is UNKNOWN and takes control.coverage_unknown.
+# Known limit: a row bounds the argv, not repo config already on disk (a git
+# hook or core.fsmonitor set earlier still runs on git status).
+_POS_SHAPES: dict[str, re.Pattern[str]] = {
+    # Relative path under the working dir: no leading / ~ . or -, no .. part.
+    "rel_path": re.compile(r"(?:\.|[A-Za-z0-9_][A-Za-z0-9._/-]*)"),
+    # Revision or relative path for git read commands.
+    "git_rev": re.compile(r"[A-Za-z0-9_][A-Za-z0-9._/~^-]*"),
+    "word": re.compile(r"[A-Za-z0-9._,:@%+=/-]+"),
+    "uint": re.compile(r"[0-9]{1,4}"),
+}
+
+
+class ShellCoverageRow(NamedTuple):
+    row_id: str
+    binary: str
+    subcommand: str | None
+    flags: frozenset[str]
+    positional: str | None
+    max_positionals: int = 0
+    min_flags: int = 0
+
+
+SHELL_COVERAGE_TABLE: tuple[ShellCoverageRow, ...] = (
+    ShellCoverageRow(
+        "git.status", "git", "status", frozenset({"-v", "-q"}), "rel_path", 8
+    ),
+    ShellCoverageRow(
+        "git.log",
+        "git",
+        "log",
+        frozenset({"-5", "-n", "--oneline", "--stat", "--name-only", "--format=%h"}),
+        "git_rev",
+        4,
+    ),
+    ShellCoverageRow(
+        "git.diff", "git", "diff", frozenset({"--stat", "--name-only"}), "git_rev", 4
+    ),
+    ShellCoverageRow(
+        "ls",
+        "ls",
+        None,
+        frozenset({"-l", "-a", "-la", "-al", "-h", "-1"}),
+        "rel_path",
+        8,
+    ),
+    ShellCoverageRow("echo", "echo", None, frozenset({"-n"}), "word", 16),
+    ShellCoverageRow("sleep", "sleep", None, frozenset(), "uint", 1),
+    ShellCoverageRow(
+        "python3.version", "python3", None, frozenset({"-V", "--version"}), None, 0, 1
+    ),
+    ShellCoverageRow(
+        "python.version", "python", None, frozenset({"-V", "--version"}), None, 0, 1
+    ),
+)
+
+# Terminal args that carry no command. Any other key may be run by a harness
+# and was not inspected, so it leaves the call UNKNOWN.
+_SHELL_PASSIVE_KEYS = frozenset(
+    {"command", "argv", "timeout", "workdir", "background", "pty", "check_interval"}
+)
+_GIT_GLOBAL_FLAGS = frozenset({"--no-pager"})
+
+
+def _match_row(tokens: list[str]) -> str | None:
+    binary = tokens[0]
+    rest = list(tokens[1:])
+    if binary == "git":
+        while rest and rest[0] in _GIT_GLOBAL_FLAGS:
+            rest.pop(0)
+    for row in SHELL_COVERAGE_TABLE:
+        if row.binary != binary:
+            continue
+        body = rest
+        if row.subcommand is not None:
+            if not body or body[0] != row.subcommand:
+                continue
+            body = body[1:]
+        flags = [t for t in body if t.startswith("-")]
+        positionals = [t for t in body if not t.startswith("-")]
+        if any(f not in row.flags for f in flags) or len(flags) < row.min_flags:
+            continue
+        if len(positionals) > row.max_positionals:
+            continue
+        if positionals:
+            shape = _POS_SHAPES[row.positional or ""]
+            if not all(
+                shape.fullmatch(p) and ".." not in p.split("/") for p in positionals
+            ):
+                continue
+        return row.row_id
+    return None
+
+
+def shell_call_coverage(args: Any) -> tuple[str | None, str]:
+    """Return (row ids, reason). Row ids None means the call is not COVERED.
+
+    Every present surface (argv list and command string) must match a row,
+    since a harness may run either. A call with neither surface, or with a
+    surface that is not inspectable, is never COVERED.
+    """
+    if not isinstance(args, dict):
+        return None, "args_not_mapping"
+    for key in args:
+        if key not in _SHELL_PASSIVE_KEYS:
+            return None, f"unexpected_arg:{key}"
+    surfaces: list[list[str]] = []
+    if "argv" in args:
+        argv = args["argv"]
+        if not isinstance(argv, list) or not argv:
+            return None, "argv_not_inspectable"
+        if not all(isinstance(t, str) for t in argv):
+            return None, "argv_not_inspectable"
+        surfaces.append(list(argv))
+    if "command" in args:
+        command = args["command"]
+        if not isinstance(command, str) or not command.strip():
+            return None, "command_not_inspectable"
+        if "\x00" in command or _first_disallowed(command) is not None:
+            return None, "command_structure"
+        try:
+            tokens = shlex.split(command, posix=True)
+        except ValueError:
+            return None, "command_parse_error"
+        if not tokens:
+            return None, "command_not_inspectable"
+        surfaces.append(tokens)
+    if not surfaces:
+        return None, "no_inspectable_command"
+    rows: set[str] = set()
+    for tokens in surfaces:
+        row = _match_row(tokens)
+        if row is None:
+            return None, f"no_table_row:{tokens[0]}"
+        rows.add(row)
+    return ",".join(sorted(rows)), "table_row"
 
 
 def evaluate_shell_unsanitized(
