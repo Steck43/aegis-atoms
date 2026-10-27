@@ -31,6 +31,38 @@ PATH_ARG = {
 
 EFFECT_RANK = {"monitor": 1, "human_review": 2, "block": 3}
 
+# Coverage. A call is COVERED when a family that bounds its action or resource
+# was evaluated for it (a path family with an extracted path, the shell or path
+# schema in action gating, the memory atoms) or when any atom fired. Otherwise
+# it is UNKNOWN: silence is not an allow. The effect for UNKNOWN lives on its own
+# control, read from the catalog's `coverage_unknown` block, and is never weaker
+# than human_review in enforce.
+COVERAGE_UNKNOWN_CONTROL = "control.coverage_unknown"
+COVERAGE_UNKNOWN_DEFAULT = {"effect": "human_review", "enforcement_mode": "enforce"}
+_BOUNDING_WRITE_KINDS = frozenset(
+    {
+        "path_write_under",
+        "path_write_exact",
+        "path_write_glob",
+        "path_write_public_markers",
+        "path_write_vault_canon",
+    }
+)
+_BOUNDING_MEMORY_KINDS = frozenset({"tool_memory_write", "memory_target"})
+# Mirrors action_gating.PATH_TOOLS / SHELL_TOOLS and its two atom ids; pinned
+# equal by tests/test_coverage_unknown.py so the copies cannot drift.
+_AG_PATH_TOOLS = frozenset({"read_file", "write_file", "patch", "search_files"})
+_AG_SHELL_TOOLS = frozenset({"terminal"})
+_AG_PATH_ATOM = "atoms.tool_invocation.path_resolves_outside_allowed_root"
+_AG_SHELL_ATOM = "atoms.tool_invocation.shell_invocation_unsanitized"
+
+
+def normalize_plugin_mode(value: Any) -> str:
+    """Engine mode: "observe" (trimmed, any case) observes; anything else enforces."""
+    if isinstance(value, str) and value.strip().lower() == "observe":
+        return "observe"
+    return "enforce"
+
 
 def decision_digest(gate_decision: Any) -> str:
     """Sha256 of the gate decision fields atoms actually read."""
@@ -83,7 +115,7 @@ def _seal_receipt_fields(
 ) -> EvaluationResult:
     if gate_decision is not None:
         result.decision_digest = decision_digest(gate_decision)
-    if result.block_message is None:
+    if result.block_message is None and result.coverage == "COVERED":
         result.box_ticket = uuid.uuid4().hex
     return result
 
@@ -117,6 +149,9 @@ class Catalog:
     atoms: list[AtomDef]
     logging: dict[str, Any]
     meta: dict[str, Any]
+    coverage_unknown: dict[str, Any] = field(
+        default_factory=lambda: dict(COVERAGE_UNKNOWN_DEFAULT)
+    )
 
 
 @dataclass
@@ -237,6 +272,40 @@ class EvaluationResult:
     # Step 8 receipt fields: digest of the gate decision read; per-call box ticket.
     decision_digest: str | None = None
     box_ticket: str | None = None
+    # Coverage receipt. Every evaluation carries one, fired or not.
+    coverage: str | None = None
+    coverage_sources: list[str] = field(default_factory=list)
+    atoms_silent: list[dict[str, str]] = field(default_factory=list)
+    coverage_effect: str | None = None
+    tool_name: str = ""
+    evaluation_id: str = ""
+    plugin_mode: str = ""
+
+    def coverage_record(self) -> dict[str, Any]:
+        effect = self.winning_effect
+        if self.coverage == "UNKNOWN" and self.coverage_effect:
+            # Observe applies nothing, but the line still names the effect
+            # enforce would apply. It never reads allow for an UNKNOWN call.
+            effect = self.coverage_effect
+        return {
+            "record_type": "coverage",
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "evaluation_id": self.evaluation_id,
+            "tool_name": self.tool_name,
+            "mode": self.plugin_mode,
+            "coverage": self.coverage or "UNKNOWN",
+            "coverage_sources": list(self.coverage_sources),
+            "atoms_fired": [
+                {"id": f.atom_id, "version": f.atom_version}
+                for f in self.firings
+                if f.fired
+            ],
+            "atoms_silent": list(self.atoms_silent),
+            "final_effect": effect or "allow",
+            "blocked": self.block_message is not None,
+            "box_ticket": self.box_ticket,
+            "decision_digest": self.decision_digest,
+        }
 
 
 def _expand(text: str, env: dict[str, str]) -> str:
@@ -276,7 +345,40 @@ def load_catalog(path: Path, env: dict[str, str]) -> Catalog:
         atoms=atoms,
         logging=dict(raw.get("logging") or {}),
         meta=dict(raw.get("meta") or {}),
+        coverage_unknown=_coverage_unknown_control(raw.get("coverage_unknown")),
     )
+
+
+def _coverage_unknown_control(raw: Any) -> dict[str, Any]:
+    """UNKNOWN control from the catalog. Clamped so it cannot open a silent call:
+    an effect outside the rank, or below human_review, becomes human_review."""
+    ctrl = dict(COVERAGE_UNKNOWN_DEFAULT)
+    if isinstance(raw, dict):
+        ctrl.update({k: raw[k] for k in ("effect", "enforcement_mode") if k in raw})
+    if EFFECT_RANK.get(str(ctrl["effect"]), 0) < EFFECT_RANK["human_review"]:
+        ctrl["effect"] = "human_review"
+    if ctrl["enforcement_mode"] not in ("enforce", "observe"):
+        ctrl["enforcement_mode"] = "enforce"
+    return ctrl
+
+
+def _bounding_atoms(
+    catalog: Catalog, tool_name: str, paths: list[str]
+) -> list[AtomDef]:
+    """Catalog atoms whose family bounds this call's action or resource.
+
+    Content and command pattern scans are not on this list: a pattern that did
+    not match says nothing about what the call reaches."""
+    out = []
+    for atom in catalog.atoms:
+        kind = atom.detector.get("kind", "")
+        if kind in _BOUNDING_WRITE_KINDS and tool_name in WRITE_TOOLS and paths:
+            out.append(atom)
+        elif kind == "path_read_glob" and tool_name in READ_TOOLS and paths:
+            out.append(atom)
+        elif kind in _BOUNDING_MEMORY_KINDS and tool_name == "memory":
+            out.append(atom)
+    return out
 
 
 def _normalize_path(path: str, env: dict[str, str]) -> str:
@@ -295,12 +397,20 @@ def _normalize_path(path: str, env: dict[str, str]) -> str:
 def _extract_paths(tool_name: str, args: dict[str, Any]) -> list[str]:
     if not isinstance(args, dict):
         return []
+    out: list[str] = []
     key = PATH_ARG.get(tool_name)
     if key and isinstance(args.get(key), str):
-        return [args[key]]
-    if tool_name == "search_files" and isinstance(args.get("target"), str):
-        return [args["target"]]
-    return []
+        out.append(args[key])
+    elif tool_name == "search_files" and isinstance(args.get("target"), str):
+        out.append(args["target"])
+    if tool_name == "patch" and isinstance(args.get("patch"), str):
+        # A V4A body names its files in the body; resource atoms read them too.
+        try:
+            from .action_gating import parse_v4a_headers
+        except ImportError:
+            from action_gating import parse_v4a_headers
+        out.extend(parse_v4a_headers(args["patch"]).paths)
+    return out
 
 
 def _args_blob(args: dict[str, Any]) -> str:
@@ -394,6 +504,10 @@ def _effective_effect(
 ) -> tuple[str, str]:
     effect = str(atom.control.get("effect", "monitor"))
     mode = str(atom.control.get("enforcement_mode", "observe"))
+    # An effect outside the rank is read as block, the same default the
+    # relaxation clamp below uses, so a fired atom cannot decide nothing.
+    if effect not in EFFECT_RANK:
+        effect = "block"
     if session_origin != "human":
         return effect, mode
     for relax in _relaxation_list(atom.relaxations):
@@ -578,6 +692,9 @@ def evaluate_tool_call(
     control_surfaces_path: str | None = None,
     gate_decision: Any | None = None,
 ) -> EvaluationResult:
+    # Only "observe" observes. A case variant, blank, None or typo enforces;
+    # the exact-string compares below would otherwise read it as observe.
+    plugin_mode = normalize_plugin_mode(plugin_mode)
     # Gate composition: only a canonical allow falls through to atoms.
     # ASK escalates; deny / thrown / malformed / missing block. A gate allow
     # never clears an atoms block (atoms still run after allow).
@@ -590,6 +707,12 @@ def evaluate_tool_call(
                     block_message=f"[aegis-atoms] Blocked by gate: {reason}",
                     firings=[],
                     winning_effect="block",
+                    coverage="COVERED",
+                    coverage_sources=[f"gate:{gate_class}"],
+                    tool_name=tool_name,
+                    evaluation_id=":".join(x for x in (session_id, tool_call_id) if x)
+                    or "unknown",
+                    plugin_mode=plugin_mode,
                 ),
                 gate_decision,
             )
@@ -599,6 +722,12 @@ def evaluate_tool_call(
                     block_message=(f"[aegis-atoms] Gate ask (escalate): {reason}"),
                     firings=[],
                     winning_effect="human_review",
+                    coverage="COVERED",
+                    coverage_sources=["gate:ask"],
+                    tool_name=tool_name,
+                    evaluation_id=":".join(x for x in (session_id, tool_call_id) if x)
+                    or "unknown",
+                    plugin_mode=plugin_mode,
                 ),
                 gate_decision,
             )
@@ -1320,6 +1449,74 @@ def evaluate_tool_call(
                 best_reason = reason
                 best_atom_id = atom.atom_id
 
+    coverage_sources = sorted({f"fired:{f.atom_id}" for f in firings if f.fired})
+    fired_ids = {f.atom_id for f in firings if f.fired}
+    atoms_silent: list[dict[str, str]] = []
+    # Only a path arg bounds a call. V4A header paths can fire an atom but do
+    # not make a call with no path arg COVERED on their own.
+    arg_path = args.get(PATH_ARG.get(tool_name, "")) if isinstance(args, dict) else None
+    bound_paths = paths if tool_name != "patch" or isinstance(arg_path, str) else []
+    for atom in _bounding_atoms(catalog, tool_name, bound_paths):
+        coverage_sources.append(f"atom:{atom.atom_id}")
+        if atom.atom_id not in fired_ids:
+            atoms_silent.append({"id": atom.atom_id, "version": atom.version})
+    ag_roots = list(allowed_roots or []) or [
+        p for p in (env.get("HERMES_HOME", ""), env.get("OBSIDIAN_VAULT_PATH", "")) if p
+    ]
+    if action_gating_enabled and isinstance(args, dict):
+        if (
+            ag_roots
+            and tool_name in _AG_PATH_TOOLS
+            and isinstance(args.get("path") or args.get("target"), str)
+        ):
+            coverage_sources.append(f"atom:{_AG_PATH_ATOM}")
+            if _AG_PATH_ATOM not in fired_ids:
+                atoms_silent.append({"id": _AG_PATH_ATOM, "version": "1"})
+        if tool_name in _AG_SHELL_TOOLS:
+            # C2 permitted is not coverage on its own: it reads binary and
+            # flags only. COVERED needs an inspected command that matches an
+            # exact shell coverage row, and a working dir, if named, inside
+            # the roots; no command means UNKNOWN.
+            try:
+                from .action_gating import shell_call_coverage
+            except ImportError:
+                from action_gating import shell_call_coverage
+
+            shell_row, _shell_why = shell_call_coverage(args, allowed_roots=ag_roots)
+            if shell_row is not None:
+                coverage_sources.append(f"atom:{_AG_SHELL_ATOM}")
+                coverage_sources.append(f"shell_table:{shell_row}")
+                if _AG_SHELL_ATOM not in fired_ids:
+                    atoms_silent.append({"id": _AG_SHELL_ATOM, "version": "1"})
+    try:
+        from .action_gating import patch_body_reason
+    except ImportError:
+        from action_gating import patch_body_reason
+    # A patch body that names a file the atoms cannot read, or a V4A call with
+    # no readable header, is not bounded by its path arg or by any family that
+    # read only that arg, so it is never COVERED.
+    if isinstance(args, dict) and patch_body_reason(tool_name, args) is not None:
+        coverage_sources = []
+        atoms_silent = []
+    coverage = "COVERED" if coverage_sources else "UNKNOWN"
+    coverage_effect = None
+    if coverage == "UNKNOWN":
+        ctrl = catalog.coverage_unknown
+        coverage_effect = str(ctrl["effect"])
+        unknown_enforced = (
+            ctrl["enforcement_mode"] == "enforce" and plugin_mode == "enforce"
+        )
+        if unknown_enforced and EFFECT_RANK[coverage_effect] >= EFFECT_RANK.get(
+            best_effect or "", 0
+        ):
+            best_effect = coverage_effect
+            verb = "Blocked" if coverage_effect == "block" else "Held"
+            best_reason = (
+                f"[aegis-atoms] {verb} by {COVERAGE_UNKNOWN_CONTROL}: coverage "
+                f"UNKNOWN for tool {tool_name!r}; no atom family covers this call."
+            )
+            best_atom_id = COVERAGE_UNKNOWN_CONTROL
+
     block_message = None
     if best_effect == "block":
         if best_reason.startswith("[aegis-atoms]"):
@@ -1340,7 +1537,16 @@ def evaluate_tool_call(
 
     sealed = _seal_receipt_fields(
         EvaluationResult(
-            block_message=block_message, firings=firings, winning_effect=best_effect
+            block_message=block_message,
+            firings=firings,
+            winning_effect=best_effect,
+            coverage=coverage,
+            coverage_sources=coverage_sources,
+            atoms_silent=atoms_silent,
+            coverage_effect=coverage_effect,
+            tool_name=tool_name,
+            evaluation_id=evaluation_id,
+            plugin_mode=plugin_mode,
         ),
         gate_decision,
     )
@@ -1709,12 +1915,23 @@ def apply_judge_phase(
         clear_audit(None)
 
 
-def append_firings(log_path: Path, firings: list[Firing], catalog: Catalog) -> None:
-    if not firings:
+def append_firings(
+    log_path: Path,
+    firings: list[Firing],
+    catalog: Catalog,
+    result: EvaluationResult | None = None,
+) -> None:
+    """Append firing lines, and the coverage receipt when a result is given.
+
+    The receipt is written even when nothing fired, so a silent call still
+    leaves a line that says COVERED or UNKNOWN."""
+    if not firings and result is None:
         return
     log_monitor = bool(catalog.logging.get("log_monitor_firings", True))
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with log_path.open("a", encoding="utf-8") as fh:
+        if result is not None:
+            fh.write(json.dumps(result.coverage_record(), ensure_ascii=False) + "\n")
         for f in firings:
             if f.effect == "monitor" and not log_monitor:
                 continue
