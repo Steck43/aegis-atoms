@@ -26,8 +26,10 @@ from pathlib import Path
 from typing import Any, Optional
 
 try:
+    from . import action_gating
     from . import engine as eng
 except ImportError:  # standalone test / script import
+    import action_gating  # type: ignore
     import engine as eng  # type: ignore
 
 logger = logging.getLogger(__name__)
@@ -913,6 +915,9 @@ def register(ctx) -> None:
             f"{_JUDGE_APPLY_PROFILE_ID}, and {_PROFILE_ID_REL.as_posix()} marker)"
         )
     _write_load_heartbeat(root)
+    # A local terminal inherits this env; git then refuses a bare repo it finds
+    # by walking up from the working dir.
+    action_gating.pin_git_harness_env(os.environ)
     logger.info("aegis-atoms registered from %s", root)
     ctx.register_hook("pre_llm_call", pre_llm_call)
     ctx.register_hook("pre_tool_call", pre_tool_call)

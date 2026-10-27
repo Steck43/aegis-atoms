@@ -256,6 +256,106 @@ def names_git_control(raw: str) -> bool:
     return any(_is_git_part(x) for x in Path(resolved).parts)
 
 
+# git also takes a directory with no .git name as a repository when it holds
+# HEAD next to objects and refs, and then reads config from it, so core.bare
+# false plus core.worktree and core.fsmonitor in a hand written config runs a
+# program on git status. A written name counts in any case, with trailing dots
+# or spaces stripped, like a .git part. A dir is probed by exact name with
+# lexists, the same probe git makes, so it works where a parent is not listable.
+_GITDIR_HEAD = "head"
+_GITDIR_PEERS = ("config", "objects", "refs", "commondir")
+_GITDIR_SIBLING_WRITES = frozenset(
+    {"config", "commondir", "gitdir", "packed-refs", "config.worktree"}
+)
+
+
+def _git_name(part: str) -> str:
+    return part.rstrip(" .").casefold()
+
+
+def is_gitdir_shaped(directory: Path) -> bool:
+    """True when the dir holds HEAD and one of config, objects, refs, commondir.
+
+    Stricter than git, which needs HEAD, objects and refs, so a partial plant
+    counts too.
+    """
+    if not os.path.lexists(directory / "HEAD"):
+        return False
+    return any(os.path.lexists(directory / n) for n in _GITDIR_PEERS)
+
+
+def _sibling_of_gitdir(directory: Path) -> bool:
+    if os.path.lexists(directory / "HEAD"):
+        return True
+    return all(os.path.lexists(directory / n) for n in ("objects", "refs"))
+
+
+def _self_and_parents(path: Path) -> list[Path]:
+    return [path, *path.parents]
+
+
+def gitdir_write_reason(raw: str) -> str | None:
+    """Why a write to raw would build or edit a repository with no .git part.
+
+    HEAD is never written by a path tool. A config, commondir, gitdir or
+    packed-refs beside HEAD, or beside both objects and refs, is denied, and so
+    is any write under a dir that is already gitdir shaped (hooks, refs), and a
+    relative config-like name whose dir the call does not show. Malformed input
+    is a reason, so the caller fails closed.
+    """
+    try:
+        text = raw.replace("\\", "/")
+        resolved = Path(canonicalize_path(raw))
+    except Exception:
+        return "gitdir_not_inspectable"
+    candidates = [Path(text), resolved]
+    if any(_git_name(p.name) == _GITDIR_HEAD for p in candidates):
+        return "gitdir_head"
+    if not Path(text).is_absolute() and _git_name(Path(text).name) in (
+        _GITDIR_SIBLING_WRITES
+    ):
+        # A relative name resolves against a harness cwd the call does not show.
+        return "gitdir_relative"
+    for p in candidates:
+        if not p.is_absolute():
+            continue
+        if _git_name(p.name) in _GITDIR_SIBLING_WRITES and _sibling_of_gitdir(p.parent):
+            return "gitdir_sibling"
+        if any(is_gitdir_shaped(d) for d in p.parents):
+            return "gitdir_inside"
+    return None
+
+
+# A Hermes patch in V4A mode names its files in the patch body, not in path.
+_V4A_FILE_LINE = re.compile(
+    r"^\*\*\*\s*(?:Add File|Update File|Delete File|Move to):\s*(.+?)\s*$",
+    re.MULTILINE,
+)
+
+
+def write_targets(tool_name: str, args: dict[str, Any]) -> list[str]:
+    """Every path a write_file or patch call names, including V4A headers."""
+    out: list[str] = []
+    path = args.get("path") or args.get("target")
+    if isinstance(path, str):
+        out.append(path)
+    body = args.get("patch")
+    if tool_name == "patch" and isinstance(body, str):
+        out.extend(m.group(1) for m in _V4A_FILE_LINE.finditer(body))
+    return out
+
+
+def git_write_reason(tool_name: str, args: dict[str, Any]) -> tuple[str, str] | None:
+    """(path, reason) for the first write target that plants git control."""
+    for target in write_targets(tool_name, args):
+        if names_git_control(target):
+            return target, "git_control"
+        why = gitdir_write_reason(target)
+        if why is not None:
+            return target, why
+    return None
+
+
 # Argv is a closed per-binary schema, not a joined-string denylist. Joining
 # tokens and scanning for shell punctuation missed flag-shaped escapes
 # (tar --checkpoint-action, ssh -oProxyCommand) and nested interpreters
@@ -446,9 +546,41 @@ def inspect_call_structure(call: str | dict[str, Any]) -> dict[str, Any]:
 # listed is UNKNOWN and takes control.coverage_unknown.
 # A row bounds the argv, not repo config on disk: a hook or core.fsmonitor in
 # the repo still runs on git status. So a row covers only in a working dir
-# inside allowed_roots, no positional or working dir names a .git part, and
-# C1 denies path tool writes into .git. Config outside the roots (global
-# gitconfig, a bare repo planted by hand) is not bounded here.
+# inside allowed_roots that is not and does not sit under a gitdir shaped dir,
+# no positional or working dir names a .git part, and C1 denies path tool
+# writes into .git or that build a gitdir shape (HEAD, config beside HEAD).
+# Config outside the roots (global gitconfig) is not bounded here. The plugin
+# also pins safe.bareRepository=explicit into the host env at register, which
+# a local terminal inherits, so git refuses a bare repo it finds by discovery.
+_SAFE_BARE_KEY = "safe.bareRepository"
+_SAFE_BARE_VALUE = "explicit"
+
+
+def pin_git_harness_env(environ: Any) -> None:
+    """Append safe.bareRepository=explicit to GIT_CONFIG_* in environ.
+
+    Keeps entries already there and is a no-op when the pin is present. A count
+    that is not a non-negative integer is read as 0, since git rejects it
+    anyway.
+    """
+    raw = environ.get("GIT_CONFIG_COUNT", "0")
+    try:
+        count = int(raw)
+    except (TypeError, ValueError):
+        count = 0
+    count = max(count, 0)
+    last = None
+    for i in range(count):
+        key = str(environ.get(f"GIT_CONFIG_KEY_{i}", ""))
+        if key.casefold() == _SAFE_BARE_KEY.casefold():
+            last = str(environ.get(f"GIT_CONFIG_VALUE_{i}", ""))
+    if last == _SAFE_BARE_VALUE:
+        return
+    environ[f"GIT_CONFIG_KEY_{count}"] = _SAFE_BARE_KEY
+    environ[f"GIT_CONFIG_VALUE_{count}"] = _SAFE_BARE_VALUE
+    environ["GIT_CONFIG_COUNT"] = str(count + 1)
+
+
 _POS_SHAPES: dict[str, re.Pattern[str]] = {
     # Relative path under the working dir: no leading / ~ . or -, no .. part.
     "rel_path": re.compile(r"(?:\.|[A-Za-z0-9_][A-Za-z0-9._/-]*)"),
@@ -562,6 +694,11 @@ def _workdir_bound(workdir: Any, allowed_roots: list[str] | None) -> str | None:
         return "workdir_not_inspectable"
     if not any(_is_under_root(resolved, r) for r in allowed_roots):
         return "workdir_outside_roots"
+    # git walks up from the working dir and takes the first dir that is gitdir
+    # shaped as the repository, so every parent counts, not only the dir.
+    for start in (Path(workdir), Path(resolved)):
+        if any(is_gitdir_shaped(d) for d in _self_and_parents(start)):
+            return "workdir_gitdir_shape"
     return None
 
 
@@ -695,11 +832,19 @@ def evaluate_action_gating(
             fires, coords = evaluate_path_outside_root(
                 path, allowed_roots=allowed_roots
             )
-            if not fires and tool_name in _PATH_WRITE_TOOLS:
-                if names_git_control(path):
-                    fires = True
-                    coords["git_control"] = True
             if fires:
+                fired_ids.add(ATOM_PATH_OUTSIDE)
+                firings.append(_make_firing(ATOM_PATH_OUTSIDE, evaluation_id, coords))
+        if tool_name in _PATH_WRITE_TOOLS and ATOM_PATH_OUTSIDE not in fired_ids:
+            hit = git_write_reason(tool_name, args)
+            if hit is not None:
+                target, why = hit
+                coords = {
+                    "raw_path": target,
+                    "allowed_roots": list(allowed_roots),
+                    "git_control": True,
+                    "git_reason": why,
+                }
                 fired_ids.add(ATOM_PATH_OUTSIDE)
                 firings.append(_make_firing(ATOM_PATH_OUTSIDE, evaluation_id, coords))
 
