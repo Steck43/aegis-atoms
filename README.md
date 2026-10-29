@@ -93,7 +93,7 @@ PDP evaluate is a pre-tool call: the tool has not run yet, the call goes to atom
 
 The atoms harness runs eighteen callables from `adversarial_suite.ALL_CASES`. Sixteen are attacks: seven hard-deny as `CAUGHT-NAIVE`, eight `FALSE-ALLOW`, and H1 `HALTED`, which sits in the sixteen and not in the hard-deny numerator. The two benign cases split `CORRECT-ALLOW` and `FALSE-DENY`. Fixture-era 8/16 is a prior KPI. The capability-gate Stage-1 lab is a different harness, and a tally that does not name which is not a comparable number.
 
-Framework mappings reference OWASP (LLM and Agentic Top 10), MITRE ATLAS `v2026.06` (`mitre-atlas/atlas-data` `dist/v6/ATLAS-2026.06.yaml`), and NIST AI RMF, and live on the control.
+Framework mappings reference OWASP (LLM and Agentic Top 10), MITRE ATLAS `v2026.06` (`mitre-atlas/atlas-data` `dist/v6/ATLAS-2026.06.yaml`), and NIST AI RMF, and live on the control. One cite carries its own version: the memory secret egress control cites ATLAS `v2026.10` `AML.T0085.002`, because `v2026.10` retired `AML.T0057`.
 
 ## The bounded judge
 
