@@ -92,3 +92,13 @@ def test_flow_atom_shim_preserves_lattice_verdicts():
     assert atom.evaluate(_sink("write_file"), ctx) is AtomDecision.DENY
     ctx2 = _ctx_with(OriginClass.PUBLIC)
     assert atom.evaluate(_sink("write_file"), ctx2) is AtomDecision.ABSTAIN
+
+
+def test_secret_egress_control_cites_live_atlas_memory_id():
+    # AML.T0057 is absent from ATLAS v2026.10. Its memory case is AML.T0085.002.
+    from memory_governance import MEMORY_CONTROLS, CTRL_NO_SECRET_EGRESS
+
+    ctrl = next(c for c in MEMORY_CONTROLS if c.control_id == CTRL_NO_SECRET_EGRESS)
+    joined = " ".join(ctrl.framework_mappings)
+    assert "AML.T0085.002" in joined
+    assert "AML.T0057" not in joined
