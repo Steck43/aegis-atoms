@@ -175,7 +175,9 @@ MEMORY_CONTROLS: list[Control] = [
             "OWASP LLM02:2025 Sensitive Information Disclosure",
             "OWASP ASI06",
             "ATLAS AML.T0086",
-            "ATLAS AML.T0057",
+            # ATLAS v2026.10 retired AML.T0057 and moved its memory case to
+            # AML.T0085.002, so this cite carries its own version.
+            "ATLAS v2026.10 AML.T0085.002",
             "NIST AI RMF MANAGE-2.2",
         ],
     ),
